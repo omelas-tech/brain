@@ -60,6 +60,19 @@ function estimateTokens(entry) {
   return Math.ceil(((entry.title || '').length + 8) / 4);
 }
 
+/** Read a memory file's body (content after the frontmatter block). */
+function readMemoryBody(brainDir, memPath) {
+  try {
+    const content = fs.readFileSync(path.join(brainDir, memPath), 'utf-8');
+    const first = content.indexOf('---');
+    const second = content.indexOf('---', first + 3);
+    if (first !== -1 && second !== -1) return content.slice(second + 3).trim();
+    return content.trim();
+  } catch (_) {
+    return '';
+  }
+}
+
 function buildContextQuery(args) {
   const parts = [];
   if (args.project) parts.push(args.project);
@@ -128,17 +141,53 @@ function computeSessionStart(projectRoot, args = {}) {
     }
   );
 
-  // --- Budget-bound the recall set ---
-  // Pins (Phase 1) and skills (Phase 2) are empty here, so their budgets are
-  // reserved but unused; recall draws from whatever the total budget leaves.
-  const pinnedTokens = 0;
-  const skillsTokens = 0;
-  const recallCap = Math.min(config.recall_budget_tokens, cap - pinnedTokens - skillsTokens);
+  // --- Pinned tier (CoALA Phase 1): always present, scope-filtered, budget-capped ---
+  // The index entry is the source of truth (pinned.json is a maintained cache);
+  // scanning the index here avoids manifest/index drift.
+  const pinnedCandidates = [];
+  for (const [id, entry] of Object.entries(index.memories)) {
+    if (!entry.pinned) continue;
+    const scope = entry.pin_scope || 'global';
+    if (scope !== 'global') {
+      const scopedProject = scope.startsWith('project:') ? scope.slice('project:'.length) : null;
+      if (!args.project || scopedProject !== args.project) continue; // out-of-project pin
+    }
+    pinnedCandidates.push({ id, entry, scope, priority: entry.pin_priority || 0 });
+  }
+  pinnedCandidates.sort((a, b) =>
+    (b.priority - a.priority) ||
+    ((b.entry.strength || 0) - (a.entry.strength || 0)) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+
+  const pinned = [];
+  let pinnedTokens = 0;
+  let pinnedExcluded = 0;
+  const pinCap = Math.min(config.pin_budget_tokens, cap);
+  for (const c of pinnedCandidates) {
+    const est = estimateTokens(c.entry);
+    if (pinnedTokens + est > pinCap && pinned.length > 0) { pinnedExcluded++; continue; }
+    pinned.push({
+      id: c.id,
+      title: c.entry.title,
+      content: readMemoryBody(brainDir, c.entry.path),
+      scope: c.scope,
+      priority: c.priority,
+      tokens: est,
+    });
+    pinnedTokens += est;
+  }
+
+  // --- Budget-bound the recall set with whatever the pin/skills tiers leave ---
+  const skillsTokens = 0; // Phase 2
+  const recallCap = Math.max(0, Math.min(config.recall_budget_tokens, cap - pinnedTokens - skillsTokens));
+  const pinnedIds = new Set(pinned.map((p) => p.id));
 
   const context_recall = [];
   let used = 0;
   let excluded = 0;
   for (const mem of ranked.slice(0, top)) {
+    if (pinnedIds.has(mem.id)) continue; // already presented in the pinned tier
     const est = estimateTokens(mem);
     if (used + est > recallCap && context_recall.length > 0) {
       excluded++;
@@ -177,17 +226,21 @@ function computeSessionStart(projectRoot, args = {}) {
 
   return {
     memory_count: memoryCount,
-    pinned: [],
+    pinned,
     skills_index: [],
     context_recall,
     due_for_review: dueForReview,
     low_confidence_alerts,
     budget: {
       cap,
+      pin_cap: pinCap,
       recall_cap: recallCap,
       used: pinnedTokens + skillsTokens + used,
+      pinned_tokens: pinnedTokens,
+      recall_used: used,
       included: context_recall.length,
       excluded,
+      pinned_excluded: pinnedExcluded,
     },
   };
 }

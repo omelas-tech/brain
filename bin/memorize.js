@@ -29,6 +29,8 @@ const {
   readAssociations,
   writeAssociations,
   reinforceEdge,
+  readPinned,
+  writePinned,
   atomicWriteSync,
   validateBrainPath,
 } = require('../src/index-manager');
@@ -82,7 +84,7 @@ function buildMemoryFileContent(mem, id, now) {
     mem.type, mem.cognitive_type, mem.strength_adjustment
   );
 
-  const frontmatter = [
+  const fmLines = [
     '---',
     `id: ${id}`,
     `type: ${mem.type}`,
@@ -95,6 +97,16 @@ function buildMemoryFileContent(mem, id, now) {
     `decay_rate: ${decay_rate}`,
     `salience: ${mem.salience ?? 0.5}`,
     `confidence: ${mem.confidence ?? 0.7}`,
+  ];
+  // CoALA Phase 1: pinned (always-loaded) and stable (decay-exempt) are emitted
+  // only when set, so ordinary memories keep their existing frontmatter shape.
+  if (mem.pinned) {
+    fmLines.push('pinned: true');
+    fmLines.push(`pin_scope: "${mem.pin_scope || 'global'}"`);
+    fmLines.push(`pin_priority: ${mem.pin_priority || 0}`);
+  }
+  if (mem.stable) fmLines.push('stable: true');
+  fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
     `source: "${mem.source || ''}"`,
@@ -104,13 +116,14 @@ function buildMemoryFileContent(mem, id, now) {
     `  task_type: "${(mem.encoding_context && mem.encoding_context.task_type) || ''}"`,
     '---',
     '',
-  ].join('\n');
+  );
+  const frontmatter = fmLines.join('\n');
 
   return { fileContent: frontmatter + mem.content + '\n', strength, decay_rate };
 }
 
 function buildIndexEntry(mem, id, strength, decayRate, now) {
-  return {
+  const entry = {
     title: mem.title,
     path: mem.path,
     type: mem.type,
@@ -128,6 +141,14 @@ function buildIndexEntry(mem, id, strength, decayRate, now) {
     // CoALA Phase 0: cheap chars/4 token estimate for working-memory budgeting.
     token_estimate: Math.ceil((mem.content || '').length / 4),
   };
+  // CoALA Phase 1: only set when present — keeps existing index entries lean.
+  if (mem.pinned) {
+    entry.pinned = true;
+    entry.pin_scope = mem.pin_scope || 'global';
+    entry.pin_priority = mem.pin_priority || 0;
+  }
+  if (mem.stable) entry.stable = true;
+  return entry;
 }
 
 function updateMetaFiles(brainDir, memPath) {
@@ -280,6 +301,7 @@ async function main() {
   const now = new Date().toISOString();
   const results = [];
   const newIds = [];
+  const pinnedToAdd = [];
 
   for (const mem of input.memories) {
     // Validate required fields
@@ -313,6 +335,16 @@ async function main() {
     // Update index
     const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now);
     addMemory(index, id, indexEntry);
+
+    // CoALA Phase 1: register a born-pinned memory in the pinned manifest
+    if (mem.pinned) {
+      pinnedToAdd.push({
+        id,
+        scope: mem.pin_scope || 'global',
+        priority: mem.pin_priority || 0,
+        token_estimate: indexEntry.token_estimate,
+      });
+    }
 
     // Update associations — explicit related links
     for (const relatedId of (mem.related || [])) {
@@ -358,6 +390,16 @@ async function main() {
   writeIndex(index);
   writeAssociations(associations);
   writeSearchIndex(brainDir, searchIndex);
+
+  // CoALA Phase 1: persist any born-pinned memories to the pinned manifest
+  if (pinnedToAdd.length > 0) {
+    const pinned = readPinned();
+    for (const p of pinnedToAdd) {
+      pinned.pins = pinned.pins.filter((x) => x.id !== p.id);
+      pinned.pins.push(p);
+    }
+    writePinned(pinned);
+  }
 
   // Build output
   const output = {

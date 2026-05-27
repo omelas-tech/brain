@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - `brain --help` / `brain --version` on the unified dispatcher
 - **CoALA Phase 0 — budget-aware working memory.** New `brain session-start` aggregator returns a single deterministic, token-budget-bounded startup payload (`memory_count`, `pinned`, `skills_index`, `context_recall`, `due_for_review`, `low_confidence_alerts`, `budget`); `~/.brain/config.json` holds the working-memory budget (created lazily with safe defaults); each new memory records a `token_estimate`. Session-start prompts/hook now make one `brain session-start` call instead of hand-rolled recall + review + low-confidence checks.
+- **CoALA Phase 1 — pinned semantic tier + stable flag.** `brain pin <id> [--scope global|project:<name>] [--priority N]` / `brain unpin <id>` and the `/brain:pin` `/brain:unpin` commands. Pinned memories are injected at every session start regardless of recall score and are decay-exempt; `stable: true` exempts a memory from decay without forcing it to always load. `pinned`/`stable` memories are skipped by sleep-cycle homeostasis and pruning. `~/.brain/pinned.json` manifest; `/brain:memorize` now proposes pinning durable conventions. Fixes the long-standing hole where a stored preference (e.g. "always use tabs") only applied if recall happened to surface it.
 
 ## [0.1.0-beta.13] - 2026-04-05
 

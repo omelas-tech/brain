@@ -13,9 +13,12 @@
  * @param {number} baseStrength - Original strength (0.0-1.0)
  * @param {number} decayRate - Daily decay factor (e.g., 0.995)
  * @param {string|Date} lastAccessed - ISO timestamp of last access
+ * @param {boolean} [exempt=false] - CoALA Phase 1: pinned/stable memories are
+ *   decay-exempt — their strength never fades (semantic "stable" property).
  * @returns {number} Effective strength after decay
  */
-function computeDecayedStrength(baseStrength, decayRate, lastAccessed) {
+function computeDecayedStrength(baseStrength, decayRate, lastAccessed, exempt = false) {
+  if (exempt) return baseStrength;
   const lastDate = new Date(lastAccessed);
   const now = new Date();
   const daysElapsed = (now - lastDate) / (1000 * 60 * 60 * 24);
@@ -365,7 +368,8 @@ function rankMemories(memories, relevanceFn, options = {}) {
     const decayedStrength = computeDecayedStrength(
       mem.strength,
       mem.decay_rate,
-      mem.last_accessed
+      mem.last_accessed,
+      !!(mem.stable || mem.pinned) // pinned ⇒ implicitly stable (decay-exempt)
     );
     const recencyBonus = computeRecencyBonus(mem.last_accessed);
     const relevance = relevanceFn(mem);

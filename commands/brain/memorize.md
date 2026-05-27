@@ -40,6 +40,11 @@ For each memory, determine:
 
 **strength_adjustment** (optional, -0.15 to +0.15): Tweak base strength based on significance.
 
+**Pinned & stable** (optional, CoALA Phase 1):
+- `pinned: true` — always inject this memory at session start regardless of recall score (and decay-exempt). Optionally `pin_scope: "project:<name>"` (default `"global"`) and `pin_priority: <N>`.
+- `stable: true` — exempt from decay (never fades) without forcing it to always load — for timeless facts recalled on demand.
+- **Propose, don't assume:** when a memory is a durable convention/preference/standing decision (type ∈ {preference, decision, insight, relationship}, high confidence, low time-sensitivity), *suggest* pinning it — but only set `pinned` if the user agrees (or pin later with `/brain:pin`).
+
 ### 3. Call brain memorize
 
 Pipe the classified memories as JSON to the CLI in a **single bash call**:

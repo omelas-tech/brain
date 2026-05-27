@@ -33,6 +33,8 @@ days_elapsed = (now - last_accessed) / (1000 * 60 * 60 * 24)
 decayed_strength = strength * (decay_rate ^ days_elapsed)
 ```
 
+   **Decay-exempt memories (CoALA Phase 1):** if a memory is `pinned` or `stable`, its `decayed_strength` equals its raw `strength` (it never fades). Treat such memories as **Strong** regardless of elapsed time.
+
 4. Categorize each memory into tiers:
    - **Strong** (decayed_strength >= 0.6) — healthy, no action needed
    - **Moderate** (0.3 <= decayed_strength < 0.6) — consolidation candidates
@@ -78,7 +80,7 @@ Based on Tononi & Cirelli's **Synaptic Homeostasis Hypothesis (SHY)** — during
 scaling_factor = max(0.85, 0.5 / mean_effective_strength)
 ```
 
-3. For every memory: `strength = strength * scaling_factor`
+3. For every memory: `strength = strength * scaling_factor` — **except** `pinned` or `stable` memories, which are exempt from homeostatic downscaling (their strength is never altered).
 
 4. Selectively re-boost important memories:
    - **High salience** (salience >= 0.7): +0.05
@@ -346,7 +348,9 @@ During sleep, the brain prunes weak synaptic connections to maintain efficiency.
    ⚡ Skipping <title> — high salience (0.8) protects from auto-pruning
    ```
 
-3. Present the prune list (excluding salience-protected memories)
+   **Pinned/stable protection (CoALA Phase 1):** `pinned` or `stable` memories are also NEVER pruned or archived — they are decay-exempt, so they never reach the Fading tier in the first place. Skip them too.
+
+3. Present the prune list (excluding salience- and pin/stable-protected memories)
 
 4. Get user approval (default: archive all)
 

@@ -30,6 +30,8 @@ const DELEGATED = {
   memorize: 'memorize.js',
   cloud: 'cloud-sync.js',
   'session-start': 'session-start.js',
+  pin: 'pin.js',
+  unpin: 'unpin.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -48,6 +50,9 @@ Memory
   recall --reindex            Rebuild the search index
   memorize [--sync]           Store memories from a JSON payload on stdin
   reinforce <id> [<id>...]    Spaced reinforcement + Hebbian co-retrieval
+  pin <id> [--scope global|project:<name>] [--priority N]
+                              Pin a memory into the always-present tier
+  unpin <id>                  Remove a memory from the always-present tier
   session-start [--project P] [--task T] [--top N]
                               Budget-bounded startup payload (agent-invoked)
 

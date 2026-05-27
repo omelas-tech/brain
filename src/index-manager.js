@@ -18,6 +18,7 @@ const REVIEW_QUEUE_FILE = 'review-queue.json';
 const ARCHIVE_INDEX_FILE = '_archived/index.json';
 const SEARCH_INDEX_FILE = 'search-index.json';
 const CONFIG_FILE = 'config.json';
+const PINNED_FILE = 'pinned.json';
 
 // CoALA Phase 0 — working-memory budget (token estimates, chars/4 heuristic).
 // All values are conservative caps; the session-start aggregator never exceeds
@@ -484,11 +485,42 @@ function writeConfig(config, projectRoot) {
   atomicWriteSync(filePath, JSON.stringify(config, null, 2) + '\n');
 }
 
+// --- Pinned manifest (CoALA Phase 1: always-present semantic tier) ---
+
+/**
+ * Read the pinned-memory manifest. Lets session-start load pins without
+ * scanning the whole index. Missing/corrupt → empty manifest.
+ *
+ * @param {string} [projectRoot] - Project root directory
+ * @returns {Object} { version, pins: [{ id, scope, priority, token_estimate }] }
+ */
+function readPinned(projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), PINNED_FILE);
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    if (data && Array.isArray(data.pins)) return data;
+  } catch (_) { /* fall through */ }
+  return { version: 1, pins: [] };
+}
+
+/**
+ * Write the pinned-memory manifest to disk atomically.
+ *
+ * @param {Object} pinned - The pinned manifest
+ * @param {string} [projectRoot] - Project root directory
+ */
+function writePinned(pinned, projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), PINNED_FILE);
+  atomicWriteSync(filePath, JSON.stringify(pinned, null, 2) + '\n');
+}
+
 module.exports = {
   getBrainDir,
   DEFAULT_CONFIG,
   readConfig,
   writeConfig,
+  readPinned,
+  writePinned,
   readIndex,
   writeIndex,
   addMemory,
