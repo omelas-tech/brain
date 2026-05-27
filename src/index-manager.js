@@ -19,6 +19,7 @@ const ARCHIVE_INDEX_FILE = '_archived/index.json';
 const SEARCH_INDEX_FILE = 'search-index.json';
 const CONFIG_FILE = 'config.json';
 const PINNED_FILE = 'pinned.json';
+const SKILLS_INDEX_FILE = 'skills-index.json';
 
 // CoALA Phase 0 — working-memory budget (token estimates, chars/4 heuristic).
 // All values are conservative caps; the session-start aggregator never exceeds
@@ -514,6 +515,35 @@ function writePinned(pinned, projectRoot) {
   atomicWriteSync(filePath, JSON.stringify(pinned, null, 2) + '\n');
 }
 
+// --- Skills index (CoALA Phase 2: procedural progressive disclosure) ---
+
+/**
+ * Read the lightweight skills index (the L0 advertised list). Missing/corrupt
+ * → empty index.
+ *
+ * @param {string} [projectRoot] - Project root directory
+ * @returns {Object} { version, skills: [{ name, description, triggers, path, strength, use_count, fail_count, last_used }] }
+ */
+function readSkillsIndex(projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), SKILLS_INDEX_FILE);
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    if (data && Array.isArray(data.skills)) return data;
+  } catch (_) { /* fall through */ }
+  return { version: 1, skills: [] };
+}
+
+/**
+ * Write the skills index to disk atomically.
+ *
+ * @param {Object} skillsIndex - The skills index
+ * @param {string} [projectRoot] - Project root directory
+ */
+function writeSkillsIndex(skillsIndex, projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), SKILLS_INDEX_FILE);
+  atomicWriteSync(filePath, JSON.stringify(skillsIndex, null, 2) + '\n');
+}
+
 module.exports = {
   getBrainDir,
   DEFAULT_CONFIG,
@@ -521,6 +551,8 @@ module.exports = {
   writeConfig,
   readPinned,
   writePinned,
+  readSkillsIndex,
+  writeSkillsIndex,
   readIndex,
   writeIndex,
   addMemory,

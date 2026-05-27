@@ -39,6 +39,7 @@ const {
 } = require('../src/index-manager');
 
 const { rankMemories } = require('../src/scorer');
+const { advertisedSummaries } = require('../src/skills');
 
 function parseArgs(argv) {
   const args = { project: null, topics: null, task: null, top: 5 };
@@ -109,8 +110,10 @@ function computeSessionStart(projectRoot, args = {}) {
   if (!fs.existsSync(path.join(brainDir, 'index.json'))) return empty;
 
   const index = readIndex(projectRoot);
-  if (!index || !index.memories || Object.keys(index.memories).length === 0) return empty;
+  if (!index || !index.memories) return empty;
 
+  // Note: we proceed even with zero memories — pins and skills are independent
+  // of episodic memory and should still be surfaced.
   const memoryCount = Object.keys(index.memories).length;
 
   // --- Context recall (deterministic, reuses the recall engine) ---
@@ -178,8 +181,19 @@ function computeSessionStart(projectRoot, args = {}) {
     pinnedTokens += est;
   }
 
+  // --- Skills index (CoALA Phase 2): advertise name + description only (L0) ---
+  const skills_index = [];
+  let skillsTokens = 0;
+  let skillsExcluded = 0;
+  const skillsCap = Math.min(config.skills_index_budget_tokens, Math.max(0, cap - pinnedTokens));
+  for (const s of advertisedSummaries(projectRoot)) {
+    const est = Math.ceil(((s.name || '').length + (s.description || '').length + 8) / 4);
+    if (skillsTokens + est > skillsCap && skills_index.length > 0) { skillsExcluded++; continue; }
+    skills_index.push({ name: s.name, description: s.description });
+    skillsTokens += est;
+  }
+
   // --- Budget-bound the recall set with whatever the pin/skills tiers leave ---
-  const skillsTokens = 0; // Phase 2
   const recallCap = Math.max(0, Math.min(config.recall_budget_tokens, cap - pinnedTokens - skillsTokens));
   const pinnedIds = new Set(pinned.map((p) => p.id));
 
@@ -227,20 +241,23 @@ function computeSessionStart(projectRoot, args = {}) {
   return {
     memory_count: memoryCount,
     pinned,
-    skills_index: [],
+    skills_index,
     context_recall,
     due_for_review: dueForReview,
     low_confidence_alerts,
     budget: {
       cap,
       pin_cap: pinCap,
+      skills_cap: skillsCap,
       recall_cap: recallCap,
       used: pinnedTokens + skillsTokens + used,
       pinned_tokens: pinnedTokens,
+      skills_tokens: skillsTokens,
       recall_used: used,
       included: context_recall.length,
       excluded,
       pinned_excluded: pinnedExcluded,
+      skills_excluded: skillsExcluded,
     },
   };
 }
