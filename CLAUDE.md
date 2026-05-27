@@ -81,6 +81,9 @@ Memories store their encoding context (project, topics, task type). During recal
 - `/brain:sleep [scope]` — Full maintenance cycle: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, reorganize, consolidate, prune, REM dreaming, and expertise detection
 - `/brain:status` — Dashboard with brain health overview
 - `/brain:sync [subcommand]` — Sync memories via Git remote or export/import for portability
+- `/brain:pin [id|query]` — Pin a memory to the always-present tier (CoALA Phase 1)
+- `/brain:unpin [id|query]` — Remove a memory from the always-present tier
+- `/brain:skill [list|show|add|use|remove|export]` — Manage procedural skills (CoALA Phase 2)
 
 ## Session Start Behavior
 
@@ -88,24 +91,23 @@ Memories store their encoding context (project, topics, task type). During recal
 
 If `~/.brain/index.json` exists:
 
-1. **Read the index** to get memory count and categories
-2. **Run the recall engine only if the current project has relevant memories:**
+1. **Run the session-start aggregator** — one deterministic, budget-bounded call:
    ```bash
-   brain recall --context --project "<current project>" --top 5
+   brain session-start --project "<current project>"
    ```
-   If the project is unrelated to any stored memories (e.g., a new project with no matching context), skip the recall and just show the count. Don't waste cycles searching when nothing will match.
-3. **Silently internalize** results — do NOT dump memory contents
-4. **Output a single status line:**
+   It returns JSON with `memory_count`, `pinned` (always-apply conventions/preferences), `skills_index` (available procedural skills — name + description only), `context_recall` (memories relevant to this project), `due_for_review`, `low_confidence_alerts`, and `budget`. If `~/.brain/index.json` is absent it returns an empty payload.
+2. **Silently internalize** the payload — treat `pinned` facts as active constraints, note which `skills_index` skills exist (load a skill's full `SKILL.md` only when a task matches it), and keep `context_recall` in mind. Do **NOT** dump contents.
+3. **Output a single status line:**
 
 ```
 🧠 Brain active — <N> memories (<M> in project context)
 ```
 
 Only add extra lines if actionable:
-- `📋 <X> due for review` — if review queue has items
-- `⚠️ <N> low-confidence memories used frequently` — if access_count ≥ 3 and confidence < 0.5
+- `📋 <X> due for review` — if `due_for_review > 0`
+- `⚠️ <N> low-confidence memories used frequently` — if `low_confidence_alerts` is non-empty
 
-**The goal is ambient awareness** — know about past decisions, learnings, and preferences without reciting them. Reference them naturally when relevant.
+The aggregator is budget-bounded (`~/.brain/config.json`) and never exceeds the working-memory token budget, so just internalize whatever it returns. **The goal is ambient awareness** — know about past decisions, learnings, and preferences without reciting them.
 
 ## Ambient Session Tracking
 
