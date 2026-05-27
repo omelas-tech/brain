@@ -125,6 +125,8 @@ function buildIndexEntry(mem, id, strength, decayRate, now) {
     tags: mem.tags || [],
     related: mem.related || [],
     encoding_context: mem.encoding_context || {},
+    // CoALA Phase 0: cheap chars/4 token estimate for working-memory budgeting.
+    token_estimate: Math.ceil((mem.content || '').length / 4),
   };
 }
 

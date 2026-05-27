@@ -6,12 +6,16 @@ This hook is triggered at the start of a coding session. Its purpose is to load 
 
 ## Behavior
 
-At session start, if `.brain/index.json` exists:
+At session start, if `.brain/index.json` exists, call the budget-bounded aggregator:
 
-1. **Read the index** to understand the current brain state
-2. **Identify high-value memories** — the top 3-5 memories by effective strength that are relevant to the current project
-3. **Silently load context** — internalize these memories so you can reference them naturally during the session
-4. **Do NOT dump memories** — do not print memory contents at session start unless the user asks
+```bash
+brain session-start --project "<current project>"
+```
+
+It returns one JSON payload — `memory_count`, `pinned`, `skills_index`, `context_recall`, `due_for_review`, `low_confidence_alerts`, `budget` — capped to the working-memory token budget in `config.json`. Then:
+
+1. **Silently internalize** the payload — apply `pinned` facts as active constraints, note available `skills_index` skills, keep `context_recall` in mind
+2. **Do NOT dump memories** — do not print contents at session start unless the user asks
 
 ### Context Capture
 

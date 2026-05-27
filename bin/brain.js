@@ -29,6 +29,7 @@ const DELEGATED = {
   reinforce: 'reinforce.js',
   memorize: 'memorize.js',
   cloud: 'cloud-sync.js',
+  'session-start': 'session-start.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -47,6 +48,8 @@ Memory
   recall --reindex            Rebuild the search index
   memorize [--sync]           Store memories from a JSON payload on stdin
   reinforce <id> [<id>...]    Spaced reinforcement + Hebbian co-retrieval
+  session-start [--project P] [--task T] [--top N]
+                              Budget-bounded startup payload (agent-invoked)
 
 Sync
   cloud <login|logout|push|pull|status>
@@ -83,7 +86,12 @@ function main() {
   const file = DELEGATED[sub];
   if (file) {
     process.argv.splice(2, 1); // drop the subcommand token
-    require(path.join(__dirname, file));
+    const mod = require(path.join(__dirname, file));
+    // Modules guarded with `require.main === module` (e.g. session-start) export
+    // a main() that we must invoke; legacy modules already ran on require.
+    if (mod && typeof mod.main === 'function') {
+      mod.main(process.argv.slice(2));
+    }
     return;
   }
 

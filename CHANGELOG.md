@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Added
 
 - `brain --help` / `brain --version` on the unified dispatcher
+- **CoALA Phase 0 — budget-aware working memory.** New `brain session-start` aggregator returns a single deterministic, token-budget-bounded startup payload (`memory_count`, `pinned`, `skills_index`, `context_recall`, `due_for_review`, `low_confidence_alerts`, `budget`); `~/.brain/config.json` holds the working-memory budget (created lazily with safe defaults); each new memory records a `token_estimate`. Session-start prompts/hook now make one `brain session-start` call instead of hand-rolled recall + review + low-confidence checks.
 
 ## [0.1.0-beta.13] - 2026-04-05
 

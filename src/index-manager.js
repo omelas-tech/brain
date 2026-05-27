@@ -17,6 +17,17 @@ const CONTEXTS_FILE = 'contexts.json';
 const REVIEW_QUEUE_FILE = 'review-queue.json';
 const ARCHIVE_INDEX_FILE = '_archived/index.json';
 const SEARCH_INDEX_FILE = 'search-index.json';
+const CONFIG_FILE = 'config.json';
+
+// CoALA Phase 0 — working-memory budget (token estimates, chars/4 heuristic).
+// All values are conservative caps; the session-start aggregator never exceeds
+// working_memory_budget_tokens and reports overflow rather than dropping silently.
+const DEFAULT_CONFIG = {
+  working_memory_budget_tokens: 3000,
+  pin_budget_tokens: 1500,
+  skills_index_budget_tokens: 800,
+  recall_budget_tokens: 700,
+};
 
 /**
  * Write data to a file atomically by writing to a temp file first,
@@ -440,8 +451,44 @@ function writeSearchIndex(searchIndex, projectRoot) {
   atomicWriteSync(filePath, JSON.stringify(searchIndex, null, 2) + '\n');
 }
 
+// --- Config (CoALA Phase 0: working-memory budget) ---
+
+/**
+ * Read the brain config, merged over safe defaults. Created lazily — a missing
+ * or unreadable config falls back to DEFAULT_CONFIG so session-start is robust.
+ *
+ * @param {string} [projectRoot] - Project root directory
+ * @returns {Object} Config with all budget keys guaranteed present
+ */
+function readConfig(projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), CONFIG_FILE);
+  let onDisk = {};
+  try {
+    onDisk = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (_) {
+    // ENOENT (not yet created) or corrupt JSON → fall back to defaults.
+    // Budgets are non-critical; a broken config must not break startup.
+    onDisk = {};
+  }
+  return { ...DEFAULT_CONFIG, ...onDisk };
+}
+
+/**
+ * Write the brain config to disk atomically.
+ *
+ * @param {Object} config - The config object
+ * @param {string} [projectRoot] - Project root directory
+ */
+function writeConfig(config, projectRoot) {
+  const filePath = path.join(getBrainDir(projectRoot), CONFIG_FILE);
+  atomicWriteSync(filePath, JSON.stringify(config, null, 2) + '\n');
+}
+
 module.exports = {
   getBrainDir,
+  DEFAULT_CONFIG,
+  readConfig,
+  writeConfig,
   readIndex,
   writeIndex,
   addMemory,
