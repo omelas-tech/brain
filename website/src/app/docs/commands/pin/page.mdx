@@ -1,0 +1,72 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "/brain:pin - Brain Memory",
+  description:
+    "Pin a memory to the always-present tier so it loads every session and never decays.",
+  category: "Commands",
+  order: 3,
+};
+
+# /brain:pin
+
+Pin a memory to the **always-present tier**. Pinned memories are injected at every session start regardless of recall score, and are decay-exempt — they never fade. See [Pinned Memory](/docs/concepts/pinned-memory/) for the underlying concept.
+
+## Usage
+
+```
+/brain:pin [id|query]
+```
+
+**Arguments:**
+- `[id|query]` — A memory ID (`mem_…`) to pin directly, or a search query. With a query, the agent runs recall, shows the top matches, and confirms which one to pin.
+
+## What It Does
+
+1. **Resolves the target** — uses the ID directly, or recalls candidates from your query and confirms the right one.
+2. **Chooses a scope** — `global` (default, loads everywhere) or `project:<name>` (loads only in that project).
+3. **Pins it** — records the memory in `~/.brain/pinned.json` and marks it decay-exempt.
+4. **Confirms:**
+
+```
+📌 Pinned "Always use tabs, never spaces" (global) — will load every session.
+```
+
+## Scope & Priority
+
+```bash
+brain pin <id> [--scope global|project:<name>] [--priority N]
+```
+
+- **`--scope`** — `global` loads in every project; `project:<name>` restricts the pin to a single project.
+- **`--priority`** (default `0`) — breaks ties when the pin budget (`~/.brain/config.json` → `pin_budget_tokens`) is tight. Higher priority wins a contested slot.
+
+## When to Pin
+
+Durable conventions, preferences, and standing decisions the agent must **always** honor:
+
+- "Always use tabs, never spaces"
+- "Deploy via Cloudflare Workers"
+- "Never touch the legacy billing module"
+
+Good candidates are `preference`, `decision`, `insight`, and `relationship` memories with high confidence and low time-sensitivity.
+
+<Callout type="warning">
+  Don't pin episodic or time-sensitive content (a one-off incident, a temporary workaround). Those belong in normal recall, where [decay](/docs/concepts/strength-decay/) can retire them. Pinning stale facts keeps them permanently in context.
+</Callout>
+
+## Example
+
+```
+User: /brain:pin we always deploy through cloudflare
+
+Agent: Found a matching memory:
+  • Decision: "Deploy via Cloudflare Workers, not Vercel" (mem_20260512_c4d8e2)
+
+📌 Pinned "Deploy via Cloudflare Workers, not Vercel" (global) — will load every session.
+   It's now decay-exempt and injected at the start of every session.
+```
+
+<Callout type="tip">
+  [`/brain:memorize`](/docs/commands/memorize/) proactively proposes pinning when it stores a durable convention — so you often don't need to pin manually. Use [`/brain:unpin`](/docs/commands/unpin/) to remove a pin.
+</Callout>

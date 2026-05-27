@@ -1,0 +1,95 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "/brain:skill - Brain Memory",
+  description:
+    "Manage procedural skills — reusable how-to workflows served via progressive disclosure.",
+  category: "Commands",
+  order: 12,
+};
+
+# /brain:skill
+
+Manage [procedural memory](/docs/concepts/procedural-skills/) — reusable *how to do things* stored as `~/.brain/_skills/<name>/SKILL.md`. Skills use three-level **progressive disclosure** so they never bloat the context window:
+
+| Level | When | What loads |
+|-------|------|------------|
+| **L0** | Session start | Each skill's name + description only (~100 tokens) |
+| **L1** | A matching task | The full `SKILL.md` step-by-step instructions |
+| **L2** | A step needs them | Referenced `resources/` (templates, scripts) |
+
+## Usage
+
+```
+/brain:skill [list|show|add|use|remove|export] [args]
+```
+
+## Actions
+
+### list
+
+Show the advertised skills (the L0 index):
+
+```bash
+brain skill list
+```
+
+### show
+
+Read a skill's full instructions — do this when a task matches a skill's description or triggers:
+
+```bash
+brain skill show <name>
+```
+
+### add
+
+Add a skill by piping JSON on stdin:
+
+```bash
+brain skill add <<'EOF'
+{
+  "name": "structured-code-review",
+  "description": "One-paragraph advertised summary used for matching (~100 tokens).",
+  "triggers": ["code review", "review PR", "audit changes"],
+  "body": "## Steps\n1. ...\n2. ..."
+}
+EOF
+```
+
+### use
+
+Record an outcome after running a skill. Success strengthens it; `--failed` weakens it. A skill that fails too often demotes itself out of the advertised L0 index:
+
+```bash
+brain skill use <name>            # succeeded
+brain skill use <name> --failed   # produced a bad outcome
+```
+
+### remove
+
+```bash
+brain skill remove <name>
+```
+
+### export
+
+Export a skill into the host agent's native format so it becomes directly executable (writes `.claude/skills/<name>/SKILL.md` or `.gemini/...` in the current project):
+
+```bash
+brain skill export <name> [--target claude|gemini]
+```
+
+## Guidance
+
+- Advertise skills with a **crisp, matchable description** — that single line is all the agent sees at L0, so it must convey *when* to reach for the skill.
+- Call `show` only when a task genuinely matches; don't pre-load skills speculatively.
+- Always record the outcome with `use` (success or `--failed`) so the strength and demotion feedback loop stays accurate.
+
+<Callout type="info">
+  Skills aren't only hand-authored. During the [sleep cycle](/docs/commands/sleep/), Brain crystallizes recurring task-solving patterns from repeated experience into new skills (user-confirmed) — your skill library grows from what the agent actually does.
+</Callout>
+
+<Callout type="tip">
+  See [Procedural Skills](/docs/concepts/procedural-skills/) for the full concept, including how progressive disclosure keeps skills out of working memory until they're needed.
+</Callout>

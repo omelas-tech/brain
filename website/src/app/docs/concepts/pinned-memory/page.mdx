@@ -1,0 +1,77 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Pinned Memory - Brain Memory",
+  description:
+    "Pin critical conventions and preferences to the always-present tier — loaded every session, regardless of recall, and never decaying.",
+  category: "Concepts",
+  order: 6,
+};
+
+# Pinned Memory
+
+Recall is probabilistic. A memory only enters the agent's context if the [scoring formula](/docs/advanced/scoring-formula/) happens to surface it for the current query. That's the right behavior for *experience* — but it's not good enough for the facts an agent must **never** miss: coding conventions, standing decisions, hard constraints.
+
+A preference stored as "always use tabs, never spaces" is useless if it only applies on the sessions where recall surfaces it. **Pinning** closes that gap.
+
+## Two orthogonal properties
+
+Brain separates two things that are usually conflated into a single "always-on knowledge" idea:
+
+| Property | What it does | Use for |
+|----------|--------------|---------|
+| **`pinned`** | Injected into context at **every** session start, regardless of recall score. Implies `stable`. | Conventions and preferences the agent must always honor |
+| **`stable`** | Exempt from decay and pruning — never fades — **without** forcing it to always load | Timeless facts you recall on demand but don't want to lose |
+
+A pinned memory is always stable. A stable memory is not necessarily pinned — it still goes through normal recall, it just never decays out of existence.
+
+<Callout type="info">
+  This maps directly to **semantic memory** in the [CoALA](https://arxiv.org/abs/2309.02427) agent-memory model — knowledge that is always present in context — decomposed into two independent dimensions (always-loaded vs. non-decaying) so you can choose exactly the behavior you want.
+</Callout>
+
+## How pinning works
+
+When you pin a memory:
+
+1. Its ID is recorded in `~/.brain/pinned.json` (the always-present manifest) with its scope and priority.
+2. At session start, [`brain session-start`](/docs/advanced/working-memory/) reads that manifest and injects the full content of every applicable pin **before** any recall scoring runs.
+3. Decay no longer applies — `effective_strength = base_strength` always.
+4. The [sleep cycle](/docs/commands/sleep/) skips pinned and stable memories during synaptic homeostasis and pruning, so they are never scaled down or archived.
+
+### Scope
+
+Pins are scoped so they don't bloat every project's context:
+
+- **`global`** (default) — loads in every project, everywhere.
+- **`project:<name>`** — loads only while you're working in that project. Use this for project-specific conventions ("this repo uses pnpm, not npm").
+
+### Priority and budget
+
+The always-present tier is capped by `pin_budget_tokens` in [`~/.brain/config.json`](/docs/advanced/working-memory/) so it can never crowd out the context window. When pins exceed the budget, they're selected by `--priority` (higher wins) then by strength, and the overflow is reported rather than silently dropped.
+
+## When to pin
+
+Pin durable, low-time-sensitivity knowledge the agent must always honor:
+
+- **Preferences** — "always use tabs", "prefer functional components"
+- **Standing decisions** — "deploy via Cloudflare Workers", "Postgres is the only datastore"
+- **Hard constraints** — "never touch the legacy billing module"
+
+Good candidates are `preference`, `decision`, `insight`, and `relationship` memories with high confidence.
+
+<Callout type="warning">
+  **Don't pin episodic or time-sensitive content** — a one-off incident, a temporary workaround, "the deploy failed last Tuesday." Those belong in normal recall, where [decay](/docs/concepts/strength-decay/) can retire them once they stop being relevant. Pinning them keeps stale facts permanently in context.
+</Callout>
+
+## Managing pins
+
+```bash
+brain pin <id> --scope global --priority 1   # pin a memory
+brain unpin <id>                              # remove it from the tier
+```
+
+Or use the slash commands [`/brain:pin`](/docs/commands/pin/) and [`/brain:unpin`](/docs/commands/unpin/), which resolve a memory by query and confirm before pinning. [`/brain:memorize`](/docs/commands/memorize/) also proactively proposes pinning when it stores a durable convention.
+
+<Callout type="tip">
+  Unpinning returns a memory to normal recall + decay but leaves an independent `stable` flag untouched. If you want a fact to stop loading every session but still never fade, unpin it while keeping `stable: true`.
+</Callout>

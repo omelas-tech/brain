@@ -87,6 +87,22 @@ const pages = [
     category: "Concepts",
     dir: "concepts/salience-confidence",
   },
+  {
+    title: "Pinned Memory",
+    description:
+      "Pin critical conventions and preferences to the always-present tier — loaded every session, never decaying.",
+    href: "/docs/concepts/pinned-memory",
+    category: "Concepts",
+    dir: "concepts/pinned-memory",
+  },
+  {
+    title: "Procedural Skills",
+    description:
+      "Reusable how-to workflows served via progressive disclosure and learned from repeated experience.",
+    href: "/docs/concepts/procedural-skills",
+    category: "Concepts",
+    dir: "concepts/procedural-skills",
+  },
 
   // Commands
   {
@@ -112,6 +128,22 @@ const pages = [
     href: "/docs/commands/remember",
     category: "Commands",
     dir: "commands/remember",
+  },
+  {
+    title: "pin",
+    description:
+      "Pin a memory to the always-present tier — loaded every session, never decaying.",
+    href: "/docs/commands/pin",
+    category: "Commands",
+    dir: "commands/pin",
+  },
+  {
+    title: "unpin",
+    description:
+      "Remove a memory from the always-present tier, returning it to normal recall and decay.",
+    href: "/docs/commands/unpin",
+    category: "Commands",
+    dir: "commands/unpin",
   },
   {
     title: "review",
@@ -170,6 +202,14 @@ const pages = [
     dir: "commands/status",
   },
   {
+    title: "skill",
+    description:
+      "Manage procedural skills — reusable how-to workflows with progressive disclosure.",
+    href: "/docs/commands/skill",
+    category: "Commands",
+    dir: "commands/skill",
+  },
+  {
     title: "sync",
     description:
       "Sync memories via Git remote or export/import for cross-device portability.",
@@ -218,6 +258,14 @@ const pages = [
     href: "/docs/advanced/portable-sync",
     category: "Advanced",
     dir: "advanced/portable-sync",
+  },
+  {
+    title: "Working Memory & Session Start",
+    description:
+      "How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.",
+    href: "/docs/advanced/working-memory",
+    category: "Advanced",
+    dir: "advanced/working-memory",
   },
 
   // Reference

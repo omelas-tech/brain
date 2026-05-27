@@ -1,0 +1,77 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Working Memory & Session Start - Brain Memory",
+  description:
+    "How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.",
+  category: "Advanced",
+  order: 5,
+};
+
+# Working Memory & Session Start
+
+The agent's context window **is** its working memory — fast, volatile, and strictly size-limited. Brain doesn't manage the context window itself (that's the host agent's job), but everything Brain injects at session start *consumes* working memory. So Brain has to be **budget-aware**: it must decide what's worth loading and guarantee it never overflows.
+
+<Callout type="info">
+  This is **working memory** in the [CoALA](https://arxiv.org/abs/2309.02427) agent-memory model — the one type Brain deliberately delegates to the host, while taking responsibility for not bloating it.
+</Callout>
+
+## The session-start aggregator
+
+When a session begins, the agent makes a single call:
+
+```bash
+brain session-start --project "<current project>"
+```
+
+It returns one deterministic, token-budget-bounded JSON payload — replacing what used to be a hand-rolled sequence of separate recall, review, and low-confidence checks:
+
+```json
+{
+  "memory_count": 142,
+  "pinned": [{ "id": "mem_…", "title": "…", "content": "…", "tokens": 48 }],
+  "skills_index": [{ "name": "structured-code-review", "description": "…" }],
+  "context_recall": [{ "id": "mem_…", "title": "…", "score": 0.72 }],
+  "due_for_review": 3,
+  "low_confidence_alerts": [],
+  "budget": { "used": 1840, "cap": 3000 }
+}
+```
+
+The agent treats `pinned` facts as active constraints, notes which `skills_index` skills exist (loading full instructions only on a match), and keeps `context_recall` in mind — all without dumping any of it to the user.
+
+## The budget
+
+A separate `~/.brain/config.json` (created lazily with safe defaults) caps how much each part of the payload may consume:
+
+```json
+{
+  "working_memory_budget_tokens": 3000,
+  "pin_budget_tokens": 1500,
+  "skills_index_budget_tokens": 800,
+  "recall_budget_tokens": 700
+}
+```
+
+| Setting | Default | Caps |
+|---------|---------|------|
+| `working_memory_budget_tokens` | 3000 | The entire `session-start` payload |
+| `pin_budget_tokens` | 1500 | [Pinned](/docs/concepts/pinned-memory/) always-present memories |
+| `skills_index_budget_tokens` | 800 | The [skills](/docs/concepts/procedural-skills/) L0 index |
+| `recall_budget_tokens` | 700 | Context-relevant recalled memories |
+
+### Token estimation
+
+Token counts use a dependency-free heuristic computed once per memory at write time and stored on its index entry — no tokenizer, no runtime dependencies, consistent with Brain's [zero-dependency design](/docs/reference/configuration/).
+
+### Selection and overflow
+
+The aggregator fills the budget in priority order: applicable pins first (by [priority](/docs/concepts/pinned-memory/) then strength), then the skills index, then top-ranked context recall. When a section exceeds its sub-budget, the overflow is **reported** in the payload rather than silently dropped, so you always know what didn't make it in.
+
+<Callout type="tip">
+  Raise <code>working_memory_budget_tokens</code> if you run with very large context windows and want more memory loaded up front; lower it to keep Brain's footprint minimal on smaller models.
+</Callout>
+
+## Primacy & recency ordering
+
+Long contexts suffer from "lost in the middle" — models attend best to the **start and end** of their input. The aggregator orders recalled memories so the highest-ranked land at the edges of the payload, where they're most likely to be used, rather than buried in the middle.

@@ -1,0 +1,73 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Procedural Skills - Brain Memory",
+  description:
+    "Reusable how-to workflows stored as SKILL.md files, served via progressive disclosure and learned from repeated experience.",
+  category: "Concepts",
+  order: 7,
+};
+
+# Procedural Skills
+
+Procedural memory is *how to do things* — reusable, step-by-step workflows. Where a [semantic memory](/docs/concepts/cognitive-types/) tells the agent **what is true**, a skill tells it **how to act**: how to run a structured code review, how to cut a release, how to debug a memory leak.
+
+Brain stores skills as `~/.brain/_skills/<name>/SKILL.md` — a Markdown file with a short advertised description plus the full instructions, alongside an optional `resources/` directory of templates or scripts.
+
+<Callout type="info">
+  This is the **procedural memory** type from the [CoALA](https://arxiv.org/abs/2309.02427) agent-memory model, implemented with the same **progressive disclosure** pattern used by open agent-skill standards — so skills never flood the context window.
+</Callout>
+
+## Progressive disclosure
+
+Loading every skill's full instructions at once would blow the context budget. Instead, skills reveal themselves in three levels:
+
+| Level | When | What loads |
+|-------|------|------------|
+| **L0** | Every session start | Only each skill's **name + description** (~100 tokens each) |
+| **L1** | A task matches a skill | The full `SKILL.md` step-by-step instructions |
+| **L2** | A step needs them | Referenced `resources/` (templates, scripts) |
+
+At session start the agent sees a lightweight catalog (the L0 index). When a task matches a skill's description or triggers, it reads the full instructions (L1). Resources are pulled in only at the moment a step actually needs them (L2).
+
+The L0 index lives in `~/.brain/skills-index.json` and is injected at session start [budget-capped](/docs/advanced/working-memory/) by `skills_index_budget_tokens`.
+
+<Callout type="tip">
+  The advertised description is the **only** thing the agent sees at L0, so make it a crisp, matchable one-liner that conveys *when to reach for the skill* — not just what it does.
+</Callout>
+
+## Skills strengthen with use
+
+Like the procedural memory of a practiced skill, a Brain skill gets stronger the more it's used well — and weaker when it doesn't:
+
+```bash
+brain skill use <name>            # succeeded — strengthens the skill
+brain skill use <name> --failed   # produced a bad outcome — weakens it
+```
+
+A skill that fails too often **demotes itself out of the advertised L0 index**, so the agent stops reaching for workflows that don't work. Always record the outcome so this feedback loop stays accurate.
+
+## Learned, not just authored
+
+Skills aren't only hand-written. During the [sleep cycle](/docs/commands/sleep/), Brain runs **procedural crystallization**: it clusters repeated procedural and experience memories, and when it detects the same kind of task being solved the same way again and again, it proposes distilling that recurring pattern into a new `SKILL.md` (always user-confirmed, never silent).
+
+This is the episodic → procedural learning loop — the same mechanism behind [semantic crystallization](/docs/advanced/sleep-cycle/), applied to *how-to* knowledge. Your agent's skill library grows from what it actually does.
+
+## Export to native skills
+
+A Brain skill can be exported into your host agent's native skill format so it becomes directly executable:
+
+```bash
+brain skill export <name> --target claude   # writes .claude/skills/<name>/SKILL.md
+```
+
+Brain remains the *brain* — it stores, distills, and decides which procedures are worth keeping — while the host agent is the *hands* that executes them.
+
+## Managing skills
+
+See the [`/brain:skill`](/docs/commands/skill/) command for the full `list | show | add | use | remove | export` surface.
+
+```bash
+brain skill list                          # advertised skills (L0)
+brain skill show structured-code-review   # full instructions (L1)
+```
