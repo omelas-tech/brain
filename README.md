@@ -44,6 +44,8 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Context-dependent recall** — Memories encoded in a similar context to the current session are scored higher
 - **Spaced reinforcement** — Memories recalled after longer intervals get bigger boosts, cramming produces diminishing returns
 - **Cognitive types** — Episodic, semantic, and procedural memories each decay differently, just like in the brain
+- **Always-present knowledge** — Pin critical conventions and preferences so they load every session, bypassing recall and never decaying — the facts your agent must never miss
+- **Procedural skills** — Reusable how-to workflows with progressive disclosure, learned automatically from repeated experience and exportable to your agent's native skills
 - **On-demand depth** — Subcategories are created as needed, not pre-defined
 - **Consolidation** — Weak related memories merge into stronger combined knowledge
 - **Zero dependencies** — Pure file I/O, no databases, no servers, no embeddings required
@@ -77,6 +79,8 @@ brain update
 ```
 
 The first command updates the package and the `brain` CLI. The second command refreshes the slash command prompts for your installed runtimes. Target specific runtimes with `--claude`, `--gemini`, `--openai`, or `--all`.
+
+> **Upgrading from an older version?** The separate binaries (`brain-recall`, `brain-memorize`, `brain-reinforce`, `brain-cloud`, `brain-memory`) were unified into a single `brain` dispatcher — use `brain recall`, `brain memorize`, `brain reinforce`, `brain cloud <…>` instead. Run `brain update` to refresh your runtime prompts to the new command surface.
 
 > **Why not `npx`?** `npx` runs the setup wizard in a temporary directory that is discarded after execution. The `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`) won't be available in your PATH, which means agents will fall back to less reliable manual file operations. Always use `npm install -g` to ensure everything works correctly.
 
@@ -120,6 +124,8 @@ Then append the contents of the corresponding prompt file to your agent's instru
 | `/brain:init` | Initialize `~/.brain/` directory structure with default categories |
 | `/brain:memorize [topic] [--sync]` | Store memories from current session context (add `--sync` to auto-push) |
 | `/brain:remember [query]` | Recall relevant memories with spreading activation and context matching |
+| `/brain:pin [id\|query]` | Pin a memory to the always-present tier — loads every session, never decays |
+| `/brain:unpin [id\|query]` | Remove a memory from the always-present tier |
 | `/brain:review [scope]` | Spaced repetition review session for due memories |
 | `/brain:explore [category]` | Browse the brain hierarchy with visual tree view |
 | `/brain:consolidate [scope]` | Merge related weak memories into stronger combined ones |
@@ -127,6 +133,7 @@ Then append the contents of the corresponding prompt file to your agent's instru
 | `/brain:sunshine [target]` | Deep forensic erasure — trace and remove all references |
 | `/brain:sleep [scope]` | Full maintenance cycle — 9 neuroscience-inspired phases |
 | `/brain:status` | Dashboard with brain health metrics and recommendations |
+| `/brain:skill [list\|show\|add\|use\|remove\|export]` | Manage procedural skills — reusable how-to workflows with progressive disclosure |
 | `/brain:sync [subcommand]` | Sync memories via Git remote or export/import for portability |
 
 ## Session Lifecycle
@@ -135,18 +142,19 @@ Brain Memory works automatically in the background — no commands needed for ba
 
 ### Session Start
 
-When a session begins and `~/.brain/` exists, the agent automatically:
+When a session begins and `~/.brain/` exists, the agent makes a single `brain session-start` call. This aggregator returns one deterministic, **token-budget-bounded** payload so the brain can never bloat the context window (the budget lives in `~/.brain/config.json`):
 
-1. Reads the brain index and loads the top 3-5 memories relevant to the current project
-2. Checks the review queue for memories due for spaced repetition
-3. Outputs a brief status line:
+1. **Pinned memories** — always-present conventions and preferences, injected verbatim regardless of recall score
+2. **Skills index** — the name + description of each available procedural skill (~100 tokens each; full instructions are loaded only when a task matches)
+3. **Context recall** — the top memories relevant to the current project
+4. **Review queue + low-confidence alerts**, then a brief status line:
 
 ```
 🧠 Brain active — 42 memories loaded (8 in current project context)
 📋 3 memories due for review — run /brain:review
 ```
 
-The agent silently internalizes relevant memories and references them naturally during the session — no information dump.
+The agent treats pinned facts as active constraints, notes which skills exist, silently internalizes relevant memories, and references them naturally during the session — no information dump.
 
 ### Ambient Session Tracking
 
@@ -239,6 +247,38 @@ Each memory is also classified by how the brain processes it:
 | **Procedural** | -0.10 | Very slow decay — skills persist | "Steps to debug memory leaks" |
 
 During sleep, frequently-recalled episodic memories are **crystallized** into semantic memories — the specific event fades but the lesson persists. This mirrors how humans extract general principles from repeated experiences.
+
+### Always-Present Memories (Pinning)
+
+Recall is probabilistic — a stored preference only applies if scoring happens to surface it. For the facts an agent must **never** miss (coding conventions, standing decisions, hard constraints), that's not good enough. Pinning fixes it:
+
+- **`pinned`** — the memory is injected at **every** session start regardless of recall score, and is **decay-exempt** (it never fades). Scope it `global` (loads everywhere) or `project:<name>` (loads only in that project).
+- **`stable`** — an independent flag that exempts a memory from decay and pruning **without** forcing it to always load — for timeless facts you recall on demand but don't want to fade.
+
+```bash
+brain pin <id> --scope global --priority 1   # or: /brain:pin always use tabs
+```
+
+Pinned and stable memories are skipped by sleep-cycle homeostasis and pruning, and `/brain:memorize` proactively proposes pinning durable conventions. The always-present set is budget-capped (`pin_budget_tokens`) so it can't crowd out the context window. This maps cleanly to the **semantic memory** type in the [CoALA](https://arxiv.org/abs/2309.02427) agent-memory model — knowledge that is always in context — decomposed into two orthogonal properties (always-loaded vs. non-decaying).
+
+### Procedural Skills
+
+Procedural memory is *how* to do things — reusable, step-by-step workflows stored as `~/.brain/_skills/<name>/SKILL.md`. To keep them from flooding the context window, skills use **three-level progressive disclosure**:
+
+| Level | When | What loads |
+|-------|------|------------|
+| **L0** | Every session start | Only each skill's name + description (~100 tokens) |
+| **L1** | A task matches a skill | The full `SKILL.md` step-by-step instructions |
+| **L2** | A step needs them | Referenced `resources/` (templates, scripts) |
+
+```bash
+brain skill list                       # advertised skills (L0)
+brain skill show structured-code-review # full instructions (L1)
+brain skill use structured-code-review  # record outcome (--failed weakens it)
+brain skill export structured-code-review --target claude  # → native .claude/skills/
+```
+
+Skills strengthen on successful `use` and weaken on `--failed` — one that fails too often demotes itself out of the advertised L0 index. And they aren't only hand-authored: during sleep, Brain **crystallizes** recurring task-solving patterns from repeated experience into new skills (user-confirmed). Finally, `brain skill export` emits a skill in your agent's **native** format so it becomes directly executable.
 
 ### Memory File Format
 
@@ -442,9 +482,16 @@ Sync state is stored locally in `~/.brain/.sync/` and is never pushed to the rem
 ```
 ~/.brain/
 ├── index.json              # Memory inventory — fast lookup for all memories
+├── config.json             # Working-memory token budgets (session-start injection)
 ├── associations.json       # Weighted associative network between memories
 ├── contexts.json           # Session context snapshots for context-dependent recall
 ├── review-queue.json       # Spaced repetition scheduling
+├── pinned.json             # Always-present tier manifest (pinned memory IDs + scope)
+├── skills-index.json       # Advertised procedural skills (L0 — name + description)
+├── _skills/                # Procedural skills
+│   └── <skill-name>/
+│       ├── SKILL.md        # Advertised description + step-by-step instructions
+│       └── resources/      # Optional templates/scripts (loaded only at execution)
 ├── professional/           # Work, career, technical skills
 │   ├── _meta.json          # Category metadata and stats
 │   ├── _expertise.md       # Generated expertise profile
@@ -514,6 +561,28 @@ Brain configuration lives in `~/.brain/index.json` under the `config` key:
 | `association_config.link_prune_threshold` | 0.05 | Minimum weight before an association link is pruned |
 | `association_config.spreading_activation_depth` | 2 | Maximum hops for spreading activation traversal |
 | `association_config.spreading_activation_decay` | 0.5 | Decay factor per hop during spreading activation |
+
+### Working-Memory Budget
+
+A separate `~/.brain/config.json` (created lazily with safe defaults) caps how much the brain injects into the context window at session start, so the always-present tier can never crowd out your actual work:
+
+```json
+{
+  "working_memory_budget_tokens": 3000,
+  "pin_budget_tokens": 1500,
+  "skills_index_budget_tokens": 800,
+  "recall_budget_tokens": 700
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `working_memory_budget_tokens` | 3000 | Total token ceiling for the whole `brain session-start` payload |
+| `pin_budget_tokens` | 1500 | Sub-budget for pinned, always-present memories |
+| `skills_index_budget_tokens` | 800 | Sub-budget for the advertised skills index (L0) |
+| `recall_budget_tokens` | 700 | Sub-budget for context-relevant recalled memories |
+
+Token counts use a dependency-free heuristic stored on each memory at write time. When pins exceed their budget they're selected by `--priority` then strength, and the overflow is reported rather than silently dropped.
 
 ## Benchmark
 

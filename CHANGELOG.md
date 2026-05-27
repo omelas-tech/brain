@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.15] - 2026-05-27
+
 ### Changed
 
 - **BREAKING: unified CLI surface** — the five separate binaries (`brain-memory`, `brain-recall`, `brain-reinforce`, `brain-cloud`, `brain-memorize`) are replaced by a single `brain` dispatcher with subcommands: `brain recall`, `brain memorize`, `brain reinforce`, `brain cloud <…>`, and `brain install|update|uninstall` (bare `brain` runs the installer). New features ship as subcommands rather than new top-level binaries. Re-run the installer/update to refresh prompts; agents now invoke `brain <command>`. (`bin/brain.js`)
@@ -21,6 +23,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Tier B §10.4 — primacy/recency ordering.** `brain session-start` orders recalled memories so the highest-ranked land at the edges of the payload, mitigating "lost in the middle."
 - **CoALA Phase 2 — procedural skills layer.** Skills are stored as `~/.brain/_skills/<name>/SKILL.md` and served via three-level progressive disclosure (L0 session-start advertises name + description only; L1 reads the full skill on a matching task; L2 loads resources at execution). `brain skill list|show <name>|use <name> [--failed]|add|remove <name>` and `/brain:skill`. Procedural strength rises on successful `use` and falls on `--failed`; a skill that fails too often demotes itself out of the advertised L0 index (Tier B §10.3). `~/.brain/skills-index.json` holds the L0 list; session-start injects skill summaries budget-capped by `skills_index_budget_tokens`.
 - **CoALA Phase 1 — pinned semantic tier + stable flag.** `brain pin <id> [--scope global|project:<name>] [--priority N]` / `brain unpin <id>` and the `/brain:pin` `/brain:unpin` commands. Pinned memories are injected at every session start regardless of recall score and are decay-exempt; `stable: true` exempts a memory from decay without forcing it to always load. `pinned`/`stable` memories are skipped by sleep-cycle homeostasis and pruning. `~/.brain/pinned.json` manifest; `/brain:memorize` now proposes pinning durable conventions. Fixes the long-standing hole where a stored preference (e.g. "always use tabs") only applied if recall happened to surface it.
+
+## [0.1.0-beta.14] - 2026-04-25
+
+### Added
+
+- **OpenCode support** — `brain --opencode` installs Brain Memory for the OpenCode agent (`prompts/opencode.md`), bringing the supported runtimes to Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode.
+
+### Fixed
+
+- **Graceful handling of corrupt brain state files** — CLI tools now emit a clear, actionable error (naming the offending JSON and suggesting a sync/backup restore) instead of crashing when `index.json`, `associations.json`, or the search index is malformed.
+
+### Changed
+
+- **Install docs recommend `npm install -g` over `npx`** — `npx` discards the temporary install, so the `brain` CLI never lands in `PATH` and agents fall back to less reliable manual file operations.
 
 ## [0.1.0-beta.13] - 2026-04-05
 
