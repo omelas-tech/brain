@@ -54,7 +54,7 @@ Memory
   pin <id> [--scope global|project:<name>] [--priority N]
                               Pin a memory into the always-present tier
   unpin <id>                  Remove a memory from the always-present tier
-  skill <list|show|use|add|remove>
+  skill <list|show|use|add|remove|export>
                               Manage procedural skills (progressive disclosure)
   session-start [--project P] [--task T] [--top N]
                               Budget-bounded startup payload (agent-invoked)

@@ -6,7 +6,7 @@ const path = require('path');
 
 const { getBrainDir, writeIndex, readConfig, writeConfig, DEFAULT_CONFIG } = require('../src/index-manager');
 const { createSearchIndex, addDocument, writeSearchIndex } = require('../src/tfidf');
-const { computeSessionStart, estimateTokens } = require('../bin/session-start');
+const { computeSessionStart, estimateTokens, edgeOrder } = require('../bin/session-start');
 
 let tmpDir;
 
@@ -78,6 +78,17 @@ describe('config helpers', () => {
   it('readConfig falls back to defaults on corrupt config (never throws)', () => {
     fs.writeFileSync(path.join(tmpDir, '.brain', 'config.json'), '{ not valid json');
     assert.deepEqual(readConfig(tmpDir), DEFAULT_CONFIG);
+  });
+});
+
+describe('edgeOrder (Tier B §10.4)', () => {
+  it('places top ranks at the edges', () => {
+    assert.deepEqual(edgeOrder([1, 2, 3, 4, 5]), [1, 3, 5, 4, 2]);
+  });
+  it('is a no-op for 0/1/2 items', () => {
+    assert.deepEqual(edgeOrder([]), []);
+    assert.deepEqual(edgeOrder(['a']), ['a']);
+    assert.deepEqual(edgeOrder(['a', 'b']), ['a', 'b']);
   });
 });
 

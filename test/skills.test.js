@@ -6,7 +6,7 @@ const path = require('path');
 
 const { getBrainDir, readSkillsIndex, writeConfig } = require('../src/index-manager');
 const {
-  addSkill, listSkills, showSkill, useSkill, removeSkill, advertisedSummaries,
+  addSkill, listSkills, showSkill, useSkill, removeSkill, advertisedSummaries, exportSkill,
 } = require('../src/skills');
 const { computeSessionStart } = require('../bin/session-start');
 
@@ -72,6 +72,21 @@ describe('skills CRUD', () => {
     assert.equal(removeSkill(tmpDir, 'foo').removed, true);
     assert.equal(readSkillsIndex(tmpDir).skills.length, 0);
     assert.ok(!fs.existsSync(path.join(getBrainDir(tmpDir), '_skills/foo')));
+  });
+
+  it('export writes the skill into the host native format (Phase 4)', () => {
+    addSkill(tmpDir, { name: 'foo', description: 'd', body: 'EXPORTED' });
+    const destRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-host-'));
+    try {
+      const r = exportSkill(tmpDir, 'foo', 'claude', destRoot);
+      assert.equal(r.target, 'claude');
+      const out = path.join(destRoot, '.claude', 'skills', 'foo', 'SKILL.md');
+      assert.ok(fs.existsSync(out));
+      assert.ok(fs.readFileSync(out, 'utf-8').includes('EXPORTED'));
+      assert.ok(exportSkill(tmpDir, 'foo', 'bogus', destRoot).error);
+    } finally {
+      fs.rmSync(destRoot, { recursive: true, force: true });
+    }
   });
 });
 

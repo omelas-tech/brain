@@ -12,9 +12,10 @@ Sleep performs nine phases, mimicking real neuroscience:
 2. **Synaptic Homeostasis** — Proportionally scale down all strengths to prevent inflation (Tononi & Cirelli SHY)
 3. **Knowledge Propagation** — Evaluate recent memories against the hierarchy and update related memories
 4. **Semantic Crystallization** — Extract generalizable knowledge from frequently-recalled episodic memories
+   - **4b. Procedural Crystallization** — Distill repeated procedures into reusable skills (CoALA Phase 3)
 5. **Reorganize** — Detect flat clusters and restructure into deeper sub-categories
 6. **Consolidate** — Merge weak related memories into stronger combined knowledge
-7. **Prune** — Archive memories that have decayed beyond recovery
+7. **Prune** — Archive memories that have decayed beyond recovery, including context-shift obsolescence (Tier B §10.1)
 8. **REM Dreaming** — Discover creative cross-domain associations via analogical reasoning
 9. **Expertise Detection** — Identify dense knowledge areas and generate expertise profiles
 
@@ -266,6 +267,47 @@ Approve crystallizations? [all / select / skip]
 
 ---
 
+## Phase 4b: Procedural Crystallization (Episodic → Procedural) — CoALA Phase 3
+
+Beyond abstracting *principles* (Phase 4), the brain also turns repeated *procedures* into skills. When the same kind of task has been solved the same way several times, distill it into a reusable `SKILL.md` — Brain's genuine value-add over CoALA, which only describes hand-authored skills.
+
+### Steps
+
+1. Cluster `procedural`/`experience` memories by tag overlap + association edges (the same clustering used elsewhere). Look for a recurring *task-solving procedure* represented across **≥ N similar memories** (default N = 3).
+
+2. For each qualifying cluster, evaluate: **is there a repeatable, step-by-step procedure here that would help on a future task?**
+
+3. If yes, draft a skill (do not write silently — propose it):
+   - `name`: a short kebab-case slug
+   - `description`: one matchable line (~100 tokens) — the L0 advertisement
+   - `triggers`: phrases that should surface it
+   - body: the step-by-step instructions, drawn from the source memories
+   - Create it with `brain skill add` once approved.
+
+4. Link the new skill to its source memories (note the skill name in their `related`/notes).
+
+**Example:**
+- 3× episodic: "set up Cloudflare Worker + D1 for project X / Y / Z" solved the same way
+- → Skill `deploy-cloudflare-worker-d1`: the distilled step list.
+
+Present proposals for user approval (never auto-create):
+
+```
+## Phase 4b: Procedural Crystallization
+
+Found <N> recurring procedures ready to become skills:
+
+🛠️  Pattern seen 3× across {projX, projY, projZ}
+   → Proposed skill: "deploy-cloudflare-worker-d1"
+   Triggers: "deploy worker", "set up D1"
+
+Approve skill creation? [all / select / skip]
+```
+
+These crystallized skills are *hypotheses*: their strength/demotion feedback (`brain skill use [--failed]`) validates or retires them over time.
+
+---
+
 ## Phase 5: Reorganize (Neocortical Restructuring)
 
 During sleep, the brain transfers memories from the hippocampus to the neocortex, organizing them into structured long-term storage. This phase detects **flat clusters** — directories with many memories that should be organized into deeper sub-categories.
@@ -339,9 +381,18 @@ During deep sleep, the brain merges related experiences into generalized knowled
 
 During sleep, the brain prunes weak synaptic connections to maintain efficiency. Here, we archive memories that have faded beyond usefulness.
 
+### Obsolescence / context-shift detection (Tier B §10.1)
+
+Decay handles *slow fade*; this catches *abrupt relevance loss*. A memory cluster can become obsolete overnight (the user changed jobs, abandoned a project, switched stacks) while still carrying high strength — so decay alone never retires it.
+
+- Read `~/.brain/contexts.json`. Identify any `encoding_context.project` (or role/domain) that appears in older memories but has been **absent from the last N sessions** (default N = 10).
+- Flag the affected cluster (by project + association edges) as **candidate-obsolete** — these become *additional* archive candidates below.
+- **Never** flag `pinned` memories (an explicit, active user choice). `stable` memories *can* be flagged — stability exempts from decay, not from obsolescence (a timeless fact about a former employer is still obsolete).
+- This is reversible: candidates are *archived* (recoverable from `_archived/`), never erased, and only after user confirmation.
+
 ### Steps
 
-1. Take all **Fading** tier memories (decayed_strength < 0.1) that were NOT already consolidated in Phase 6
+1. Take all **Fading** tier memories (decayed_strength < 0.1) that were NOT already consolidated in Phase 6 — plus any **candidate-obsolete** clusters from the detection step above
 
 2. **Salience protection**: Memories with `salience >= 0.7` are NEVER auto-pruned, regardless of strength. Skip them with a note:
    ```

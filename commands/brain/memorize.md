@@ -92,3 +92,12 @@ The CLI outputs JSON with what was stored. Present the results to the user:
 - Type, strength, tags
 - Edges created
 - Sync result (if applicable)
+
+### 5. Resolve contradictions (Tier B §10.2)
+
+If a stored memory's result includes `potential_conflicts`, it shares heavy tag overlap with a **pinned or stable** memory — and pinned/stable facts never decay out of contention, so a stale one is dangerous. **Do not silently keep both.** Inspect the conflicting memory (`brain recall` or read its file) and, if the new memory genuinely contradicts it, propose a resolution to the user:
+- **Supersede** — unpin/forget the old fact, keep the new one (record the supersession).
+- **Keep both, scoped** — e.g. pin each to its own project.
+- **Reject the new one** — the old fact stands.
+
+Never auto-resolve; surface the conflict and let the user decide.

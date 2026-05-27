@@ -15,14 +15,14 @@
 
 const fs = require('fs');
 const {
-  addSkill, listSkills, showSkill, useSkill, removeSkill,
+  addSkill, listSkills, showSkill, useSkill, removeSkill, exportSkill,
 } = require('../src/skills');
 
 function emit(obj) { console.log(JSON.stringify(obj, null, 2)); }
 function fail(obj) { console.error(JSON.stringify(obj)); process.exit(1); }
 function done(result) { return result && result.error ? fail(result) : emit(result); }
 
-const USAGE = 'Usage: brain skill <list|show <name>|use <name> [--failed]|add|remove <name>>';
+const USAGE = 'Usage: brain skill <list|show <name>|use <name> [--failed]|add|remove <name>|export <name> [--target claude|gemini]>';
 
 function main(argv) {
   const args = argv || process.argv.slice(2);
@@ -42,6 +42,12 @@ function main(argv) {
     case 'remove':
       if (!firstName) return fail({ error: USAGE });
       return done(removeSkill(undefined, firstName));
+    case 'export': {
+      if (!firstName) return fail({ error: 'Usage: brain skill export <name> [--target claude|gemini]' });
+      const ti = rest.indexOf('--target');
+      const target = ti !== -1 ? rest[ti + 1] : 'claude';
+      return done(exportSkill(undefined, firstName, target));
+    }
     case 'add': {
       if (process.stdin.isTTY) return fail({ error: 'Pipe a skill JSON via stdin' });
       let input;

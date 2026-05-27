@@ -152,6 +152,33 @@ function useSkill(projectRoot, name, opts = {}) {
   };
 }
 
+/**
+ * Export a stored skill into the host agent's native skill format so it becomes
+ * directly executable (CoALA Phase 4 host bridge). Brain stores/distills; the
+ * host executes.
+ *
+ * @param {string} [projectRoot] - Brain filesystem root
+ * @param {string} name - Skill name
+ * @param {string} [target='claude'] - 'claude' | 'gemini'
+ * @param {string} [destRoot=process.cwd()] - Host project root to write into
+ */
+function exportSkill(projectRoot, name, target = 'claude', destRoot = process.cwd()) {
+  const src = showSkill(projectRoot, name);
+  if (src.error) return src;
+
+  const dests = {
+    claude: path.join(destRoot, '.claude', 'skills', slug(name)),
+    gemini: path.join(destRoot, '.gemini', 'skills', slug(name)),
+  };
+  const dir = dests[target];
+  if (!dir) return { error: `Unknown target: ${target} (use claude|gemini)` };
+
+  fs.mkdirSync(dir, { recursive: true });
+  const outPath = path.join(dir, 'SKILL.md');
+  fs.writeFileSync(outPath, src.content);
+  return { name: slug(name), target, path: outPath };
+}
+
 function removeSkill(projectRoot, name) {
   const n = slug(name);
   const dir = path.join(getBrainDir(projectRoot), SKILLS_DIR, n);
@@ -176,5 +203,6 @@ module.exports = {
   showSkill,
   useSkill,
   removeSkill,
+  exportSkill,
   DEMOTE_FAIL_RATIO,
 };

@@ -43,6 +43,11 @@ brain skill use <name> --failed   # produced a bad outcome
 brain skill remove <name>
 ```
 
+**Export** a skill into the host agent's native format so it becomes directly executable (writes `.claude/skills/<name>/SKILL.md` or `.gemini/...` in the current project):
+```bash
+brain skill export <name> [--target claude|gemini]
+```
+
 ## Guidance
 
 - Advertise skills with a **crisp, matchable description** — that single line is all the agent sees at L0, so it must convey when to reach for the skill.

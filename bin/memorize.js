@@ -359,6 +359,15 @@ async function main() {
       reinforceEdge(associations, id, overlapId, 'tag_overlap', 0.10);
     }
 
+    // Tier B §10.2: surface potential contradictions with pinned/stable memories
+    // (high tag overlap) so the agent can adjudicate — never auto-resolved here.
+    const potentialConflicts = tagOverlaps
+      .filter((oid) => {
+        const e = index.memories[oid];
+        return e && (e.pinned || e.stable);
+      })
+      .map((oid) => ({ id: oid, title: index.memories[oid].title }));
+
     // Update search index
     addDocument(searchIndex, id, {
       title: mem.title,
@@ -383,6 +392,7 @@ async function main() {
       confidence: mem.confidence ?? 0.7,
       tags: mem.tags || [],
       edges_created: edgesCreated,
+      ...(potentialConflicts.length ? { potential_conflicts: potentialConflicts } : {}),
     });
   }
 

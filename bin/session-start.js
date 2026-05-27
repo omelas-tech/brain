@@ -61,6 +61,18 @@ function estimateTokens(entry) {
   return Math.ceil(((entry.title || '').length + 8) / 4);
 }
 
+/**
+ * Tier B §10.4 — reorder an importance-sorted list so the top items land at the
+ * edges (start + end), where models attend best, leaving the middle for lower
+ * ranks. Deterministic. e.g. [1,2,3,4,5] → [1,3,5,4,2].
+ */
+function edgeOrder(arr) {
+  const front = [];
+  const back = [];
+  arr.forEach((item, i) => { if (i % 2 === 0) front.push(item); else back.unshift(item); });
+  return front.concat(back);
+}
+
 /** Read a memory file's body (content after the frontmatter block). */
 function readMemoryBody(brainDir, memPath) {
   try {
@@ -242,7 +254,7 @@ function computeSessionStart(projectRoot, args = {}) {
     memory_count: memoryCount,
     pinned,
     skills_index,
-    context_recall,
+    context_recall: edgeOrder(context_recall), // Tier B §10.4: top ranks at the edges
     due_for_review: dueForReview,
     low_confidence_alerts,
     budget: {
@@ -277,4 +289,4 @@ if (require.main === module) {
   main(process.argv.slice(2));
 }
 
-module.exports = { main, computeSessionStart, estimateTokens, parseArgs };
+module.exports = { main, computeSessionStart, estimateTokens, parseArgs, edgeOrder };

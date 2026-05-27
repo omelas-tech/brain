@@ -42,7 +42,7 @@
     "url": "git+https://github.com/onurkarali/brain.git"
   },
   "scripts": {
-    "test": "node --test test/index-manager.test.js test/scorer.test.js test/tfidf.test.js test/recall.test.js test/functional.test.js test/sunshine.test.js test/stress.test.js test/crypto.test.js test/git-sync.test.js test/export-import.test.js test/install.test.js test/prompts.test.js test/session-start.test.js test/pinning.test.js test/skills.test.js",
+    "test": "node --test test/index-manager.test.js test/scorer.test.js test/tfidf.test.js test/recall.test.js test/functional.test.js test/sunshine.test.js test/stress.test.js test/crypto.test.js test/git-sync.test.js test/export-import.test.js test/install.test.js test/prompts.test.js test/session-start.test.js test/pinning.test.js test/skills.test.js test/contradiction.test.js",
     "prerelease": "npm test",
     "release:beta": "npm version prerelease --preid beta && npm publish --tag beta && npm dist-tag add brain-memory@$(node -p \"require('./package.json').version\") latest",
     "release:patch": "npm version patch && npm publish",
