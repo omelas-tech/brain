@@ -60,6 +60,9 @@ Commands are available via `/brain:` prefix:
 - `/brain:sleep [scope]` — Full maintenance cycle: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, reorganize, consolidate, prune, REM dreaming, and expertise detection
 - `/brain:status` — Dashboard with brain health overview
 - `/brain:sync [subcommand]` — Sync memories via Git remote or export/import for portability
+- `/brain:pin [id|query]` — Pin a memory to the always-present tier (CoALA Phase 1)
+- `/brain:unpin [id|query]` — Remove a memory from the always-present tier
+- `/brain:skill [list|show|add|use|remove|export]` — Manage procedural skills (CoALA Phase 2)
 
 ## Session Start Behavior
 

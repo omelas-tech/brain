@@ -1,6 +1,6 @@
 # Brain Memory × CoALA — Alignment Analysis & Implementation Plan
 
-**Status:** Proposed
+**Status:** Implemented (Phases 0–4 + Tier B §10.1–10.4) — 2026-05-27
 **Date:** 2026-05-27
 **Scope:** Close the gap between Brain Memory's current architecture and the CoALA four-memory model, so Brain becomes a *complete* agentic memory system rather than a deep but lopsided episodic engine.
 
