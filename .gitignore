@@ -16,6 +16,7 @@ Thumbs.db
 .claude/
 .codex/
 .gemini/
+.opencode/
 
 # Local-only files (not for public repo)
 pitch/

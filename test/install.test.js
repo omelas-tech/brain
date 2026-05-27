@@ -438,22 +438,27 @@ describe('detectInstallations', () => {
       claude: { local: RUNTIMES.claude.localDir, global: RUNTIMES.claude.globalDir },
       gemini: { local: RUNTIMES.gemini.localDir, global: RUNTIMES.gemini.globalDir },
       openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir },
+      opencode: { local: RUNTIMES.opencode.localDir, global: RUNTIMES.opencode.globalDir },
     };
     // Redirect both local and global to tmpDir subdirs for isolation
     RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
     RUNTIMES.gemini.localDir = path.join(tmpDir, '.gemini');
     RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
+    RUNTIMES.opencode.localDir = path.join(tmpDir, '.opencode');
     RUNTIMES.claude.globalDir = path.join(tmpDir, 'global', '.claude');
     RUNTIMES.gemini.globalDir = path.join(tmpDir, 'global', '.gemini');
     RUNTIMES.openai.globalDir = path.join(tmpDir, 'global', '.codex');
+    RUNTIMES.opencode.globalDir = path.join(tmpDir, 'global', '.config', 'opencode');
   });
   afterEach(() => {
     RUNTIMES.claude.localDir = savedDirs.claude.local;
     RUNTIMES.gemini.localDir = savedDirs.gemini.local;
     RUNTIMES.openai.localDir = savedDirs.openai.local;
+    RUNTIMES.opencode.localDir = savedDirs.opencode.local;
     RUNTIMES.claude.globalDir = savedDirs.claude.global;
     RUNTIMES.gemini.globalDir = savedDirs.gemini.global;
     RUNTIMES.openai.globalDir = savedDirs.openai.global;
+    RUNTIMES.opencode.globalDir = savedDirs.opencode.global;
     teardown();
   });
 
