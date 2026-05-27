@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: unified CLI surface** — the five separate binaries (`brain-memory`, `brain-recall`, `brain-reinforce`, `brain-cloud`, `brain-memorize`) are replaced by a single `brain` dispatcher with subcommands: `brain recall`, `brain memorize`, `brain reinforce`, `brain cloud <…>`, and `brain install|update|uninstall` (bare `brain` runs the installer). New features ship as subcommands rather than new top-level binaries. Re-run the installer/update to refresh prompts; agents now invoke `brain <command>`. (`bin/brain.js`)
+
+### Added
+
+- `brain --help` / `brain --version` on the unified dispatcher
+
 ## [0.1.0-beta.13] - 2026-04-05
 
 ### Added

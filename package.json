@@ -25,11 +25,7 @@
     "url": "https://github.com/onurkarali/brain/issues"
   },
   "bin": {
-    "brain-memory": "bin/install.js",
-    "brain-recall": "bin/recall.js",
-    "brain-reinforce": "bin/reinforce.js",
-    "brain-cloud": "bin/cloud-sync.js",
-    "brain-memorize": "bin/memorize.js"
+    "brain": "bin/brain.js"
   },
   "files": [
     "assets/",

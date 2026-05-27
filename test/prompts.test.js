@@ -142,7 +142,7 @@ describe('Prompt source files — session lifecycle sections', () => {
 
       it('contains recall engine reference', () => {
         assert.ok(
-          content.includes('brain-recall') || content.includes('recall engine'),
+          content.includes('brain recall') || content.includes('recall engine'),
           `${file} missing recall engine reference`
         );
       });

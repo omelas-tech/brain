@@ -7,10 +7,10 @@
  * The agent calls this instead of manually computing the v4 formula.
  *
  * Usage:
- *   brain-recall "async race conditions"
- *   brain-recall "database pooling" --project my-app --task implementing --top 5
- *   brain-recall --context                     # Session-start mode: auto-detect context
- *   brain-recall --reindex                     # Rebuild search index from all memories
+ *   brain recall "async race conditions"
+ *   brain recall "database pooling" --project my-app --task implementing --top 5
+ *   brain recall --context                     # Session-start mode: auto-detect context
+ *   brain recall --reindex                     # Rebuild search index from all memories
  *
  * Output: JSON array of scored results, sorted by score descending.
  */
@@ -54,7 +54,7 @@ function main() {
 
   // Need a query for search
   if (!args.query && !args.context) {
-    console.error(JSON.stringify({ error: 'Usage: brain-recall "query" or brain-recall --context' }));
+    console.error(JSON.stringify({ error: 'Usage: brain recall "query" or brain recall --context' }));
     process.exit(1);
   }
 

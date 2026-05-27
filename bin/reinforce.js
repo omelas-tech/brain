@@ -8,8 +8,8 @@
  * results instead of manually updating frontmatter.
  *
  * Usage:
- *   brain-reinforce mem_123 mem_456 mem_789
- *   brain-reinforce mem_123 --project my-app
+ *   brain reinforce mem_123 mem_456 mem_789
+ *   brain reinforce mem_123 --project my-app
  *
  * Effects:
  *   - Spaced reinforcement boost to each memory's strength
@@ -41,7 +41,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (args.memoryIds.length === 0) {
-    console.error(JSON.stringify({ error: 'Usage: brain-reinforce <mem_id1> [mem_id2] ...' }));
+    console.error(JSON.stringify({ error: 'Usage: brain reinforce <mem_id1> [mem_id2] ...' }));
     process.exit(1);
   }
 

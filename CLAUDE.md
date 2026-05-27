@@ -91,7 +91,7 @@ If `~/.brain/index.json` exists:
 1. **Read the index** to get memory count and categories
 2. **Run the recall engine only if the current project has relevant memories:**
    ```bash
-   brain-recall --context --project "<current project>" --top 5
+   brain recall --context --project "<current project>" --top 5
    ```
    If the project is unrelated to any stored memories (e.g., a new project with no matching context), skip the recall and just show the count. Don't waste cycles searching when nothing will match.
 3. **Silently internalize** results — do NOT dump memory contents
@@ -180,10 +180,10 @@ If the session contained meaningful content based on your ambient tracking:
 
 When the user asks you to "remember" something, or when context from past sessions would be helpful, use the **deterministic recall engine** instead of manually computing scores:
 
-1. Run `brain-recall "<query>" --project <project> --task <task_type> --top 10` (or `node <install-path>/bin/recall.js`)
+1. Run `brain recall "<query>" --project <project> --task <task_type> --top 10` (or `node <install-path>/bin/recall.js`)
 2. The engine computes TF-IDF relevance, decayed strength, spreading activation, context match, and salience — all deterministically
 3. Read the top-scoring memory files and present results
-4. Run `brain-reinforce <mem_id1> <mem_id2> ...` to apply spaced reinforcement and Hebbian co-retrieval strengthening
+4. Run `brain reinforce <mem_id1> <mem_id2> ...` to apply spaced reinforcement and Hebbian co-retrieval strengthening
 5. If no matches, search the archive (`~/.brain/_archived/`)
 
 The recall engine ensures **identical scoring across all agents** — Claude, Gemini, and Codex all get the same rankings for the same query.

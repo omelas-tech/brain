@@ -42,7 +42,7 @@ If no subcommand is given, show available subcommands.
    - If already connected, show current user and ask if they want to re-authenticate.
 
 2. **Start device code flow:**
-   - Run `brain-cloud login` (or call `login()` from `src/cloud-sync.js`).
+   - Run `brain cloud login` (or call `login()` from `src/cloud-sync.js`).
    - This calls `POST /auth/device/request` and returns a user code + verification URL.
 
 3. **Display instructions to user:**
@@ -74,9 +74,9 @@ If no subcommand is given, show available subcommands.
 
 ### Prerequisites
 
-Check that `brain-cloud` CLI is available. If not:
+Check that the `brain` CLI is available (run `brain --version`). If not:
 ```
-brain-cloud is not installed. Install it with:
+brain CLI is not installed. Install it with:
   npm install -g brain-memory
 ```
 Then return — do not attempt the push.
@@ -86,7 +86,7 @@ Then return — do not attempt the push.
 1. **Check logged in.** If not, suggest `cloud login`.
 
 2. **Execute push immediately** — no confirmation needed:
-   - Run `brain-cloud push`.
+   - Run `brain cloud push`.
    - Show result:
    ```
    ✓ Push complete!
@@ -113,7 +113,7 @@ Then return — do not attempt the push.
 3. **Ask for confirmation.**
 
 4. **Execute pull:**
-   - Run `brain-cloud pull` (or call `pull()` from `src/cloud-sync.js`).
+   - Run `brain cloud pull` (or call `pull()` from `src/cloud-sync.js`).
    - Downloads tar.gz from `GET /api/brains/{id}/sync` and extracts to `~/.brain/`.
    - Show result:
    ```
@@ -344,7 +344,7 @@ Then return — do not attempt the push.
 ## Key Implementation Notes
 
 - **Cloud sync engine**: `src/cloud-sync.js` — API client for Brain Cloud
-- **Cloud CLI**: `bin/cloud-sync.js` — installed as `brain-cloud` command
+- **Cloud CLI**: `bin/cloud-sync.js` — installed as `brain cloud` command
 - **Cloud config**: stored in `~/.brain/.cloud/config.json` (tokens, brain ID, API URL)
 - **Cloud protocol**: tar.gz archives uploaded/downloaded via REST API
 - Git sync engine: `src/git-sync.js`

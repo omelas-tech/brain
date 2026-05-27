@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * brain-memorize — Store memories from AI agent input
+ * brain memorize — Store memories from AI agent input
  *
  * Accepts a JSON payload via stdin with memory definitions.
  * Handles all plumbing: ID generation, directory creation, file writing,
  * index updates, association edges, search index, and optional sync.
  *
  * Usage:
- *   brain-memorize [--sync] <<'EOF'
+ *   brain memorize [--sync] <<'EOF'
  *   { "memories": [{ "title": "...", "type": "learning", ... }] }
  *   EOF
  *
@@ -184,7 +184,7 @@ function trySync() {
   const cloudConfig = path.join(brainDir, '.cloud', 'config.json');
   if (fs.existsSync(cloudConfig)) {
     try {
-      execSync('brain-cloud push', { stdio: 'pipe', timeout: 30000 });
+      execSync('brain cloud push', { stdio: 'pipe', timeout: 30000 });
       return { method: 'cloud', success: true };
     } catch (err) {
       return { method: 'cloud', success: false, error: err.message };
@@ -242,7 +242,7 @@ async function main() {
 
   // Validate brain exists
   if (!fs.existsSync(path.join(brainDir, 'index.json'))) {
-    console.error(JSON.stringify({ error: `Brain not initialized. Run brain-memory install first.` }));
+    console.error(JSON.stringify({ error: `Brain not initialized. Run brain install first.` }));
     process.exit(1);
   }
 

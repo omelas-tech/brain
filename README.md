@@ -52,38 +52,38 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 
 ```bash
 npm install -g brain-memory@beta
-brain-memory
+brain
 ```
 
-The first command installs the package globally — this gives you both the interactive setup wizard and the CLI tools (`brain-memorize`, `brain-recall`, `brain-reinforce`) that agents rely on for deterministic scoring.
+The first command installs the package globally — this gives you both the interactive setup wizard and the `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) that agents rely on for deterministic scoring.
 
 The second command runs the setup wizard, which asks which runtime(s) to configure (Claude Code, Gemini CLI, OpenAI Codex CLI, or all) and whether to install globally or for the current project.
 
 ### Non-interactive
 
 ```bash
-brain-memory --claude --global   # Claude Code, global
-brain-memory --gemini --local    # Gemini CLI, local project
-brain-memory --codex --global    # OpenAI Codex CLI, global
-brain-memory --opencode --global # OpenCode, global
-brain-memory --all --global      # All runtimes, global
+brain --claude --global   # Claude Code, global
+brain --gemini --local    # Gemini CLI, local project
+brain --codex --global    # OpenAI Codex CLI, global
+brain --opencode --global # OpenCode, global
+brain --all --global      # All runtimes, global
 ```
 
 ### Update
 
 ```bash
 npm install -g brain-memory@beta
-brain-memory update
+brain update
 ```
 
-The first command updates the package and CLI tools. The second command refreshes the slash command prompts for your installed runtimes. Target specific runtimes with `--claude`, `--gemini`, `--openai`, or `--all`.
+The first command updates the package and the `brain` CLI. The second command refreshes the slash command prompts for your installed runtimes. Target specific runtimes with `--claude`, `--gemini`, `--openai`, or `--all`.
 
-> **Why not `npx`?** `npx` runs the setup wizard in a temporary directory that is discarded after execution. The CLI tools (`brain-memorize`, `brain-recall`, `brain-reinforce`) won't be available in your PATH, which means agents will fall back to less reliable manual file operations. Always use `npm install -g` to ensure everything works correctly.
+> **Why not `npx`?** `npx` runs the setup wizard in a temporary directory that is discarded after execution. The `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`) won't be available in your PATH, which means agents will fall back to less reliable manual file operations. Always use `npm install -g` to ensure everything works correctly.
 
 ### Uninstall
 
 ```bash
-brain-memory uninstall
+brain uninstall
 npm uninstall -g brain-memory
 ```
 

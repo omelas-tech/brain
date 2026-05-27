@@ -1,6 +1,6 @@
 # /brain:remember — Recall Relevant Memories
 
-You are recalling memories from the Brain Memory system. This command uses the **deterministic recall engine** (`brain-recall`) to score and rank memories, then presents the results.
+You are recalling memories from the Brain Memory system. This command uses the **deterministic recall engine** (`brain recall`) to score and rank memories, then presents the results.
 
 **User query:** $ARGUMENTS
 
@@ -31,7 +31,7 @@ node <brain-memory-install-path>/bin/recall.js "$ARGUMENTS" \
 
 If the brain-memory package is installed globally, use:
 ```bash
-brain-recall "$ARGUMENTS" --project "<project>" --task "<task_type>" --top 10
+brain recall "$ARGUMENTS" --project "<project>" --task "<task_type>" --top 10
 ```
 
 The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, and salience using the v4 formula. All scoring is deterministic — same query always produces the same ranking.
@@ -70,7 +70,7 @@ node <brain-memory-install-path>/bin/reinforce.js <mem_id1> <mem_id2> ...
 
 Or if globally installed:
 ```bash
-brain-reinforce <mem_id1> <mem_id2> ...
+brain reinforce <mem_id1> <mem_id2> ...
 ```
 
 This deterministically applies:

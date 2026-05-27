@@ -1,6 +1,6 @@
 # /brain:memorize — Store a New Memory
 
-You are storing memories in the Brain Memory system. Your job is to decide **what** to remember and **how to classify** it. The `brain-memorize` CLI handles all file operations.
+You are storing memories in the Brain Memory system. Your job is to decide **what** to remember and **how to classify** it. The `brain memorize` CLI handles all file operations.
 
 **User input:** $ARGUMENTS
 
@@ -40,12 +40,12 @@ For each memory, determine:
 
 **strength_adjustment** (optional, -0.15 to +0.15): Tweak base strength based on significance.
 
-### 3. Call brain-memorize
+### 3. Call brain memorize
 
 Pipe the classified memories as JSON to the CLI in a **single bash call**:
 
 ```bash
-brain-memorize <<'EOF'
+brain memorize <<'EOF'
 {
   "memories": [
     {
@@ -73,7 +73,7 @@ EOF
 
 Add `--sync` flag if the user requested it or passed `--sync` to the command:
 ```bash
-brain-memorize --sync <<'EOF'
+brain memorize --sync <<'EOF'
 ...
 EOF
 ```

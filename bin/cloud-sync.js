@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * brain-cloud — CLI for Brain Cloud sync
+ * brain cloud — CLI for Brain Cloud sync
  *
  * Usage:
- *   brain-cloud login [--api-url URL]   Authenticate via device code flow
- *   brain-cloud logout                  Clear stored credentials
- *   brain-cloud push                    Upload ~/.brain/ to the cloud
- *   brain-cloud pull                    Download from the cloud to ~/.brain/
- *   brain-cloud status                  Show connection and sync status
+ *   brain cloud login [--api-url URL]   Authenticate via device code flow
+ *   brain cloud logout                  Clear stored credentials
+ *   brain cloud push                    Upload ~/.brain/ to the cloud
+ *   brain cloud pull                    Download from the cloud to ~/.brain/
+ *   brain cloud status                  Show connection and sync status
  */
 
 const path = require('path');
@@ -23,7 +23,7 @@ async function main() {
 
   if (!command || command === '--help' || command === '-h') {
     console.log(`
-brain-cloud — Brain Cloud sync CLI
+brain cloud — Brain Cloud sync CLI
 
 Commands:
   login [--api-url URL]   Authenticate via device code flow
@@ -118,7 +118,7 @@ async function cmdStatus() {
 
   if (!s.connected) {
     console.log('☁️  Not connected to Brain Cloud');
-    console.log('   Run: brain-cloud login');
+    console.log('   Run: brain cloud login');
     return;
   }
 
