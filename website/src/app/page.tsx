@@ -196,8 +196,41 @@ export default function Home() {
           </div>
         </Section>
 
-        {/* ─── 05 Compatibility ─────────────────────────────────────── */}
-        <Section number="05" title="Compatibility">
+        {/* ─── 05 Research & references ────────────────────────────── */}
+        <Section number="05" title="Research & references">
+          <p className="text-[var(--text-secondary)] leading-relaxed mb-6 text-[0.9375rem]">
+            Brain Memory&apos;s architecture and benchmark methodology are grounded in the academic literature on language-agent memory and evaluation. Citations below.
+          </p>
+
+          <div className="space-y-6">
+            {referenceGroups.map((group) => (
+              <div key={group.heading}>
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mb-3">
+                  {group.heading}
+                </h3>
+                <ul className="space-y-2.5">
+                  {group.refs.map((ref) => (
+                    <li key={ref.id} className="text-sm leading-relaxed">
+                      <a
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--text-primary)] font-medium hover:text-[var(--accent)]"
+                      >
+                        {ref.title}
+                      </a>
+                      <span className="text-[var(--text-tertiary)] font-mono text-xs ml-2">{ref.id}</span>
+                      <div className="text-[var(--text-secondary)] text-xs mt-0.5">{ref.note}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* ─── 06 Compatibility ─────────────────────────────────────── */}
+        <Section number="06" title="Compatibility">
           <div className="grid sm:grid-cols-3 gap-px bg-[var(--border)] rounded-lg overflow-hidden border border-[var(--border)]">
             <AgentCell name="Claude Code" vendor="anthropic" cmd="brain-memory --claude --global" />
             <AgentCell name="Gemini CLI" vendor="google" cmd="brain-memory --gemini --global" />
@@ -206,7 +239,7 @@ export default function Home() {
         </Section>
 
         {/* ─── 06 Quick start ───────────────────────────────────────── */}
-        <Section number="06" title="Quick start">
+        <Section number="07" title="Quick start">
           <div className="border border-[var(--border)] rounded-lg p-6 bg-[var(--surface)] mb-4">
             <code className="font-mono text-base sm:text-lg text-[var(--text-primary)]">
               <span className="text-[var(--text-tertiary)]">$ </span>
@@ -334,6 +367,108 @@ const scenarioRows = [
   { id: "D", name: "Skill Progressive Disclosure", pitch: "Five skills indexed, one needed — does brain load just the one?", tests: "Procedural skills (L0/L1/L2) token efficiency" },
   { id: "E", name: "Continual Coding", pitch: "Five bugs in order — does bug 5 finish faster than bug 1?", tests: "Forward transfer + agent writes its own memories" },
   { id: "F", name: "Abstention", pitch: "No deployment target in memory — does the agent ask or invent?", tests: "Confabulation resistance" },
+];
+
+const referenceGroups = [
+  {
+    heading: "Foundations",
+    refs: [
+      {
+        title: "Cognitive Architectures for Language Agents (CoALA)",
+        id: "arxiv 2309.02427",
+        url: "https://arxiv.org/abs/2309.02427",
+        note: "Sumers, Yao, Narasimhan, Griffiths — the agent-memory model Brain Memory implements. Pinned tier, procedural skills, and budget-aware working memory all map directly to CoALA's semantic / procedural / episodic decomposition.",
+      },
+      {
+        title: "MemGPT: Towards LLMs as Operating Systems",
+        id: "arxiv 2310.08560",
+        url: "https://arxiv.org/abs/2310.08560",
+        note: "Packer et al. — paging-style memory management that motivated budget-bounded working memory.",
+      },
+      {
+        title: "Generative Agents: Interactive Simulacra of Human Behavior",
+        id: "arxiv 2304.03442",
+        url: "https://arxiv.org/abs/2304.03442",
+        note: "Park et al. — recency · importance · relevance retrieval blend that inspired Brain's TF-IDF + decay + salience scoring.",
+      },
+      {
+        title: "Ebbinghaus — Über das Gedächtnis (1885)",
+        id: "Ebbinghaus 1885",
+        url: "https://en.wikipedia.org/wiki/Forgetting_curve",
+        note: "Original forgetting curve. Brain's per-memory exponential decay rates and spaced-reinforcement strength boosts follow directly.",
+      },
+    ],
+  },
+  {
+    heading: "Memory benchmarks (the suite this work follows)",
+    refs: [
+      {
+        title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory",
+        id: "arxiv 2410.10813",
+        url: "https://arxiv.org/abs/2410.10813",
+        note: "Distractor-haystack design (S / M / Oracle), abstention category, and the rubric-based LLM judge with 97% human agreement that the new suite adopts.",
+      },
+      {
+        title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents",
+        id: "arxiv 2507.05257",
+        url: "https://arxiv.org/abs/2507.05257",
+        note: "Four-competency framework. FactConsolidation directly inspired Scenario C (The Contradiction Test).",
+      },
+      {
+        title: "SWE-Bench-CL: Continual Learning for Coding Agents",
+        id: "arxiv 2507.00014",
+        url: "https://arxiv.org/abs/2507.00014",
+        note: "Repo-scoped chronological evaluation with forward-transfer / forgetting metrics. Template for Scenario E (Continual Coding).",
+      },
+      {
+        title: "Mem0 / BEAM: Memory Architectures for Production Agents",
+        id: "arxiv 2504.19413",
+        url: "https://arxiv.org/abs/2504.19413",
+        note: "Tokens-per-query co-reported with accuracy. Source of the tokens-per-successful-task headline metric.",
+      },
+      {
+        title: "LoCoMo: Long-Conversation Memory Benchmark",
+        id: "arxiv 2402.17753",
+        url: "https://arxiv.org/abs/2402.17753",
+        note: "Multi-session conversational evaluation. Considered solved (>90%) since 2025 — referenced for completeness.",
+      },
+      {
+        title: "MIRIX: Modular Memory for AI Personal Assistants",
+        id: "arxiv 2507.07957",
+        url: "https://arxiv.org/abs/2507.07957",
+        note: "Realistic synthetic-but-grounded memory data (multimodal screenshots).",
+      },
+    ],
+  },
+  {
+    heading: "Methodology — judging and benchmark hygiene",
+    refs: [
+      {
+        title: "Preference Leakage: A Pitfall in LLM-as-a-Judge",
+        id: "arxiv 2502.01534",
+        url: "https://arxiv.org/abs/2502.01534",
+        note: "Documents the cost of same-family judging. Brain's benchmark enforces a cross-family judge map.",
+      },
+      {
+        title: "When Judgment Becomes Noise: Position Bias in LLM Judges",
+        id: "arxiv 2509.20293",
+        url: "https://arxiv.org/abs/2509.20293",
+        note: "Empirical position-bias study. Brain's benchmark uses position-swap on every pairwise judgment.",
+      },
+      {
+        title: "Silent Judge: When LLM Evaluators Take Shortcuts",
+        id: "arxiv 2509.26072",
+        url: "https://arxiv.org/abs/2509.26072",
+        note: "Shortcut biases that motivate rubric-based judging with explicit oracle answers.",
+      },
+      {
+        title: "LastingBench: Defending Benchmarks Against Data Leakage",
+        id: "arxiv 2506.21614",
+        url: "https://arxiv.org/abs/2506.21614",
+        note: "Why public benchmarks decay. Brain's distractor pool is deterministic synthetic data to mitigate this.",
+      },
+    ],
+  },
 ];
 
 const neuroRows = [

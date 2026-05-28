@@ -586,33 +586,22 @@ Token counts use a dependency-free heuristic stored on each memory at write time
 
 ## Benchmark
 
-Empirical benchmarks show that agents with Brain Memory produce **more consistent** and **more successful** outputs across sessions.
+Brain Memory ships with a controlled benchmark suite grounded in the 2025-2026 SOTA in long-term-memory evaluation. The system itself is a direct implementation of the [**CoALA**](https://arxiv.org/abs/2309.02427) agent-memory model (Sumers et al., 2023) — Pinned Tier maps to CoALA's *semantic* memory, procedural skills to *procedural* memory.
 
-| Scenario | What it tests | Consistency Improvement | Success Improvement |
-|----------|---------------|:---:|:---:|
-| Multi-Session Continuity | Decisions carry from Session 1 → Session 2 | **+26.2%** | 0% |
-| Cross-Agent Consistency | All agents follow memorized style guide | 0% | 0% |
-| Accumulated Knowledge | 5 sessions of learning → better Session 6 | **+7.3%** | 0% |
-| Error Pattern Learning | Past debugging → faster fix | **+4.8%** | 0% |
-| Preference Retention | Preferences applied without re-stating | **+34.7%** | **+33.3%** |
+**Six scenarios**, each describable in one sentence:
 
-**Per-agent consistency gains (Scenario 1 — Continuity):**
+| Id | Pitch | Tests |
+|---|---|---|
+| **A** *Noisy Project Folder* | "Your brain has 200 memories from 6 projects — does it find the 3 relevant ones?" | Retrieval under distractors (LongMemEval-S analog) |
+| **B** *Three Sessions, One Decision* | "Postgres Monday, gRPC rewrite Wednesday, new resource Friday — still Postgres?" | Multi-session continuity + Pinned Tier ablation |
+| **C** *The Contradiction Test* | "Tabs, then spaces, then tabs again — which version wins?" | Decay-weighted recency + contradiction handling |
+| **D** *Skill Progressive Disclosure* | "Five skills indexed, one needed — does brain load just the one?" | CoALA Phase-2 L0/L1/L2 token efficiency |
+| **E** *Continual Coding* | "Five bugs in order — does bug 5 finish faster than bug 1?" | Forward transfer; agent writes memories between tasks |
+| **F** *Abstention* | "No deployment target in memory — does the agent ask or invent?" | Confabulation resistance |
 
-| Agent | With Brain | Without Brain | Improvement |
-|-------|:---:|:---:|:---:|
-| Claude Code | 0.944 | 0.645 | +46.4% |
-| Gemini CLI | 0.822 | 0.555 | +48.1% |
-| Codex CLI | 0.767 | 0.545 | +40.7% |
+**Methodology highlights** — cross-family LLM judge (Claude judges Gemini and vice-versa) with explicit rubric and position-swap; deterministic 200-memory distractor haystack; real `brain session-start` / `brain recall` integration; tokens-per-successful-task as the headline efficiency metric.
 
-**Preference retention (Scenario 5) — the strongest result:**
-
-| Agent | With Brain | Without Brain | Notes |
-|-------|:---:|:---:|:---|
-| Claude Code | 0.866 / PASS | 0.359 / **FAIL** | Brain prevented failure |
-| Gemini CLI | 0.800 / PASS | 0.534 / PASS | +49.8% consistency |
-| Codex CLI | 0.934 / PASS | 0.666 / PASS | +40.2% consistency |
-
-> Average across 5 scenarios: **+18.3% consistency**, **+33.3% success improvement**. Agents with Brain Memory use more tokens (memory context is injected as prompt), but the consistency and reliability gains justify the cost. In the preference scenario, Claude Code without Brain Memory failed entirely — with Brain Memory, it passed every run.
+> Preliminary smoke results (1 run × Scenario A × Gemini Flash, May 2026): `brain-real` resolves the task at **27.8K tokens-per-success**, vs **50.8K** for naïve context-dump and **86.3K** for brain with pinning disabled — a ~3× token economy improvement attributable directly to the Pinned Tier. Full multi-run results are in progress.
 
 Run the benchmarks yourself:
 
@@ -623,24 +612,52 @@ npm test               # Unit tests
 node harness/runner.js # Full benchmark (cloud APIs)
 ```
 
-Full methodology, per-scenario breakdowns, and raw data: [`benchmark/`](benchmark/) | [Detailed Report](benchmark/results/REPORT.md)
+Live methodology and per-scenario detail: [brainmemory.work/docs/benchmarks](https://brainmemory.work/docs/benchmarks) · Source: [`benchmark/`](benchmark/)
 
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, project structure, and how to submit changes.
 
-## Inspired By
+## References
 
-- [get-shit-done](https://github.com/gsd-build/get-shit-done) — Structured file-based workflow orchestration for AI agents
-- [Memory in the Age of AI Agents](https://arxiv.org/abs/2512.13564) — Comprehensive survey on agent memory architectures
-- [Mem0](https://arxiv.org/pdf/2504.19413) — Human-like memory reinforcement and decay
-- [MemOS](https://arxiv.org/pdf/2507.03724) — Memory lifecycle state management
-- [Ebbinghaus forgetting curve](https://en.wikipedia.org/wiki/Forgetting_curve) — Exponential memory decay
-- [Spreading activation](https://en.wikipedia.org/wiki/Spreading_activation) — Collins & Loftus network model of semantic memory
-- [Hebbian theory](https://en.wikipedia.org/wiki/Hebbian_theory) — "Neurons that fire together wire together"
-- [Synaptic homeostasis hypothesis](https://doi.org/10.1016/j.neuron.2013.10.024) — Tononi & Cirelli's theory of sleep function
-- [SM-2 algorithm](https://en.wikipedia.org/wiki/SuperMemo#Description_of_SM-2_algorithm) — Spaced repetition scheduling
-- [Memory reconsolidation](https://en.wikipedia.org/wiki/Memory_consolidation#Reconsolidation) — How recalling memories makes them temporarily malleable
+Brain Memory's architecture and benchmark methodology are grounded in the following work.
+
+### Foundations — the agent-memory model Brain implements
+
+- [**CoALA — Cognitive Architectures for Language Agents**](https://arxiv.org/abs/2309.02427) (arxiv 2309.02427) — Sumers, Yao, Narasimhan, Griffiths. The agent-memory taxonomy Brain implements directly. Pinned Tier → semantic memory, Skills → procedural memory, session-start aggregator → working memory.
+- [**MemGPT — LLMs as Operating Systems**](https://arxiv.org/abs/2310.08560) (arxiv 2310.08560) — Packer et al. Paging-style memory management.
+- [**Generative Agents — Interactive Simulacra of Human Behavior**](https://arxiv.org/abs/2304.03442) (arxiv 2304.03442) — Park et al. Recency · importance · relevance retrieval blend.
+- [**Memory in the Age of AI Agents**](https://arxiv.org/abs/2512.13564) (arxiv 2512.13564) — Comprehensive survey on agent memory architectures.
+- [**Mem0**](https://arxiv.org/abs/2504.19413) (arxiv 2504.19413) — Human-like memory reinforcement and decay.
+- [**MemOS**](https://arxiv.org/abs/2507.03724) (arxiv 2507.03724) — Memory lifecycle state management.
+
+### Memory benchmarks (the suite this work follows)
+
+- [**LongMemEval**](https://arxiv.org/abs/2410.10813) (arxiv 2410.10813) — distractor haystacks (S / M / Oracle), abstention category, GPT-4o judge with 97% human agreement.
+- [**MemoryAgentBench**](https://arxiv.org/abs/2507.05257) (arxiv 2507.05257) — four-competency framework; FactConsolidation inspired Scenario C.
+- [**SWE-Bench-CL**](https://arxiv.org/abs/2507.00014) (arxiv 2507.00014) — repo-scoped chronological evaluation; template for Scenario E.
+- [**LoCoMo**](https://arxiv.org/abs/2402.17753) (arxiv 2402.17753) — long-conversation memory benchmark.
+- [**MIRIX**](https://arxiv.org/abs/2507.07957) (arxiv 2507.07957) — realistic synthetic-but-grounded memory benchmarks.
+
+### Methodology — judging and benchmark hygiene
+
+- [**Preference Leakage in LLM-as-judge**](https://arxiv.org/abs/2502.01534) (arxiv 2502.01534) — drives cross-family judging.
+- [**When Judgment Becomes Noise — position bias**](https://arxiv.org/abs/2509.20293) (arxiv 2509.20293) — drives position-swap mitigation.
+- [**Silent Judge — shortcut bias**](https://arxiv.org/abs/2509.26072) (arxiv 2509.26072) — drives rubric-based judging.
+- [**LastingBench**](https://arxiv.org/abs/2506.21614) (arxiv 2506.21614) — benchmark-leakage defense.
+
+### Neuroscience
+
+- [**Ebbinghaus forgetting curve**](https://en.wikipedia.org/wiki/Forgetting_curve) — exponential memory decay.
+- [**Spreading activation**](https://en.wikipedia.org/wiki/Spreading_activation) — Collins & Loftus network model of semantic memory.
+- [**Hebbian theory**](https://en.wikipedia.org/wiki/Hebbian_theory) — "neurons that fire together wire together."
+- [**Synaptic homeostasis hypothesis**](https://doi.org/10.1016/j.neuron.2013.10.024) — Tononi & Cirelli's theory of sleep function.
+- [**SM-2 algorithm**](https://en.wikipedia.org/wiki/SuperMemo#Description_of_SM-2_algorithm) — spaced repetition scheduling.
+- [**Memory reconsolidation**](https://en.wikipedia.org/wiki/Memory_consolidation#Reconsolidation) — recalling memories makes them temporarily malleable.
+
+### Related projects
+
+- [get-shit-done](https://github.com/gsd-build/get-shit-done) — Structured file-based workflow orchestration for AI agents.
 
 ## License
 

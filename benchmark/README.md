@@ -153,10 +153,27 @@ benchmark/
 
 ## References
 
-The methodology is grounded in:
-- LongMemEval (arxiv 2410.10813) — distractor haystacks, abstention category, LLM judge with 97% human agreement
-- MemoryAgentBench (arxiv 2507.05257) — four-competency framework, FactConsolidation
-- SWE-Bench-CL (arxiv 2507.00014) — repo-scoped continual coding, forward-transfer metrics
-- Mem0 / BEAM (arxiv 2504.19413) — tokens-per-query co-reported with accuracy
-- Preference Leakage in LLM-as-judge (arxiv 2502.01534) — same-family judging risk
-- Position-bias / Silent-judge shortcut (arxiv 2509.20293, 2509.26072) — position swap mitigation
+### Foundations
+
+Brain Memory is a direct implementation of the **CoALA** agent-memory model. The benchmark's `brain-no-pin` arm ablates CoALA Phase 1; `brain-no-skills` ablates CoALA Phase 2.
+
+- **CoALA — Cognitive Architectures for Language Agents** ([arxiv 2309.02427](https://arxiv.org/abs/2309.02427)) — Sumers, Yao, Narasimhan, Griffiths (Princeton, 2023). The agent-memory taxonomy Brain implements.
+- **MemGPT — LLMs as Operating Systems** ([arxiv 2310.08560](https://arxiv.org/abs/2310.08560)) — Packer et al. Paging-style memory management that motivated the budget-bounded session-start aggregator.
+- **Generative Agents** ([arxiv 2304.03442](https://arxiv.org/abs/2304.03442)) — Park et al. Recency · importance · relevance retrieval blend that underlies Brain's scoring.
+- **Ebbinghaus — Über das Gedächtnis** (1885). Original forgetting curve.
+
+### Memory benchmarks (this suite follows)
+
+- **LongMemEval** ([arxiv 2410.10813](https://arxiv.org/abs/2410.10813)) — distractor haystacks (S / M / Oracle), abstention category, GPT-4o judge with 97% human agreement. Direct analog for Scenarios A and F.
+- **MemoryAgentBench** ([arxiv 2507.05257](https://arxiv.org/abs/2507.05257)) — four-competency framework. FactConsolidation inspired Scenario C.
+- **SWE-Bench-CL** ([arxiv 2507.00014](https://arxiv.org/abs/2507.00014)) — repo-scoped chronological evaluation with forward-transfer / forgetting metrics. Template for Scenario E.
+- **Mem0 / BEAM** ([arxiv 2504.19413](https://arxiv.org/abs/2504.19413)) — tokens-per-query co-reported with accuracy. Source of the tokens-per-successful-task headline metric.
+- **LoCoMo** ([arxiv 2402.17753](https://arxiv.org/abs/2402.17753)) — long-conversation memory benchmark; considered solved since 2025.
+- **MIRIX** ([arxiv 2507.07957](https://arxiv.org/abs/2507.07957)) — realistic synthetic-but-grounded memory benchmarks.
+
+### Methodology — judging and benchmark hygiene
+
+- **Preference Leakage in LLM-as-judge** ([arxiv 2502.01534](https://arxiv.org/abs/2502.01534)) — why same-family judging fails. Drives the cross-family judge map.
+- **When Judgment Becomes Noise — position bias** ([arxiv 2509.20293](https://arxiv.org/abs/2509.20293)) — empirical position-bias study. Drives position-swap mitigation.
+- **Silent Judge — shortcut bias** ([arxiv 2509.26072](https://arxiv.org/abs/2509.26072)) — drives rubric-based judging with explicit oracle answers.
+- **LastingBench** ([arxiv 2506.21614](https://arxiv.org/abs/2506.21614)) — benchmark-leakage defense. Why the distractor pool is deterministic synthetic data.
