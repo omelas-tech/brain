@@ -1,0 +1,103 @@
+{
+  "name": "Scenario E — Continual Coding on the Same Repo",
+  "pitch": "Five async bugs in the same repo, in order. Does session 5 finish faster because of sessions 1-4?",
+  "tests": "Forward transfer + tokens per resolved task across a chronological sequence. The agent writes its own memories between tasks via the brain CLI (real WRITE-side test).",
+  "key_metrics": ["per_task_pass_rate", "forward_transfer_tokens", "tokens_per_success"],
+
+  "continual": true,
+
+  "context": {
+    "project": "async-bug-zoo",
+    "topics": ["async", "concurrency", "promises", "debugging"],
+    "task_type": "debugging"
+  },
+
+  "memories": [],
+
+  "arms": [
+    { "name": "fixture-only", "label": "Fixtures only (cold start each task)", "seed": "none",     "memory_injection": "none" },
+    { "name": "brain-real",   "label": "Brain (production, accumulates)",      "seed": "scenario", "memory_injection": "session-start", "pin": true, "skills": true }
+  ],
+
+  "tasks": [
+    {
+      "label": "bug1-processor",
+      "text": "There's a bug in src/bug1-processor.js — the processAll function sometimes returns fewer results than expected when processing large arrays under concurrent load. Find the bug, briefly explain what causes it (one short paragraph), then fix it. Keep the public signature the same.",
+      "judge": {
+        "family": null,
+        "question": "Fix the race condition in src/bug1-processor.js's processAll function.",
+        "oracle_answer": "The bug is concurrent push() to a shared `results` array inside Promise.all(map(async ...)). The fix is to use the map's RETURN values (e.g. `const results = await Promise.all(items.map(fn))`) — no shared mutation.",
+        "rubric": [
+          "The fixed processAll no longer pushes to a shared array inside the map callback",
+          "It uses Promise.all return values (or sequential for-of) instead of shared mutation",
+          "The function still preserves order or correctness across results",
+          "Public signature processAll(items, fn) is unchanged",
+          "Brief explanation identifies 'race condition' or 'shared mutation' as the cause"
+        ]
+      }
+    },
+    {
+      "label": "bug2-batch",
+      "text": "There's a bug in src/bug2-batch.js similar in spirit to a class of bugs you may have seen before — `counter` and `results` are mutated from inside concurrent async callbacks. Fix processInBatches so its return values are correct under load. Keep the public signature.",
+      "judge": {
+        "family": null,
+        "question": "Fix the same family of race condition in src/bug2-batch.js's processInBatches.",
+        "oracle_answer": "Replace shared mutation with collecting the per-task return values: `const batchResults = await Promise.all(batch.map(fn))`, then concat into results; compute count from results.length. No shared `counter += 1` inside concurrent callbacks.",
+        "rubric": [
+          "No shared mutation (counter++ or array.push) inside the inner Promise.all map callback",
+          "Counter / processed count is derived from results length or accumulated synchronously",
+          "Results array is built from Promise.all return values",
+          "Batches are still processed batch-by-batch (outer for loop still present)",
+          "Public signature processInBatches(items, batchSize, fn) is unchanged"
+        ]
+      }
+    },
+    {
+      "label": "bug3-deadlock",
+      "text": "There's a bug in src/bug3-deadlock.js: waitForSignal hangs forever because the latch's resolve is never called. Either fix the API so the caller can actually signal, or remove the deadlock — your choice, but the function must be usable. Add a small test in test/bug3.test.js using node:test that proves it resolves.",
+      "judge": {
+        "family": null,
+        "question": "Fix the deadlock in src/bug3-deadlock.js and add a node:test test that verifies it resolves.",
+        "oracle_answer": "The signal() method must call the captured resolve. The fix: `signal: () => resolve()` (or equivalent). Test in test/bug3.test.js uses node:test, creates a latch, calls signal, awaits promise, asserts no timeout.",
+        "rubric": [
+          "signal() now calls resolve (the latch's promise actually resolves)",
+          "waitForSignal returns a promise that can complete",
+          "A new file test/bug3.test.js exists",
+          "Test imports node:test (or test from node:test)",
+          "Test calls signal() and awaits the promise to assert resolution"
+        ]
+      }
+    },
+    {
+      "label": "bug4-unhandled",
+      "text": "src/bug4-unhandled.js has an unhandled-rejection landmine. Fix refreshInBackground so it cannot crash the process on a background refresher() throwing — log the error and continue. Keep refreshInBackground synchronous in its return type.",
+      "judge": {
+        "family": null,
+        "question": "Make refreshInBackground safe against unhandled rejections.",
+        "oracle_answer": "Attach a .catch() (or wrap in try/catch via async IIFE) to the dropped promise. On rejection: log (console.error or equivalent) and swallow. Return shape { started: true } unchanged and synchronous.",
+        "rubric": [
+          "The promise from refresher() has a .catch() attached (or equivalent error handler)",
+          "Error path logs (console.error / console.warn / equivalent) instead of throwing",
+          "refreshInBackground still returns synchronously with { started: true }",
+          "No top-level await introduced",
+          "Public signature refreshInBackground(refresher) unchanged"
+        ]
+      }
+    },
+    {
+      "label": "bug5-await",
+      "text": "src/bug5-await.js has a forgotten await — loadConfig tries to JSON.parse a Promise. Fix it. The function should be async and return the parsed object.",
+      "judge": {
+        "family": null,
+        "question": "Fix the missing await in loadConfig.",
+        "oracle_answer": "loadConfig becomes async; awaits reader.read('config.json') before JSON.parse. Returns parsed object.",
+        "rubric": [
+          "loadConfig is declared async",
+          "reader.read('config.json') is awaited",
+          "Returns the parsed JSON object (not a Promise of a Promise)",
+          "JSON.parse is called on the awaited value"
+        ]
+      }
+    }
+  ]
+}

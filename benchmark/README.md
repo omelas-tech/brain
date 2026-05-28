@@ -1,203 +1,162 @@
 # Brain Memory Benchmark
 
-Empirical benchmark framework proving that AI agents with persistent memory produce more consistent, more successful outputs while using fewer tokens.
+Controlled benchmark proving that agents with persistent, retrieval-based memory **find the right context under noise**, **resolve contradictions correctly**, and **resolve tasks at a lower token-per-success cost** than agents without memory or with naïve context-dumping.
 
-## What It Measures
+This is a redesign of the original benchmark (the legacy 5-scenario suite is archived — see §"Legacy 5"). The methodology follows the 2025-2026 SOTA in long-term-memory evaluation (LongMemEval, MemoryAgentBench, Mem0/BEAM, SWE-Bench-CL).
 
-For each scenario, the benchmark runs identical coding tasks across AI agents — **with** and **without** Brain Memory — measuring:
+## TL;DR
 
-| Metric | What it means |
-|--------|---------------|
-| **Token usage** | Total input + output tokens consumed |
-| **Success rate** | Whether the output passes evaluation criteria |
-| **Consistency** | Pairwise similarity of outputs across runs/agents |
-| **Time** | Wall-clock execution time |
+- **6 scenarios**, each describable in one sentence (§"Scenario suite")
+- **N-arm matrix** per scenario — production brain vs. ablations (no-pin, no-skills, no-recall) vs. baselines (bare, fixture-only, context-dump upper bound)
+- **Cross-family LLM judge** with per-question rubric and position-swap (Claude judges Gemini and vice-versa — no preference leakage)
+- **Distractor haystacks** — 50-200 plausible-but-irrelevant memories per scenario, so retrieval is non-trivial
+- **Tokens-per-successful-task** as the headline efficiency metric, alongside **Recall@k** and **judge pass rate**
+- **Write-side cost** (memorize + sleep + skill distillation) co-reported as a separate axis
 
-## 5 Benchmark Scenarios
+## What changed vs the legacy suite
 
-| # | Scenario | What it proves | Key metric |
-|---|----------|---------------|------------|
-| 1 | **Multi-Session Continuity** | Decisions from Session 1 carry to Session 2 | Architectural alignment score |
-| 2 | **Cross-Agent Consistency** | All agents follow the same memorized style | Pairwise consistency matrix |
-| 3 | **Accumulated Knowledge** | 5 sessions of learning → better Session 6 | Token usage + correctness |
-| 4 | **Error Pattern Learning** | Past debugging → faster fix of similar bug | Tokens to resolution |
-| 5 | **Preference Retention** | Preferences applied without re-stating | Preference compliance score |
+| Old methodology | Problem | New methodology |
+|---|---|---|
+| Memories prepended verbatim into the prompt (`buildMemoryContext`) | Tests long-context, not memory. Brain's recall/pin/skills layers never touched. | Each arm declares `memory_injection`; default is `session-start` (shells out to the real `brain` CLI). |
+| ≤5 oracle memories per scenario, all relevant | Zero retrieval pressure — recall trivially perfect. | `seed: "scenario+distractors"` adds 50-200 deterministic plausible distractors per scenario. |
+| Regex pattern matching for pass/fail | Gameable, ceiling/floor artifacts. | Cross-family LLM judge with explicit per-question rubric + position-swap. |
+| Headline metric: "+18% consistency, +33% success" with token overhead apologized for | Wrong framing. | Headline: **tokens-per-successful-task** + **Recall@k** + **judge pass rate**. |
+| Two arms: with/without brain | Couldn't attribute gains to specific features. | 4-6 arms per scenario including per-feature ablations. |
+| Codex CLI (no token reporting) | Can't compute tokens-per-success | Codex dropped; Claude + Gemini only. |
 
-## Quick Start
+## Scenario suite
+
+| Id | Pitch | What it tests |
+|---|---|---|
+| **A** *Noisy Project Folder* | "Your brain has 200 memories from 6 projects. I ask you to add a feature to project X. Do you find the 3 relevant memories?" | Retrieval under distractors (LongMemEval-S analog) |
+| **B** *Three Sessions, One Decision* | "On Monday we picked Postgres. On Wednesday I rewrote the API. On Friday I add a new resource — does it still use Postgres?" | Multi-session continuity + pinned tier ablation |
+| **C** *The Contradiction Test* | "Three weeks ago I told you tabs. Two weeks ago, spaces. Last week, tabs again. New file — which do you use?" | Decay-weighted recency + contradiction handling |
+| **D** *Skill Progressive Disclosure* | "You have a `pg-migration` skill. I ask you to add a migration. Did you load the full SKILL.md, or just see the index entry and ignore it?" | CoALA Phase-2 L0/L1/L2 token efficiency |
+| **E** *Continual Coding* | "Five async bugs in the same repo, in order. Does session 5 finish faster because of sessions 1-4?" | Forward transfer + tokens per resolved task. The agent writes its own memories via the brain CLI between bugs — exercises the WRITE side end-to-end. |
+| **F** *Abstention* | "I never told you my deployment target. Where do you deploy this?" | Confabulation resistance — does the agent invent details or recognize the gap? |
+
+## The arm matrix
+
+| Arm | What it does | What it isolates |
+|---|---|---|
+| `bare` | No memory, no fixtures | Floor |
+| `fixture-only` | Realistic project files, no brain (= old "without_brain") | Honest baseline |
+| `brain-real` | Full brain via `brain session-start`, distractor haystack, pin+skills on | What we ship |
+| `brain-no-recall` | All oracle memories prepended verbatim (= old "with_brain") | Quantifies long-context vs retrieval value |
+| `brain-no-pin` | `brain-real` but pinned tier disabled | CoALA Phase-1 attribution |
+| `brain-no-skills` | `brain-real` but skills layer disabled | CoALA Phase-2 attribution |
+| `brain-skills-L0` / `brain-skills-loaded` / `brain-skills-all-loaded` | Scenario D's three-rung progressive-disclosure ablation | Per-tier skill cost |
+| `dump-all-chrono` / `context-dump` | Full memory CONTENTS (not bodies) concatenated | Upper bound — proves memory ≠ long-context |
+
+Each scenario picks the 4-6 arms relevant to what it tests.
+
+## Metrics
+
+Four headline axes, every scenario, every run:
+
+1. **Task pass rate** — rubric-graded by LLM judge (cross-family).
+2. **Tokens per successful task** — `(input+output) / passes`. The headline efficiency metric.
+3. **Retrieval Recall@k** — for arms that use `session-start` or `recall`, did the right memory IDs surface in the top-k against `setup.oracle_memory_ids`?
+4. **Judge rationale** — captured verbatim per run for spot-checking.
+
+Plus, where applicable: **per-task pass rate** (Scenario E), **forward-transfer Δ tokens** (E), **confabulation rate** (F).
+
+**Write-side cost** is co-reported on Scenario E (the only scenario that actually writes). No artificial "amortize-over-N-reads" ratio.
+
+## Quick start
 
 ### Prerequisites
 
-- Node.js >= 18
-- At least one AI agent CLI installed: `claude`, `gemini`, or `codex`
-- For local testing: [Ollama](https://ollama.ai) with Qwen 2.5 Coder 14B
+- Node.js ≥ 18
+- `claude` and/or `gemini` CLIs installed
+- `.env` file at `benchmark/.env` with `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` (the judge needs at least one of each family)
 
-### Run Tests
+### Run
 
 ```bash
 cd benchmark
-npm test
-```
 
-### Run Benchmarks (Cloud APIs — default)
-
-Each agent uses its native cloud API (Anthropic, Google, OpenAI). Cost is ~$1-2 per full run.
-
-```bash
-# All scenarios, all available agents
+# All 6 scenarios, all enabled agents
 node harness/runner.js
 
 # Single scenario
-node harness/runner.js --scenario continuity
+node harness/runner.js --scenario scenario-A
 
 # Single agent
 node harness/runner.js --agent claude
 
-# More runs for statistical confidence
-node harness/runner.js --runs 5
-
-# Dry run (show plan)
+# Dry run — show plan only
 node harness/runner.js --dry-run
+
+# More runs (default 3 — raise to 5 for statistical confidence)
+node harness/runner.js --runs 5
 ```
 
-### Run Benchmarks (Ollama — local, free)
+Cost guideline (3 runs of all 6 scenarios, both agents):
+- Agent calls: ~$5-8 (Claude Sonnet + Gemini Flash)
+- Judge calls: ~$1-2 (cross-family, ~70 judgments)
+- **Total: ~$6-10 per full run**
 
-Routes all agents through a single local model via Ollama for controlled, zero-cost comparison. Requires [Ollama](https://ollama.ai) running with Qwen 2.5 Coder 14B (fits 16GB VRAM).
+Scenario E is the most expensive (5 tasks × N runs × per-task memorize prompt); the other five are single-prompt.
 
-```bash
-# Pull the model
-ollama pull qwen2.5-coder:14b
+### Legacy 5
 
-# Run with --ollama flag
-node harness/runner.js --ollama
-```
+The original 5 scenarios are still on disk under `scenarios/scenario-1-*` through `scenario-5-*`. They have no `setup.arms[]` so the harness falls through to the legacy with_brain/without_brain code path. `config.json` no longer lists them in `scenarios[]` — use `--scenario scenario-1-continuity` to invoke them directly. They remain available for reproducing historical reports but are not part of the headline result.
 
-For Gemini CLI, a LiteLLM proxy is needed to translate between API formats:
+## Methodology details
 
-```bash
-docker compose -f docker/docker-compose.yml up ollama litellm
-node harness/runner.js --ollama
-```
+### Cross-family LLM judge
 
-### Docker (Full Stack)
+Defined in `harness/judge.js`. For every agent under test, the judge belongs to a different model family (Claude → judged by Gemini; Gemini → judged by Claude). Each judgment uses an explicit per-question rubric (binary criteria) plus the oracle answer. Pairwise judgments swap candidate positions and only keep verdicts that survive both orderings (mitigates position bias — arxiv 2509.20293).
 
-Runs everything in containers — Ollama, LiteLLM, and agent benchmarks:
+### Distractor corpus
 
-```bash
-docker compose -f docker/docker-compose.yml up
-```
+Defined in `harness/distractors.js`. Deterministic seeded RNG produces N (default 200) plausible memories across 6 fake projects, 12 topic clusters, 8 memory types. Reused across scenarios. Estimated pool size: ~17K tokens for 200 distractors.
 
-## How It Works
+### Retrieval scoring
 
-```
-For each scenario × each agent × {with-brain, without-brain}:
-  1. Create isolated temp workspace
-  2. Copy fixture project files
-  3. If with-brain: init ~/.brain/, seed deterministic memories
-  4. Run training prompts (build context)
-  5. Run test prompts (measured: tokens, time, output)
-  6. Evaluate output (pass/fail, consistency score)
-  7. Aggregate across 3 runs → report (median values)
-```
+`harness/recall-probe.js` shells out to `brain recall` (the real production CLI) and parses the JSON output. `Recall@k` and `NDCG@k` are computed against each scenario's `oracle_memory_ids[]`. This isolates *retrieval* failure from *application* failure — if Recall@5 = 1.0 but the judge fails, the agent had the memory and ignored it.
 
-### Key Design Decisions
+### Continual mode (Scenario E)
 
-- **Direct memory seeding** — Uses `src/index-manager.js` APIs to create deterministic memories. Ensures reproducibility: the test measures whether agents *recall and use* memories, not whether they can store them.
-- **Zero dependencies** — Matches brain-memory's philosophy. Node.js builtins only.
-- **Regex-based evaluation** — No AST parser needed. Pattern matching for architectural alignment.
-- **Graceful agent skipping** — Works with 1, 2, or all 3 agents installed.
-- **Multiple runs** — Each scenario runs 3 times; median values reported to handle AI non-determinism.
+`setup.continual = true` activates a different execution path in `harness/arm-runner.js`:
 
-## Output
+1. ONE persistent workspace per (agent, arm) — no cleanup between tasks.
+2. Each task runs with a fresh `brain session-start` injection.
+3. Between tasks, the agent is prompted to call the brain CLI to memorize lessons learned. This is the WRITE-side test — if the agent doesn't write, task N+1 sees nothing in `session-start`.
+4. Judged per-task; aggregated into per-task pass rate + forward-transfer Δ tokens.
 
-### Console
-
-ASCII comparison table printed after each scenario.
-
-### JSON
-
-```json
-{
-  "scenario": "multi-session-continuity",
-  "model": "qwen2.5-coder:14b",
-  "results": {
-    "claude": {
-      "with_brain":    { "tokens": 1801, "time_ms": 4500, "success": true,  "consistency": 0.95 },
-      "without_brain": { "tokens": 2990, "time_ms": 7200, "success": false, "consistency": 0.42 }
-    }
-  },
-  "summary": {
-    "token_reduction_pct": 39.8,
-    "success_improvement_pct": 40.0,
-    "consistency_improvement_pct": 55.3
-  }
-}
-```
-
-### Markdown
-
-Generated in `results/` alongside JSON — ready for README inclusion.
-
-## Methodology & Limitations
-
-### Fair Control Group
-
-The "without brain" control group uses the same fixture project files as the "with brain" variant. Fixtures include realistic reference code (full CRUD routes, connection pooling, functional patterns) so that the control group has a fair baseline — it can infer conventions from existing code rather than starting from a blank stub. This ensures the benchmark measures **memory recall**, not "some context vs. none."
-
-### Memory Injection
-
-Memory context is surfaced as conversational recall (e.g., "You decided...", "You prefer...") rather than injected instructions. Only the concise `body` field is used — full content with code examples is not included. This approximates how brain-memory works in practice: the agent recalls summaries, not verbatim documentation.
-
-### Evaluation
-
-Evaluators use regex pattern matching, not AST parsing. This is intentionally coarse-grained — it measures whether the agent applied the right architectural patterns, not whether it produced syntactically perfect code. Known limitations:
-
-- **False positives**: An agent might match patterns incidentally without truly applying the memorized convention
-- **False negatives**: Valid implementations using different naming or structure may score low
-- **No semantic analysis**: Two functionally equivalent implementations may score differently
-- **Model sensitivity**: Results vary across model versions and temperature settings
-
-### Reproducibility
-
-- Each scenario runs multiple times (default: 3); median values are reported
-- Seeded memories are deterministic — the same memories are injected for every run
-- Workspace isolation ensures no cross-contamination between runs
-- Results should be compared within the same model/run, not across different models or dates
-
-## File Structure
+## File structure
 
 ```
 benchmark/
-├── package.json
+├── README.md                              # this file
 ├── config.json
-├── README.md
 ├── harness/
-│   ├── runner.js              # Main orchestrator
-│   ├── agents/
-│   │   ├── index.js           # Agent registry + availability check
-│   │   ├── claude.js          # claude -p adapter
-│   │   ├── gemini.js          # gemini -p adapter
-│   │   └── codex.js           # codex exec adapter
-│   ├── metrics.js             # Token extraction, timing, aggregation
-│   ├── evaluator.js           # Output evaluation (success, consistency)
-│   ├── seeder.js              # Seed memories via index-manager.js
-│   ├── brain-setup.js         # Init brain + install prompts
-│   ├── reporter.js            # Results → JSON, console, markdown
-│   └── formatter.js           # ASCII/markdown table rendering
-├── docker/
-│   ├── Dockerfile.agent       # Parameterized agent container
-│   ├── Dockerfile.ollama      # Ollama + pre-pulled model
-│   ├── Dockerfile.litellm     # LiteLLM proxy
-│   ├── docker-compose.yml     # Full stack orchestration
-│   ├── litellm-config.yaml    # LiteLLM → Ollama routing
-│   └── entrypoint.sh          # Ollama readiness + model pull
+│   ├── runner.js                          # top-level orchestrator
+│   ├── arm-runner.js                      # NEW: N-arm execution + continual mode
+│   ├── judge.js                           # NEW: cross-family LLM judge
+│   ├── recall-probe.js                    # NEW: brain recall + session-start probe
+│   ├── distractors.js                     # NEW: deterministic 200-memory haystack
+│   ├── seeder.js, brain-setup.js, env.js, agents/, metrics.js, evaluator.js,
+│   └── reporter.js, formatter.js          # (extended to render arm-shape results)
 ├── scenarios/
-│   ├── scenario-1-continuity/
-│   ├── scenario-2-consistency/
-│   ├── scenario-3-knowledge/
-│   ├── scenario-4-error-learning/
-│   └── scenario-5-preferences/
-├── test/
-│   ├── harness.test.js        # Unit tests for harness modules
-│   └── scenarios.test.js      # Tests for scenario evaluators
-└── results/                   # Generated benchmark output
+│   ├── scenario-A-noisy-folder/
+│   ├── scenario-B-three-sessions/
+│   ├── scenario-C-contradiction/
+│   ├── scenario-D-skills/
+│   ├── scenario-E-continual/
+│   ├── scenario-F-abstention/
+│   └── scenario-{1..5}-…/                 # archived legacy
+└── results/                               # generated output
 ```
+
+## References
+
+The methodology is grounded in:
+- LongMemEval (arxiv 2410.10813) — distractor haystacks, abstention category, LLM judge with 97% human agreement
+- MemoryAgentBench (arxiv 2507.05257) — four-competency framework, FactConsolidation
+- SWE-Bench-CL (arxiv 2507.00014) — repo-scoped continual coding, forward-transfer metrics
+- Mem0 / BEAM (arxiv 2504.19413) — tokens-per-query co-reported with accuracy
+- Preference Leakage in LLM-as-judge (arxiv 2502.01534) — same-family judging risk
+- Position-bias / Silent-judge shortcut (arxiv 2509.20293, 2509.26072) — position swap mitigation

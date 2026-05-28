@@ -1,0 +1,6 @@
+{
+  "name": "async-bug-zoo",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "scripts": { "test": "node --test test/" }
+}

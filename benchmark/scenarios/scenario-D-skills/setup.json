@@ -1,0 +1,82 @@
+{
+  "name": "Scenario D — Skill Progressive Disclosure",
+  "pitch": "You have a `pg-migration` skill. I ask you to add a migration. Did you load the full SKILL.md, or just see the index entry and ignore it?",
+  "tests": "CoALA Phase-2 three-level progressive disclosure: L0 advertised index → L1 loaded skill → L2 loaded resources. Quantifies the token-efficiency win.",
+  "key_metrics": ["judge_pass_rate", "tokens_per_success"],
+
+  "context": {
+    "project": "harbor-svc",
+    "topics": ["database", "postgres"],
+    "task_type": "implementing"
+  },
+
+  "memories": [],
+
+  "skills": [
+    {
+      "name": "pg-migration",
+      "relevant": true,
+      "description": "Add a new Postgres table — generates UP/DOWN migration SQL, reuses the project's pg pool, follows the BIGSERIAL primary key + TIMESTAMPTZ created_at convention.",
+      "body": "# Skill: pg-migration\n\nUse when adding a new Postgres table to harbor-svc.\n\n## Conventions\n- Migration file: `db/migrations/NNN-<name>.sql` where NNN is the next zero-padded sequence number.\n- Each migration MUST have `-- UP` and `-- DOWN` sections.\n- Primary key: `id BIGSERIAL PRIMARY KEY`.\n- Audit columns required: `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` and `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`.\n- Add an index on `created_at DESC` for any table that will be paginated.\n- DOWN section drops the table.\n\n## Repository pattern\nAlongside the migration, add a repository module at `db/<name>.js` exporting `list`, `get`, `create`, `update`. Use parameterized queries (`$1, $2 ...`). Always go through the existing `db/index.js` pool.\n\n## Example\n```sql\n-- UP\nCREATE TABLE invoices (\n  id BIGSERIAL PRIMARY KEY,\n  amount NUMERIC(20, 4) NOT NULL,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()\n);\nCREATE INDEX invoices_created_at_idx ON invoices (created_at DESC);\n\n-- DOWN\nDROP TABLE invoices;\n```",
+      "strength": 0.80, "use_count": 4
+    },
+    {
+      "name": "redis-cache",
+      "relevant": false,
+      "description": "Cache an endpoint result in Redis with TTL and write-invalidation. Use for read-heavy list endpoints.",
+      "body": "# Skill: redis-cache\n\nCache list endpoints with Redis. Key namespace: `harbor:<resource>:list:<cursor>`. TTL 60s for lists. Invalidate on POST/PUT/DELETE.",
+      "strength": 0.70, "use_count": 2
+    },
+    {
+      "name": "react-component",
+      "relevant": false,
+      "description": "Create a functional React component with named exports and accessibility defaults.",
+      "body": "# Skill: react-component\n\nFunctional components only. Named export. ARIA labels on interactive elements. Memo for list rows.",
+      "strength": 0.65, "use_count": 1
+    },
+    {
+      "name": "cli-arg-parsing",
+      "relevant": false,
+      "description": "Build a small CLI with subcommands, using yargs for arg parsing and validation.",
+      "body": "# Skill: cli-arg-parsing\n\nUse yargs. Subcommand-per-file structure under `cli/commands/`. Validate before invoking the handler.",
+      "strength": 0.60, "use_count": 1
+    },
+    {
+      "name": "terraform-module",
+      "relevant": false,
+      "description": "Author a reusable Terraform module — variables.tf, outputs.tf, main.tf, README, version-pinned.",
+      "body": "# Skill: terraform-module\n\nFour-file layout. Pin module sources to a tag. Outputs documented.",
+      "strength": 0.55, "use_count": 0
+    }
+  ],
+
+  "arms": [
+    { "name": "fixture-only",            "label": "Fixtures only (no skills)",       "seed": "none",     "memory_injection": "none" },
+    { "name": "brain-skills-L0",         "label": "L0 only (index advertised)",      "seed": "scenario", "memory_injection": "session-start", "pin": true, "skills": true },
+    { "name": "brain-skills-loaded",     "label": "L1 (relevant skill loaded)",      "seed": "scenario", "memory_injection": "session-start", "pin": true, "skills": true, "skill_load": "relevant" },
+    { "name": "brain-skills-all-loaded", "label": "Naïve: ALL skill bodies dumped",  "seed": "scenario", "memory_injection": "session-start", "pin": true, "skills": true, "skill_load": "all" }
+  ],
+
+  "test": [
+    {
+      "label": "add-payments-table",
+      "text": "Add a `payments` table to harbor-svc. Create the migration and a matching repository module. The table needs columns: amount (numeric, 20.4), method (text), and the usual audit columns. Add a list operation that paginates and a create operation."
+    }
+  ],
+
+  "judge": {
+    "family": null,
+    "question": "Add a payments table to harbor-svc (migration + repository) following the project's conventions.",
+    "oracle_answer": "Migration at db/migrations/NNN-payments.sql with -- UP and -- DOWN markers. UP section creates `payments` table with BIGSERIAL primary key, amount NUMERIC(20,4), method TEXT, created_at + updated_at TIMESTAMPTZ DEFAULT now(), and a created_at DESC index. Repository at db/payments.js exporting list (with cursor) and create using parameterized queries via the existing pg pool.",
+    "rubric": [
+      "Migration filename matches db/migrations/NNN-payments.sql (any zero-padded NNN)",
+      "Migration contains both -- UP and -- DOWN markers",
+      "Primary key is BIGSERIAL (or equivalent BIGINT GENERATED ALWAYS AS IDENTITY)",
+      "Includes created_at AND updated_at TIMESTAMPTZ columns with DEFAULT now()",
+      "Includes an index on created_at DESC",
+      "Repository module exists at db/payments.js",
+      "Repository uses parameterized queries ($1, $2…) — no string interpolation",
+      "Repository exports both list and create (or equivalent names)"
+    ]
+  }
+}

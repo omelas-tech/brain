@@ -1,0 +1,106 @@
+{
+  "name": "Scenario C — The Contradiction Test",
+  "pitch": "Three weeks ago I told you we use tabs. Two weeks ago, spaces. Last week, tabs again. New file — which do you use?",
+  "tests": "Decay-weighted recency, contradiction handling, primacy/recency ordering (CoALA Phase 0 + Tier-B §10.2 + §10.4).",
+  "key_metrics": ["latest_preference_compliance", "judge_pass_rate"],
+
+  "context": {
+    "project": "kestrel-api",
+    "topics": ["code-style", "formatting"],
+    "task_type": "implementing"
+  },
+
+  "oracle_memory_ids": ["mem_pref_v3_tabs_again"],
+
+  "memories": [
+    {
+      "id": "mem_pref_v1_tabs",
+      "type": "preference",
+      "cognitive_type": "procedural",
+      "title": "Use tabs (v1)",
+      "body": "kestrel-api uses tab indentation. Configured editorconfig accordingly.",
+      "content": "# Indentation: tabs\n\nWe agreed on tab indentation for kestrel-api. The editorconfig is updated.",
+      "path": "professional/preferences/kestrel_indent_v1.md",
+      "strength": 0.55,
+      "decay_rate": 0.985,
+      "salience": 0.45,
+      "confidence": 0.85,
+      "tags": ["code-style", "indentation", "kestrel-api", "tabs"],
+      "access_count": 1,
+      "last_accessed": "2026-05-07T10:00:00.000Z",
+      "created": "2026-05-07T09:00:00.000Z",
+      "encoding_context": { "project": "kestrel-api", "topics": ["code-style"], "task_type": "implementing" }
+    },
+    {
+      "id": "mem_pref_v2_spaces",
+      "type": "preference",
+      "cognitive_type": "procedural",
+      "title": "Switched to spaces (v2)",
+      "body": "Reversed prior decision — kestrel-api now uses 2-space indentation. Easier diff review with the JS ecosystem default.",
+      "content": "# Indentation: spaces\n\nSwitched kestrel-api to 2-space indentation. Easier code-review on Github. Updated editorconfig.",
+      "path": "professional/preferences/kestrel_indent_v2.md",
+      "strength": 0.65,
+      "decay_rate": 0.990,
+      "salience": 0.55,
+      "confidence": 0.90,
+      "tags": ["code-style", "indentation", "kestrel-api", "spaces"],
+      "access_count": 2,
+      "last_accessed": "2026-05-14T10:00:00.000Z",
+      "created": "2026-05-14T09:00:00.000Z",
+      "encoding_context": { "project": "kestrel-api", "topics": ["code-style"], "task_type": "implementing" }
+    },
+    {
+      "id": "mem_pref_v3_tabs_again",
+      "type": "preference",
+      "cognitive_type": "procedural",
+      "title": "Back to tabs (v3 — final)",
+      "body": "Reverted again. kestrel-api uses tabs. Final this time — TC39 plus our biggest contributor prefers tabs. .editorconfig pinned to indent_style=tab, indent_size=4.",
+      "content": "# Indentation: tabs (final)\n\nReverted from 2-space to tabs after team vote on 2026-05-21. Our heaviest contributor argued tabs are accessible to vision-impaired devs (configurable display width). This decision is final.\n\n.editorconfig:\n```\nindent_style = tab\nindent_size = 4\n```",
+      "path": "professional/preferences/kestrel_indent_v3.md",
+      "strength": 0.80,
+      "decay_rate": 0.997,
+      "salience": 0.75,
+      "confidence": 0.95,
+      "tags": ["code-style", "indentation", "kestrel-api", "tabs"],
+      "access_count": 3,
+      "last_accessed": "2026-05-25T10:00:00.000Z",
+      "created": "2026-05-21T09:00:00.000Z",
+      "encoding_context": { "project": "kestrel-api", "topics": ["code-style"], "task_type": "implementing" },
+      "pin": true,
+      "pin_priority": 7
+    }
+  ],
+
+  "associations": [
+    { "idA": "mem_pref_v1_tabs",       "idB": "mem_pref_v2_spaces",     "weight": 0.9, "origin": "contradicts" },
+    { "idA": "mem_pref_v2_spaces",     "idB": "mem_pref_v3_tabs_again", "weight": 0.9, "origin": "contradicts" }
+  ],
+
+  "arms": [
+    { "name": "fixture-only",        "label": "Fixtures only",                 "seed": "none",                 "memory_injection": "none" },
+    { "name": "brain-real",          "label": "Brain (production)",            "seed": "scenario+distractors", "distractor_size": 50, "memory_injection": "session-start", "pin": true, "skills": true },
+    { "name": "brain-no-pin",        "label": "Brain w/ pinning OFF",          "seed": "scenario+distractors", "distractor_size": 50, "memory_injection": "session-start", "pin": false, "skills": true },
+    { "name": "dump-all-chrono",     "label": "Dump all 3 versions verbatim",  "seed": "scenario",             "memory_injection": "dump-contents" }
+  ],
+
+  "test": [
+    {
+      "label": "create-route-file",
+      "text": "Create a new file src/routes/health.js in kestrel-api. It should export an Express route handler that responds with JSON `{ status: 'ok', uptime: <process uptime in seconds> }` for GET /health. Use our project's current indentation style — match the rest of the codebase."
+    }
+  ],
+
+  "judge": {
+    "family": null,
+    "question": "Create src/routes/health.js in kestrel-api following the project's current indentation style.",
+    "oracle_answer": "The file uses TAB indentation (not spaces). The project's final indentation decision (effective 2026-05-21) is tabs, indent_size=4. The handler is a minimal Express route returning { status: 'ok', uptime: <number> } on GET /health.",
+    "rubric": [
+      "Indentation in the generated file uses TAB characters, not spaces",
+      "File is created at src/routes/health.js (exact path)",
+      "Exports an Express route or handler (router.get('/health', ...) or app.get equivalent)",
+      "Returns JSON containing 'status' = 'ok'",
+      "Returns JSON containing 'uptime' from process.uptime() (or equivalent)",
+      "No conflicting comments like '// using spaces because…' or stale style notes"
+    ]
+  }
+}

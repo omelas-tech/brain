@@ -1,0 +1,9 @@
+{
+  "name": "aurora-cms",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app.js"
+  }
+}

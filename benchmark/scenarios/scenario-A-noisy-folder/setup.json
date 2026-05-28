@@ -1,0 +1,113 @@
+{
+  "name": "Scenario A — The Noisy Project Folder",
+  "pitch": "Your brain has 200 memories from 6 projects. I ask you to add a feature to project X. Do you find the 3 relevant memories?",
+  "tests": "Retrieval under realistic load (TF-IDF + context-match + spreading activation). Mirrors LongMemEval-S/M distractor methodology.",
+  "key_metrics": ["recall_at_5", "tokens_per_success", "judge_pass_rate"],
+
+  "context": {
+    "project": "aurora-cms",
+    "topics": ["caching", "pagination", "vue"],
+    "task_type": "implementing"
+  },
+
+  "oracle_memory_ids": [
+    "mem_orcl_cache_redis",
+    "mem_orcl_cursor_pagination",
+    "mem_orcl_vue_composable"
+  ],
+
+  "memories": [
+    {
+      "id": "mem_orcl_cache_redis",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "title": "Cache layer: Redis with 60s TTL",
+      "body": "All list endpoints in aurora-cms use Redis with a 60-second TTL. Cache key format is `aurora:<resource>:<id>` or `aurora:<resource>:list:<page>`. Invalidate on write.",
+      "content": "# Aurora-CMS Cache Convention\n\nAll list endpoints use Redis (ioredis client).\n- TTL: 60 seconds for list endpoints, 300 seconds for individual records\n- Key format: `aurora:<resource>:<id>` or `aurora:<resource>:list:<page>`\n- Always invalidate on write (DEL on update/delete)\n- Cache misses must not block — return DB value on Redis timeout",
+      "path": "professional/decisions/aurora_cache_001.md",
+      "strength": 0.88,
+      "decay_rate": 0.997,
+      "salience": 0.85,
+      "confidence": 0.95,
+      "tags": ["caching", "redis", "aurora-cms", "performance"],
+      "access_count": 6,
+      "last_accessed": "2026-03-12T10:00:00.000Z",
+      "created": "2026-02-10T09:00:00.000Z",
+      "encoding_context": { "project": "aurora-cms", "topics": ["caching"], "task_type": "designing" },
+      "pin": true,
+      "pin_priority": 8
+    },
+    {
+      "id": "mem_orcl_cursor_pagination",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "title": "Cursor pagination, not offset",
+      "body": "All aurora-cms list endpoints use opaque base64 cursor pagination. Never offset-based — it breaks under writes and is slow on large tables.",
+      "content": "# Pagination Convention\n\nCursor-based pagination, base64-encoded `{ created_at, id }` tuple.\n- Request: `?cursor=<opaque>&limit=<n>`\n- Response: `{ data, next_cursor, has_more }`\n- Limit max 100, default 25\n- Never use offset/page-number — fails under concurrent writes",
+      "path": "professional/decisions/aurora_pagination_001.md",
+      "strength": 0.85,
+      "decay_rate": 0.997,
+      "salience": 0.80,
+      "confidence": 0.95,
+      "tags": ["pagination", "cursor", "aurora-cms", "api-design"],
+      "access_count": 5,
+      "last_accessed": "2026-03-10T10:00:00.000Z",
+      "created": "2026-02-12T09:00:00.000Z",
+      "encoding_context": { "project": "aurora-cms", "topics": ["pagination"], "task_type": "designing" }
+    },
+    {
+      "id": "mem_orcl_vue_composable",
+      "type": "preference",
+      "cognitive_type": "procedural",
+      "title": "Vue: composables for data fetching",
+      "body": "In aurora-cms, every API call is wrapped in a `useXxx` composable returning `{ data, error, loading, refresh }`. Never call fetch directly from components.",
+      "content": "# Vue Data-Fetching Convention\n\nEvery list endpoint has a matching composable in `src/composables/`:\n```\nexport function useArticles() {\n  const data = ref([]); const error = ref(null); const loading = ref(false);\n  const refresh = async (cursor) => { /* ... */ };\n  return { data, error, loading, refresh };\n}\n```\n- File name: `use<Resource>.ts`, kebab-case folder, camelCase file\n- No direct fetch() in .vue files\n- Composable handles cursor pagination internally",
+      "path": "professional/preferences/aurora_composables_001.md",
+      "strength": 0.78,
+      "decay_rate": 0.998,
+      "salience": 0.70,
+      "confidence": 0.90,
+      "tags": ["vue", "composable", "aurora-cms", "frontend"],
+      "access_count": 9,
+      "last_accessed": "2026-03-14T10:00:00.000Z",
+      "created": "2026-02-08T09:00:00.000Z",
+      "encoding_context": { "project": "aurora-cms", "topics": ["vue", "frontend"], "task_type": "implementing" }
+    }
+  ],
+
+  "associations": [
+    { "idA": "mem_orcl_cache_redis", "idB": "mem_orcl_cursor_pagination", "weight": 0.7, "origin": "co_retrieval" },
+    { "idA": "mem_orcl_cursor_pagination", "idB": "mem_orcl_vue_composable", "weight": 0.6, "origin": "co_retrieval" }
+  ],
+
+  "arms": [
+    { "name": "bare",             "label": "No memory, no fixtures",   "seed": "none",                 "memory_injection": "none" },
+    { "name": "fixture-only",     "label": "Fixtures only",            "seed": "none",                 "memory_injection": "none" },
+    { "name": "brain-real",       "label": "Brain (production)",       "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "session-start", "pin": true, "skills": true },
+    { "name": "brain-no-recall",  "label": "Dump oracle bodies",       "seed": "scenario",             "memory_injection": "dump-bodies" },
+    { "name": "brain-no-pin",     "label": "Brain w/ pinning off",     "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "session-start", "pin": false, "skills": true },
+    { "name": "context-dump",     "label": "Upper bound: dump all",    "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "dump-contents" }
+  ],
+
+  "test": [
+    {
+      "label": "add-comments-feature",
+      "text": "Add a new 'comments' feature to the aurora-cms project. Specifically:\n1) A backend list endpoint at routes/comments.js that returns paginated comments for a given article.\n2) A frontend Vue composable for fetching comments.\nUse the project's established conventions for caching, pagination, and data fetching. The fixture has a sample articles endpoint you can imitate."
+    }
+  ],
+
+  "judge": {
+    "family": null,
+    "question": "Add a paginated 'comments' feature (backend endpoint + frontend Vue composable) to the aurora-cms project, following its established conventions.",
+    "oracle_answer": "Backend uses Redis caching with key `aurora:comments:list:<page>` and a 60s TTL, invalidates on write. Pagination is cursor-based with base64-encoded cursor, returning `{ data, next_cursor, has_more }`. Frontend exposes a `useComments` composable in src/composables/useComments.(ts|js) returning `{ data, error, loading, refresh }` and does not call fetch from a .vue file.",
+    "rubric": [
+      "Backend endpoint imports/uses Redis (ioredis or equivalent) for caching",
+      "Cache key follows the `aurora:comments:...` namespace convention",
+      "Pagination is cursor-based (request param `cursor`, response field `next_cursor`), not offset/page-number",
+      "Response includes `has_more` boolean (or equivalent next-cursor presence check)",
+      "A Vue composable file exists matching `useComments` (in src/composables/ or similar)",
+      "Composable returns reactive state including loading + error (e.g. {data, error, loading} or refs)",
+      "Composable encapsulates pagination — components do not call fetch directly"
+    ]
+  }
+}

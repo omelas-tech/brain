@@ -1,0 +1,107 @@
+{
+  "name": "Scenario B — Three Sessions, One Decision",
+  "pitch": "On Monday we picked Postgres. On Wednesday I rewrote the API. On Friday I add a new resource — does it still use Postgres?",
+  "tests": "Multi-session continuity with a pinned architectural decision plus realistic distractor sessions. Directly ablates the Pinned Tier (CoALA Phase 1).",
+  "key_metrics": ["judge_pass_rate", "recall_at_5", "tokens_per_success"],
+
+  "context": {
+    "project": "ledger-svc",
+    "topics": ["database", "architecture"],
+    "task_type": "implementing"
+  },
+
+  "oracle_memory_ids": ["mem_orcl_postgres_decision"],
+
+  "memories": [
+    {
+      "id": "mem_orcl_postgres_decision",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "title": "Database choice: Postgres (final)",
+      "body": "Ledger-svc uses Postgres with the `pg` driver and a 10-connection pool. This decision is final — we evaluated Mongo and SQLite in a discarded prototype and ruled both out. All new resources MUST use Postgres.",
+      "content": "# Database Choice — Postgres\n\nThe ledger-svc service is built on Postgres. Decision made on 2026-02-03, ratified after the Mongo prototype was scrapped on 2026-02-17.\n\n## Why\n- Foreign-key integrity matters for double-entry accounting\n- We already operate Postgres in adjacent services\n- The Mongo prototype could not give us safe multi-document transactions\n\n## Conventions\n- `pg` driver, 10-connection pool\n- All schemas live in `db/migrations/`\n- All new resources MUST use Postgres — no exceptions",
+      "path": "professional/decisions/ledger_db_001.md",
+      "strength": 0.92,
+      "decay_rate": 0.997,
+      "salience": 0.90,
+      "confidence": 0.98,
+      "tags": ["database", "postgres", "ledger-svc", "architecture"],
+      "access_count": 8,
+      "last_accessed": "2026-03-18T10:00:00.000Z",
+      "created": "2026-02-03T09:00:00.000Z",
+      "encoding_context": { "project": "ledger-svc", "topics": ["database", "architecture"], "task_type": "designing" },
+      "pin": true,
+      "pin_priority": 9
+    },
+    {
+      "id": "mem_session_mongo_prototype",
+      "type": "experience",
+      "cognitive_type": "episodic",
+      "title": "Mongo prototype (discarded)",
+      "body": "Built a Mongo-backed ledger prototype with Mongoose. Worked for the read path but multi-document transactions were unsafe. Abandoned 2026-02-17.",
+      "content": "# Mongo Prototype Notes\n\nBuilt a Mongoose-based ledger prototype over 10 days. The read path worked; writes were the problem.\n\n- Cross-document atomicity required ugly two-phase commit workarounds\n- The schema-less approach made the audit team nervous\n- Decision: rip out, switch to Postgres",
+      "path": "professional/experiences/ledger_mongo_001.md",
+      "strength": 0.65,
+      "decay_rate": 0.985,
+      "salience": 0.55,
+      "confidence": 0.80,
+      "tags": ["database", "mongo", "mongoose", "ledger-svc", "prototype"],
+      "access_count": 3,
+      "last_accessed": "2026-02-20T10:00:00.000Z",
+      "created": "2026-02-07T09:00:00.000Z",
+      "encoding_context": { "project": "ledger-svc", "topics": ["database"], "task_type": "prototyping" }
+    },
+    {
+      "id": "mem_session_api_rewrite",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "title": "API surface rewrite (HTTP → gRPC)",
+      "body": "Ledger-svc moved from a REST/JSON HTTP API to internal gRPC, keeping the storage layer untouched.",
+      "content": "# API Rewrite\n\nMoved ledger-svc from HTTP/JSON to gRPC for internal callers. Storage stayed on Postgres. Public HTTP endpoints remain through an envoy front door.\n\n- Generated stubs live in `proto/`\n- Service implementation under `grpc/`\n- Existing `pg` repository layer reused unchanged",
+      "path": "professional/decisions/ledger_grpc_001.md",
+      "strength": 0.75,
+      "decay_rate": 0.997,
+      "salience": 0.65,
+      "confidence": 0.90,
+      "tags": ["api", "grpc", "ledger-svc", "rewrite"],
+      "access_count": 4,
+      "last_accessed": "2026-03-05T10:00:00.000Z",
+      "created": "2026-02-25T09:00:00.000Z",
+      "encoding_context": { "project": "ledger-svc", "topics": ["api", "grpc"], "task_type": "designing" }
+    }
+  ],
+
+  "associations": [
+    { "idA": "mem_orcl_postgres_decision", "idB": "mem_session_mongo_prototype", "weight": 0.8, "origin": "co_retrieval" },
+    { "idA": "mem_orcl_postgres_decision", "idB": "mem_session_api_rewrite",   "weight": 0.5, "origin": "co_retrieval" }
+  ],
+
+  "arms": [
+    { "name": "fixture-only",     "label": "Fixtures only",          "seed": "none",                 "memory_injection": "none" },
+    { "name": "brain-real",       "label": "Brain (production)",     "seed": "scenario+distractors", "distractor_size": 100, "memory_injection": "session-start", "pin": true,  "skills": true },
+    { "name": "brain-no-pin",     "label": "Brain w/ pinning OFF",   "seed": "scenario+distractors", "distractor_size": 100, "memory_injection": "session-start", "pin": false, "skills": true },
+    { "name": "brain-no-recall",  "label": "Dump oracle bodies",     "seed": "scenario",             "memory_injection": "dump-bodies" }
+  ],
+
+  "test": [
+    {
+      "label": "add-account-resource",
+      "text": "Add a new 'accounts' resource to ledger-svc. We need a repository module that can list, get, and create accounts, plus a migration for the table. Match the project's existing storage conventions. Put the migration in db/migrations/ and the repository in db/."
+    }
+  ],
+
+  "judge": {
+    "family": null,
+    "question": "Add an 'accounts' resource (repository + migration) to ledger-svc using the project's storage conventions.",
+    "oracle_answer": "Implementation uses Postgres via the `pg` driver (or the project's existing pg wrapper). Migration is a SQL file under db/migrations/. The repository uses parameterized SQL queries and a pooled client. It does NOT introduce Mongo, Mongoose, SQLite, or any non-Postgres storage.",
+    "rubric": [
+      "Uses Postgres (imports pg, uses Pool/Client, or matches existing db helpers)",
+      "Migration is a SQL file (extension .sql) under db/migrations/",
+      "Migration includes both schema creation and at minimum an id + created_at column",
+      "Repository uses parameterized queries (e.g. $1 placeholders), not string interpolation",
+      "Does NOT introduce Mongo, Mongoose, MongoClient, or SQLite anywhere",
+      "Repository exports list/get/create methods (or equivalent)",
+      "Code is consistent with existing fixture style (CommonJS, async/await)"
+    ]
+  }
+}
