@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.16] - 2026-05-28
+
+### Changed
+
+- **Benchmark redesigned around 2025-2026 long-term-memory SOTA.** No runtime changes to the brain CLI; this release is a milestone marker for the new evaluation methodology shipped in `benchmark/` and documented at `/docs/benchmarks/`.
+  - New N-arm matrix harness with cross-family LLM judge (Claude judges Gemini and vice-versa) — mitigates preference leakage (arxiv 2502.01534) and position bias (arxiv 2509.20293).
+  - Six pitchable scenarios (A-F) replacing the legacy 5-scenario suite: Noisy Project Folder (LongMemEval-S retrieval-under-distractors), Three Sessions / One Decision (Pinned Tier ablation), The Contradiction Test (decay + recency), Skill Progressive Disclosure (CoALA Phase-2 L0/L1/L2 ablation), Continual Coding (SWE-Bench-CL style with real `brain memorize` between tasks), Abstention (confabulation resistance).
+  - Deterministic 200-memory distractor haystack; real `brain session-start` / `brain recall` integration with Recall@k / NDCG@k scoring against oracle ID sets.
+  - Tokens-per-successful-task adopted as the headline efficiency metric (Mem0/BEAM standard); write-side cost co-reported.
+  - New OpenCode CLI agent adapter (default model `deepseek/deepseek-v4-pro`), with `--opencode-model` override for cheaper DeepSeek variants.
+  - Codex CLI dropped from the default benchmark suite (no token reporting); remains a fully supported brain install target.
+  - Legacy scenarios 1-5 stay on disk for reproducing historical reports; invoke explicitly via `--scenario scenario-N-…`.
+
 ## [0.1.0-beta.15] - 2026-05-27
 
 ### Changed
