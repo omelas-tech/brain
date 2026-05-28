@@ -29,6 +29,7 @@ const { seedMemories } = require('./seeder');
 const { createRunMetrics, recordPrompt, aggregateRuns, computeSummary } = require('./metrics');
 const { saveResult, saveAllResults, printResult, printSummary } = require('./reporter');
 const { loadEnv } = require('./env');
+const { runArms } = require('./arm-runner');
 
 const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
 const SCENARIOS_DIR = path.join(__dirname, '..', 'scenarios');
@@ -40,6 +41,17 @@ async function main() {
   // Load API keys from benchmark/.env (if present)
   const dotEnv = loadEnv();
   const envKeyCount = Object.keys(dotEnv).length;
+
+  // Propagate .env into process.env so in-process callers (the judge HTTPS
+  // calls in harness/judge.js) can see the keys. Existing process.env values
+  // win — explicit shell exports take precedence over the .env file.
+  for (const [k, v] of Object.entries(dotEnv)) {
+    if (process.env[k] === undefined) process.env[k] = v;
+  }
+  // Also map GOOGLE_API_KEY → GEMINI_API_KEY for the judge (Gemini side).
+  if (process.env.GOOGLE_API_KEY && !process.env.GEMINI_API_KEY) {
+    process.env.GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
+  }
 
   // Resolve mode: cloud (default) or ollama
   const mode = args.ollama ? 'ollama' : (config.mode || 'cloud');
@@ -63,10 +75,17 @@ async function main() {
     process.exit(1);
   }
 
-  // Filter agents if specified
-  const targetAgents = args.agent
-    ? availableAgents.filter((a) => a.name === args.agent)
+  // Filter agents — respect config.enabled_agents (used to drop e.g. Codex
+  // when it does not report token usage), then any explicit --agent override.
+  const enabledList = Array.isArray(config.enabled_agents) && config.enabled_agents.length > 0
+    ? config.enabled_agents
+    : null;
+  let targetAgents = enabledList
+    ? availableAgents.filter((a) => enabledList.includes(a.name))
     : availableAgents;
+  if (args.agent) {
+    targetAgents = targetAgents.filter((a) => a.name === args.agent);
+  }
 
   if (targetAgents.length === 0) {
     console.error(`  Agent "${args.agent}" is not available.`);
@@ -136,6 +155,7 @@ async function runScenario(scenarioName, scenarioDir, agents, { config, modeConf
   const evaluate = fs.existsSync(evaluatePath) ? require(evaluatePath) : null;
 
   const agentResults = {};
+  const isArmScenario = Array.isArray(setup.arms) && setup.arms.length > 0;
 
   for (const agent of agents) {
     console.log(`    ${agent.name}:`);
@@ -145,6 +165,15 @@ async function runScenario(scenarioName, scenarioDir, agents, { config, modeConf
     const agentEnv = mode === 'ollama'
       ? (modeConfig.agents?.[agent.name]?.env || {})
       : {};
+
+    if (isArmScenario) {
+      const armed = await runArms({
+        scenarioName, agent, runsPerArm: runsPerScenario,
+        setup, fixturesDir, scenarioDir, config, agentEnv, dotEnv,
+      });
+      agentResults[agent.name] = armed;
+      continue;
+    }
 
     for (const variant of ['with_brain', 'without_brain']) {
       const runs = [];
@@ -178,8 +207,8 @@ async function runScenario(scenarioName, scenarioDir, agents, { config, modeConf
     }
   }
 
-  // Compute cross-agent summary
-  const summary = computeCrossAgentSummary(agentResults);
+  // Compute cross-agent summary (skip for new arm-scenarios; reporter handles them)
+  const summary = isArmScenario ? null : computeCrossAgentSummary(agentResults);
 
   // Model label for results
   const modelLabel = mode === 'ollama'
@@ -389,7 +418,7 @@ function averageResults(results) {
  * Parse CLI arguments.
  */
 function parseArgs(argv) {
-  const args = { scenario: null, agent: null, runs: null, dryRun: false, ollama: false };
+  const args = { scenario: null, agent: null, runs: null, dryRun: false, ollama: false, opencodeModel: null };
 
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -408,8 +437,13 @@ function parseArgs(argv) {
       case '--ollama':
         args.ollama = true;
         break;
+      case '--opencode-model':
+        args.opencodeModel = argv[++i];
+        break;
     }
   }
+
+  if (args.opencodeModel) process.env.OPENCODE_BENCH_MODEL = args.opencodeModel;
 
   return args;
 }

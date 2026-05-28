@@ -79,6 +79,9 @@ function copyAgentConfigs(homeDir, agentName) {
     claude: ['.claude'],
     gemini: ['.gemini'],
     codex: ['.codex'],
+    // OpenCode keeps config in .config/opencode and credentials in .local/share/opencode.
+    // We copy both so the custom provider entry in opencode.json is visible.
+    opencode: ['.config/opencode', '.local/share/opencode', '.opencode'],
   };
 
   const dirs = agentDirs[agentName] || [];
@@ -121,6 +124,7 @@ function stripBrainContent(configDir, agentName) {
     claude: 'CLAUDE.md',
     gemini: 'GEMINI.md',
     codex: 'AGENTS.md',
+    opencode: 'AGENTS.md',
   };
   const promptFile = promptFiles[agentName];
   if (promptFile) {
@@ -178,6 +182,7 @@ function installPromptsForAgent(homeDir, agentName) {
     claude: 'claude',
     gemini: 'gemini',
     codex: 'openai',
+    opencode: 'opencode',
   };
 
   const runtimeKey = runtimeMap[agentName];
@@ -185,9 +190,11 @@ function installPromptsForAgent(homeDir, agentName) {
 
   const config = installer.RUNTIMES[runtimeKey];
 
-  // Create the global config directory in the isolated HOME
-  // e.g. homeDir/.claude/, homeDir/.gemini/, homeDir/.codex/
-  const globalDir = path.join(homeDir, path.basename(config.globalDir));
+  // Create the global config directory in the isolated HOME, preserving the
+  // FULL relative path from real HOME (so `.config/opencode` ≠ `opencode`).
+  const realHome = os.homedir();
+  const relGlobal = path.relative(realHome, config.globalDir) || path.basename(config.globalDir);
+  const globalDir = path.join(homeDir, relGlobal);
   fs.mkdirSync(globalDir, { recursive: true });
 
   // Copy brain commands

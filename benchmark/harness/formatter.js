@@ -10,6 +10,12 @@
 function renderConsoleTable(results) {
   const { scenario, model, results: agentResults, summary } = results;
 
+  // Detect arm-shape results (per-arm keys, not just with_brain/without_brain)
+  const isArmShape = Object.values(agentResults).some(
+    (d) => d && typeof d === 'object' && !d.with_brain && !d.without_brain && Object.keys(d).length > 0
+  );
+  if (isArmShape) return renderArmConsoleTable(results);
+
   const lines = [];
   lines.push('');
   lines.push(`  Scenario: ${scenario}`);
@@ -66,6 +72,28 @@ function renderConsoleTable(results) {
   return lines.join('\n');
 }
 
+function renderArmConsoleTable(results) {
+  const { scenario, model, results: agentResults } = results;
+  const lines = ['', `  Scenario: ${scenario}`, `  Model:    ${model}`, ''];
+  const cols = ['arm', 'tokens', 'tok/success', 'R@5', 'time (ms)', 'pass'];
+  const w = 14;
+  for (const [agent, arms] of Object.entries(agentResults)) {
+    lines.push(`  ${agent}`);
+    lines.push(`  ${cols.map((c) => c.padEnd(w)).join('')}`);
+    lines.push(`  ${'─'.repeat(w * cols.length)}`);
+    for (const [armName, data] of Object.entries(arms)) {
+      if (!data) continue;
+      const tokens = (data.tokens.input + data.tokens.output);
+      const tps = data.tokens_per_success ?? '∞';
+      const r5 = data.retrieval?.recall?.['5'] ?? '—';
+      const passRate = ((data.success_rate || data.judge_pass_rate || 0) * 100).toFixed(0) + '%';
+      lines.push(`  ${armName.padEnd(w)}${String(tokens).padEnd(w)}${String(tps).padEnd(w)}${String(r5).padEnd(w)}${String(data.time_ms).padEnd(w)}${passRate}`);
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
 /**
  * Render a Markdown table for README inclusion.
  *
@@ -105,18 +133,37 @@ function renderMarkdownReport(allResults) {
   for (const result of allResults) {
     lines.push(`## ${result.scenario}`);
     lines.push('');
-    lines.push('| Agent | Variant | Tokens | Time (ms) | Success | Consistency |');
-    lines.push('|-------|---------|-------:|----------:|:-------:|:-----------:|');
 
-    for (const [agent, data] of Object.entries(result.results)) {
-      for (const variant of ['with_brain', 'without_brain']) {
-        const v = data[variant];
-        if (!v) continue;
-        const totalTokens = v.tokens.input + v.tokens.output;
-        const label = variant === 'with_brain' ? '+brain' : '-brain';
-        lines.push(
-          `| ${agent} | ${label} | ${totalTokens} | ${v.time_ms} | ${v.success ? 'PASS' : 'FAIL'} | ${v.consistency} |`
-        );
+    const isArmShape = Object.values(result.results).some(
+      (d) => d && typeof d === 'object' && !d.with_brain && !d.without_brain && Object.keys(d).length > 0
+    );
+
+    if (isArmShape) {
+      lines.push('| Agent | Arm | Tokens | Tokens/success | Recall@5 | Time (ms) | Pass rate |');
+      lines.push('|-------|-----|-------:|---------------:|:--------:|----------:|:---------:|');
+      for (const [agent, arms] of Object.entries(result.results)) {
+        for (const [armName, v] of Object.entries(arms)) {
+          if (!v) continue;
+          const tokens = v.tokens.input + v.tokens.output;
+          const tps = v.tokens_per_success ?? '∞';
+          const r5 = v.retrieval?.recall?.['5'] ?? '—';
+          const passRate = ((v.success_rate || v.judge_pass_rate || 0) * 100).toFixed(0) + '%';
+          lines.push(`| ${agent} | ${armName} | ${tokens} | ${tps} | ${r5} | ${v.time_ms} | ${passRate} |`);
+        }
+      }
+    } else {
+      lines.push('| Agent | Variant | Tokens | Time (ms) | Success | Consistency |');
+      lines.push('|-------|---------|-------:|----------:|:-------:|:-----------:|');
+      for (const [agent, data] of Object.entries(result.results)) {
+        for (const variant of ['with_brain', 'without_brain']) {
+          const v = data[variant];
+          if (!v) continue;
+          const totalTokens = v.tokens.input + v.tokens.output;
+          const label = variant === 'with_brain' ? '+brain' : '-brain';
+          lines.push(
+            `| ${agent} | ${label} | ${totalTokens} | ${v.time_ms} | ${v.success ? 'PASS' : 'FAIL'} | ${v.consistency} |`
+          );
+        }
       }
     }
 

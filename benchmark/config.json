@@ -1,40 +1,46 @@
 {
   "mode": "cloud",
   "timeouts": {
-    "prompt_ms": 300000,
-    "session_ms": 900000
+    "prompt_ms": 600000,
+    "session_ms": 1800000,
+    "_comment": "Bumped from 300s/900s after DeepSeek V4 Pro hit timeouts on larger prompts. Older agents still finish well within."
   },
   "runs_per_scenario": 3,
+  "enabled_agents": ["claude", "gemini", "opencode"],
   "cloud": {
-    "description": "Uses each agent's default cloud API (Anthropic, Google, OpenAI)",
+    "description": "Uses each agent's default cloud API (Anthropic, Google)",
     "agents": {
       "claude": { "model": "sonnet" },
-      "gemini": { "model": "default" },
-      "codex": { "model": "default" }
+      "gemini": { "model": "default" }
     }
   },
   "ollama": {
-    "description": "Routes all agents through local Ollama with a single model for controlled comparison",
+    "description": "Routes all agents through local Ollama for controlled comparison",
     "model": "qwen2.5-coder:14b",
     "ollama_url": "http://localhost:11434",
     "litellm_url": "http://localhost:4000",
     "agents": {
-      "claude": {
-        "env": { "ANTHROPIC_BASE_URL": "http://localhost:11434" }
-      },
-      "gemini": {
-        "env": { "GEMINI_API_BASE": "http://localhost:4000" }
-      },
-      "codex": {
-        "env": { "OPENAI_BASE_URL": "http://localhost:11434/v1" }
-      }
+      "claude": { "env": { "ANTHROPIC_BASE_URL": "http://localhost:11434" } },
+      "gemini": { "env": { "GEMINI_API_BASE": "http://localhost:4000" } }
     }
   },
   "scenarios": [
+    "scenario-A-noisy-folder",
+    "scenario-B-three-sessions",
+    "scenario-C-contradiction",
+    "scenario-D-skills",
+    "scenario-E-continual",
+    "scenario-F-abstention"
+  ],
+  "legacy_scenarios": [
     "scenario-1-continuity",
     "scenario-2-consistency",
     "scenario-3-knowledge",
     "scenario-4-error-learning",
     "scenario-5-preferences"
-  ]
+  ],
+  "judge": {
+    "default_family_for_claude": "gemini",
+    "default_family_for_gemini": "claude"
+  }
 }

@@ -6,8 +6,9 @@
 const claude = require('./claude');
 const gemini = require('./gemini');
 const codex = require('./codex');
+const opencode = require('./opencode');
 
-const ALL_AGENTS = [claude, gemini, codex];
+const ALL_AGENTS = [claude, gemini, codex, opencode];
 
 /**
  * Detect which agents are installed and available.
