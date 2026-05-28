@@ -1,0 +1,88 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Benchmark Results - Brain Memory",
+  description:
+    "Latest smoke-test results from the Brain Memory benchmark across Gemini and DeepSeek V4 Pro on Scenario A. Raw JSON downloads included.",
+  category: "Benchmarks",
+  order: 3,
+};
+
+# Benchmark Results
+
+This page tracks current measurements from the benchmark suite. Numbers are reproducible — the harness is deterministic up to model-provider non-determinism, and the same scenario JSON + distractor seed always produces the same memory pool.
+
+<Callout type="warning">
+  Results below are **smoke runs** (1 run per arm) intended to validate that the harness works end-to-end and surface real signal. Full statistical-confidence runs (3-5 runs × all 6 scenarios × multiple agents) will follow. Treat individual numbers as directional, not definitive.
+</Callout>
+
+## Run metadata
+
+| Field | Value |
+|---|---|
+| Date | 2026-05-28 |
+| Scenario | A — The Noisy Project Folder |
+| Runs per arm | 1 (smoke) |
+| Distractor haystack | 200 deterministic memories (seed=42) |
+| Oracle memories | 3 (`mem_orcl_cache_redis`, `mem_orcl_cursor_pagination`, `mem_orcl_vue_composable`) |
+| Agents | Gemini Flash · OpenCode → DeepSeek V4 Pro |
+| Judge | Cross-family (Claude judges Gemini; Claude also judges OpenCode/DeepSeek) |
+| Rubric size | 7 binary criteria |
+
+## Scenario A — Gemini Flash
+
+| Arm | Input | Output | Total | Tok/success | Recall@5 | Pass |
+|---|---:|---:|---:|---:|:---:|:---:|
+| bare | 21,749 | 2,356 | 24,105 | 24,105 | — | yes |
+| fixture-only | 15,171 | 1,663 | 16,834 | 16,834 | — | yes |
+| brain-real | 25,535 | 2,265 | 27,800 | 27,800 | 0.33 | yes |
+| brain-no-recall (dump bodies) | 40,381 | 3,218 | 43,599 | 43,599 | — | yes |
+| brain-no-pin | 80,952 | 5,386 | 86,338 | 86,338 | 0.33 | yes |
+| context-dump (upper bound) | 48,132 | 2,624 | 50,756 | 50,756 | — | yes |
+
+[Raw JSON →](/benchmarks/scenario-A-gemini-2026-05-28.json)
+
+**Headline:** `brain-real` uses **28K tokens** — only 16% more than `bare` (24K) — while every other memory mode is **1.6×–3.1×** more expensive. `brain-no-pin` at 86K is dramatic: turning the pinned tier off **triples** token usage on this scenario.
+
+All arms pass the judge at 1 run, so this isn't a *correctness* differentiator yet — it's an *efficiency* one. Multi-run results will surface whether the harder ablation arms (`brain-no-pin`, `context-dump`) also degrade correctness under retry pressure.
+
+## Scenario A — OpenCode → DeepSeek V4 Pro
+
+| Arm | Input | Output | Total | Tok/success | Recall@5 | Pass |
+|---|---:|---:|---:|---:|:---:|:---:|
+| bare | 19,624 | 418 | 20,042 | 20,042 | — | yes |
+| fixture-only | 13,548 | 214 | 13,762 | 13,762 | — | yes |
+| brain-real | 0 | 0 | timeout | — | — | no |
+| brain-no-recall | 19,418 | 302 | 19,720 | 19,720 | — | yes |
+| brain-no-pin | 17,288 | 221 | 17,509 | 17,509 | 0.33 | yes |
+| context-dump | 0 | 0 | timeout | — | — | no |
+
+[Raw JSON →](/benchmarks/scenario-A-opencode-deepseek-2026-05-28.json)
+
+**Headline & caveat:** Two arms timed out at the 300-second prompt limit — `brain-real` and `context-dump`. DeepSeek V4 Pro is slower per call than Gemini Flash, and the larger prompts (session-start with pinned tier; full memory contents dumped) exceeded the budget. The harness timeout has since been raised to 600s and a SIGKILL fallback added (see `benchmark/harness/agents/opencode.js`); the next run should not exhibit these timeouts.
+
+What's interesting in the four arms that completed: DeepSeek's `brain-no-pin` is **17,509 tokens** — *lower* than `bare` (20,042). This is the opposite of Gemini's behavior. DeepSeek appears to use memory context to short-circuit tool-use iterations; Gemini lets memory context extend its exploration. Per-agent behavior matters — generalizations across agents will need multiple-run, multi-agent data.
+
+## Cross-agent reading
+
+The same scenario produces very different patterns across models:
+
+| Arm | Gemini Flash | OpenCode/DeepSeek V4 Pro |
+|---|---:|---:|
+| bare | 24,105 | 20,042 |
+| fixture-only | 16,834 | 13,762 |
+| brain-real | 27,800 | timeout |
+| brain-no-recall | 43,599 | 19,720 |
+| brain-no-pin | 86,338 | 17,509 |
+| context-dump | 50,756 | timeout |
+
+DeepSeek runs much tighter on tokens overall but is more sensitive to long prompts (more timeouts). Gemini soaks more tokens at the high end (`brain-no-pin` 86K vs DeepSeek 18K) but completes more reliably. This is exactly the kind of comparison the arm matrix is built to surface.
+
+## What's next
+
+Pending runs:
+- 5 runs × all 6 scenarios × Gemini Flash — for statistical confidence on the headline metrics
+- 1 run × all 6 scenarios × DeepSeek (V3.2 / `deepseek-chat` to keep cost manageable, then optionally V4 Pro on a subset)
+- Scenario E continual mode validated end-to-end (write-side memorize step)
+
+Results will be appended to this page as JSON in [`/public/benchmarks/`](https://github.com/anthropics/brain-memory/tree/main/website/public/benchmarks) and summarized inline.

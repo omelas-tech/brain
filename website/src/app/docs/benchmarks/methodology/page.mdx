@@ -1,0 +1,117 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Benchmark Methodology - Brain Memory",
+  description:
+    "How the Brain Memory benchmark grades retrieval, runs cross-family LLM judges, builds distractor haystacks, and avoids the methodological traps the 2025-2026 long-term-memory literature has flagged.",
+  category: "Benchmarks",
+  order: 1,
+};
+
+# Benchmark Methodology
+
+Every choice in the harness is grounded in a specific finding from the 2024-2026 long-term-memory literature. This page documents what each component does and why.
+
+## Cross-family LLM judge
+
+`harness/judge.js` evaluates each run against an explicit per-question rubric of binary criteria. The judge model lives in a **different family** than the agent under test:
+
+| Agent under test | Judge family |
+|---|---|
+| Claude Code | Gemini |
+| Gemini CLI | Claude |
+| Codex CLI / OpenCode | Claude |
+
+Same-family judging exhibits preference leakage — the judge systematically rewards outputs that "sound like" itself ([Preference Leakage in LLM-as-judge, arxiv 2502.01534](https://arxiv.org/abs/2502.01534)). Cross-family judging eliminates this.
+
+For pairwise judgments (arm-A vs arm-B), the judge is called **twice** with the candidate order swapped. The verdict is kept only if it survives both orderings — mitigating position bias documented in [Silent Judge / Position Bias, arxiv 2509.20293](https://arxiv.org/html/2509.20293v1) and [arxiv 2509.26072](https://arxiv.org/pdf/2509.26072).
+
+Each judgment uses a **binary criteria list** plus the oracle answer. LongMemEval reports 97% agreement with humans using this format ([LongMemEval, arxiv 2410.10813](https://arxiv.org/pdf/2410.10813)).
+
+<Callout type="info">
+  Same-family judging exists in older benchmarks (GPT-4 judging GPT-4 outputs, Claude judging Claude). Treat those results with skepticism — modern memory benchmarks have moved past it.
+</Callout>
+
+## Distractor haystacks
+
+`harness/distractors.js` generates a deterministic 50-200 memory pool spread across 6 fake projects, 12 topic clusters, and 8 memory types. The same seed always yields the same corpus.
+
+This matters because **without distractors, recall is trivially perfect** — a benchmark with 3 oracle memories all on-topic for the task can only ever measure whether the agent *uses* what it's handed, never whether the memory system can *find* it. LongMemEval-S/M built distractor haystacks of 50 / 500 sessions explicitly to expose this ceiling.
+
+The pool is seeded into the isolated `~/.brain/` for any arm that declares `seed: "scenario+distractors"`. Oracle memories are layered on top; the brain CLI's TF-IDF, decay, context-match, and spreading-activation scoring must surface the right ones.
+
+## Real brain CLI, not prompt injection
+
+The harness shells out to the real `brain session-start` and `brain recall` CLIs in the isolated HOME. The agent receives whatever the production brain would surface for the current project context — no shortcuts, no manual memory concatenation.
+
+`harness/recall-probe.js` parses the JSON output and computes:
+
+- **Recall@k** — fraction of `setup.oracle_memory_ids[]` that appear in the top-k
+- **NDCG@k** — discounted cumulative gain, position-weighted
+
+This separates retrieval failure from application failure: if Recall@5 = 1.0 but the judge fails, the agent had the memory and ignored it.
+
+## N-arm matrix
+
+`harness/arm-runner.js` runs each scenario across multiple arms in parallel. Each arm independently configures:
+
+- `seed` — `none` / `scenario` / `scenario+distractors` / `distractors-only`
+- `memory_injection` — `none` / `session-start` / `recall` / `dump-bodies` / `dump-contents`
+- `pin` — enable / disable the [pinned tier](/docs/concepts/pinned-memory/)
+- `skills` — enable / disable [skills](/docs/concepts/procedural-skills/)
+- `skill_load` — `relevant` / `all` (Scenario D progressive-disclosure ablation)
+
+This means every result is **attributable** — when `brain-real` beats `brain-no-pin`, you know the pinned tier was the cause.
+
+## Continual mode
+
+Scenario E runs in "continual mode": one persistent workspace per arm, five chronological bug-fix tasks, with the agent invoking `brain memorize` between tasks. This exercises the write side end-to-end — if the agent doesn't write a memory, task N+1's `session-start` payload reflects that.
+
+This mirrors [SWE-Bench-CL](https://arxiv.org/abs/2507.00014), which reorganizes SWE-Bench Verified into chronological repo-scoped sequences and measures forward transfer (Δ tokens between task 1 and task N), forgetting, and tokens-per-resolved-issue.
+
+## Pitfalls the harness avoids
+
+| Pitfall | Where it shows up | How the harness avoids it |
+|---|---|---|
+| Memory dumped verbatim into prompt | Old benchmarks' "with-memory" arm | `memory_injection: "session-start"` uses the real CLI; `dump-bodies`/`dump-contents` exist only as labelled ablation arms |
+| No distractors → trivial recall | Most conversational QA benchmarks | 50-200 deterministic distractors per scenario |
+| Regex evaluation → gameable | Anything using pattern matching for pass/fail | LLM judge with explicit rubric; regex kept only as a supplementary check |
+| Same-family judging | GPT-4 grading GPT-4 | Cross-family map enforced in `harness/judge.js` |
+| Headline = "+N% accuracy" | First-generation memory benchmarks | Headline = tokens-per-successful-task; pass-rate and Recall@k reported alongside |
+| Write-side cost ignored | Almost everything | Continual mode tracks write-side tokens separately |
+| Ceiling / floor effects | Scenarios that are too easy or too hard | Multiple arms create a spread; baselines bound both ends |
+| Benchmark memorization (leakage from training data) | Public benchmarks | Synthetic-but-grounded distractor corpus, deterministic seeding |
+
+## Tokens-per-successful-task
+
+The headline efficiency metric is:
+
+```
+tokens_per_success = total_tokens_across_runs / number_of_successful_runs
+```
+
+Token "overhead" from injecting memory only matters if it doesn't translate into more successes. By dividing by *passes*, this metric is honest: a memory arm that uses 1.5× the tokens but passes 2× as often **still wins** on tokens-per-success.
+
+This framing comes from [Mem0 / BEAM (arxiv 2504.19413)](https://arxiv.org/pdf/2504.19413), which co-reports accuracy *and* context-tokens-per-query as co-equal axes rather than apologizing for token overhead.
+
+## Reproducibility
+
+- **3 runs per scenario** by default (raise to 5 via `--runs 5` for statistical confidence)
+- **Deterministic seeded RNG** for distractors — same seed, same corpus, every time
+- **Isolated workspace** per run: fresh HOME, fresh brain, no cross-contamination
+- **Median values reported** so a single timeout doesn't poison the metric
+- **Results saved per run** to `benchmark/results/` as JSON + Markdown
+
+## References
+
+The methodology is grounded in:
+
+- [**LongMemEval** (ICLR 2025, arxiv 2410.10813)](https://arxiv.org/pdf/2410.10813) — distractor haystacks, abstention category, GPT-4o judge with 97% human agreement
+- [**MemoryAgentBench** (arxiv 2507.05257)](https://arxiv.org/abs/2507.05257) — four-competency framework, FactConsolidation for contradiction handling
+- [**SWE-Bench-CL** (arxiv 2507.00014)](https://arxiv.org/abs/2507.00014) — repo-scoped continual coding, forward-transfer metrics
+- [**Mem0 / BEAM** (arxiv 2504.19413)](https://arxiv.org/pdf/2504.19413) — tokens-per-query co-reported with accuracy
+- [**Preference Leakage** in LLM-as-judge (arxiv 2502.01534)](https://arxiv.org/abs/2502.01534) — why same-family judging fails
+- [**Silent Judge** / position bias (arxiv 2509.20293)](https://arxiv.org/html/2509.20293v1) — position-swap mitigation
+- [**MIRIX** (arxiv 2507.07957)](https://arxiv.org/html/2507.07957v1) — realistic memory benchmarks from multimodal screenshot data
+- [**LastingBench** (arxiv 2506.21614)](https://arxiv.org/pdf/2506.21614) — benchmark-leakage defense
+- [**CoALA** (arxiv 2309.02427)](https://arxiv.org/abs/2309.02427) — the agent-memory model Brain follows

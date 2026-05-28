@@ -1,0 +1,69 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Benchmarks - Brain Memory",
+  description:
+    "Controlled benchmark suite proving Brain Memory improves retrieval, contradiction handling, and token efficiency for AI coding agents.",
+  category: "Benchmarks",
+  order: 0,
+};
+
+# Benchmarks
+
+Brain Memory ships with a controlled benchmark suite that measures whether persistent, retrieval-based memory actually helps a coding agent — under realistic noise, across multiple sessions, and against honest baselines.
+
+The methodology follows the 2025-2026 state of the art in long-term-memory evaluation: distractor haystacks (LongMemEval), cross-family LLM judges with rubric (preference-leakage mitigation), continual-learning metrics on a repo-scoped task sequence (SWE-Bench-CL), and tokens-per-successful-task as the headline efficiency axis (Mem0/BEAM).
+
+<Callout type="info">
+  This is a **redesign** of the original benchmark. The legacy 5-scenario suite (still on disk under `scenarios/scenario-1-*` through `scenario-5-*`) used regex evaluators and prepended every seeded memory verbatim — that tested *long context*, not *memory architecture*. The new suite shells out to the real `brain` CLI for retrieval and uses an LLM judge with explicit rubrics.
+</Callout>
+
+## What the benchmark measures
+
+Four headline axes, every scenario, every run:
+
+| Metric | What it answers |
+|---|---|
+| **Task pass rate** | Did the produced code satisfy the rubric? Cross-family LLM judge (Claude judges Gemini, Gemini judges Claude) — no preference leakage. |
+| **Tokens per successful task** | `(input + output tokens) / passes`. The honest efficiency measure — Mem0/BEAM standard. |
+| **Recall@k** | For arms that use the real `brain` CLI, did the right memory IDs surface in the top-k against the scenario's oracle set? |
+| **Judge rationale** | Captured verbatim per run for spot-checks. |
+
+Plus, where applicable: **per-task pass rate** (continual scenarios), **forward-transfer Δ tokens**, **confabulation rate**, and **write-side cost** (memorize + sleep + skill distillation).
+
+## The 6 scenarios
+
+Each scenario has a one-sentence pitch you can use directly:
+
+| Id | Pitch | What it tests |
+|---|---|---|
+| **A** *Noisy Project Folder* | "Your brain has 200 memories from 6 projects. I ask you to add a feature to project X. Do you find the 3 relevant memories?" | Retrieval under distractors (LongMemEval-S analog) |
+| **B** *Three Sessions, One Decision* | "On Monday we picked Postgres. On Wednesday I rewrote the API. On Friday I add a new resource — does it still use Postgres?" | Multi-session continuity + [pinned tier](/docs/concepts/pinned-memory/) ablation |
+| **C** *The Contradiction Test* | "Three weeks ago I told you tabs. Two weeks ago, spaces. Last week, tabs again. New file — which do you use?" | Decay-weighted recency + contradiction handling |
+| **D** *Skill Progressive Disclosure* | "You have a `pg-migration` skill. I ask you to add a migration. Did you load the full SKILL.md, or just see the index entry and ignore it?" | [Procedural skills](/docs/concepts/procedural-skills/) — three-rung L0/L1/L2 token efficiency |
+| **E** *Continual Coding* | "Five async bugs in the same repo, in order. Does session 5 finish faster because of sessions 1-4?" | Forward transfer + tokens per resolved task. The agent **writes its own memories** between bugs — exercises the write side end-to-end. |
+| **F** *Abstention* | "I never told you my deployment target. Where do you deploy this?" | Confabulation resistance — does the agent invent or notice the gap? |
+
+Read more: [Methodology](/docs/benchmarks/methodology/) · [Scenario details](/docs/benchmarks/scenarios/) · [Latest results](/docs/benchmarks/results/)
+
+## Arm matrix
+
+Every scenario runs across multiple arms. The arms vary independently so we can attribute gains to specific features (Pinned Tier, Skills, recall, distractors), rather than just say "with vs. without memory."
+
+| Arm | What it does | What it isolates |
+|---|---|---|
+| `bare` | No memory, no fixtures | Floor |
+| `fixture-only` | Realistic project files, no brain (= old "without-brain") | Honest baseline |
+| `brain-real` | Full brain via `brain session-start`, distractor haystack, pin + skills on | What ships in production |
+| `brain-no-recall` | All oracle memories prepended verbatim | Quantifies long-context vs retrieval value |
+| `brain-no-pin` | `brain-real` with [pinned tier](/docs/concepts/pinned-memory/) disabled | CoALA Phase-1 attribution |
+| `brain-no-skills` | `brain-real` with [skills](/docs/concepts/procedural-skills/) disabled | CoALA Phase-2 attribution |
+| `brain-skills-L0` / `brain-skills-loaded` / `brain-skills-all-loaded` | Scenario D's progressive-disclosure ablation | Per-tier skill cost |
+| `dump-all-chrono` / `context-dump` | Full memory **contents** concatenated | Upper bound — proves memory ≠ long-context |
+
+## Where to look next
+
+- **[Methodology](/docs/benchmarks/methodology/)** — How retrieval is scored, why the judge is cross-family, what distractor haystacks contain, references to the SOTA papers the design follows.
+- **[Scenarios](/docs/benchmarks/scenarios/)** — The full pitch, oracle answer, and rubric for each of the six scenarios.
+- **[Results](/docs/benchmarks/results/)** — Current numbers from the smoke runs, with raw JSON downloads.
+- **Source** — [`benchmark/`](https://github.com/anthropics/brain-memory/tree/main/benchmark) in the repository.

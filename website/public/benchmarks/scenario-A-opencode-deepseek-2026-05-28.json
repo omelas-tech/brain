@@ -1,0 +1,120 @@
+{
+  "scenario": "scenario-A-noisy-folder",
+  "model": "cloud (claude-sonnet / gemini-flash / gpt)",
+  "mode": "cloud",
+  "timestamp": "2026-05-28T20:27:43.042Z",
+  "results": {
+    "opencode": {
+      "bare": {
+        "tokens": {
+          "input": 16933,
+          "output": 3109
+        },
+        "time_ms": 143753,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: Redis/ioredis used with aurora:comments namespace, cursor-based pagination, has_more field, useComments composable with reactive state encapsulating fetch.",
+          "family": "claude"
+        },
+        "output_chars": 3329,
+        "tokens_per_success": 20042,
+        "judge_pass_rate": 1
+      },
+      "fixture-only": {
+        "tokens": {
+          "input": 11689,
+          "output": 2073
+        },
+        "time_ms": 111170,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, correct cache namespace, cursor-based pagination, has_more field, composable file exists, reactive state with loading+error, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3237,
+        "tokens_per_success": 13762,
+        "judge_pass_rate": 1
+      },
+      "brain-real": {
+        "tokens": {
+          "input": 0,
+          "output": 0
+        },
+        "time_ms": 304655,
+        "success": false,
+        "consistency": 0,
+        "error": "OpenCode timed out after 300000ms",
+        "tokens_per_success": null,
+        "retrieval": null,
+        "judge_pass_rate": 0
+      },
+      "brain-no-recall": {
+        "tokens": {
+          "input": 16471,
+          "output": 3249
+        },
+        "time_ms": 167197,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more field, useComments composable in src/composables/, reactive loading+error+data, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3189,
+        "tokens_per_success": 19720,
+        "judge_pass_rate": 1
+      },
+      "brain-no-pin": {
+        "tokens": {
+          "input": 15073,
+          "output": 2436
+        },
+        "time_ms": 97763,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": {
+          "recall": {
+            "1": 0,
+            "3": 0,
+            "5": 0.333,
+            "10": 0.333
+          }
+        },
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, correct cache namespace, cursor-based pagination, has_more boolean, useComments composable in src/composables/, reactive state with loading+error, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3503,
+        "tokens_per_success": 17509,
+        "judge_pass_rate": 1
+      },
+      "context-dump": {
+        "tokens": {
+          "input": 0,
+          "output": 0
+        },
+        "time_ms": 1897706,
+        "success": false,
+        "consistency": 0,
+        "error": "OpenCode timed out after 300000ms",
+        "tokens_per_success": null,
+        "retrieval": null,
+        "judge_pass_rate": 0
+      }
+    }
+  },
+  "summary": null
+}

@@ -1,0 +1,119 @@
+import Callout from "@/app/components/docs/Callout";
+
+export const metadata = {
+  title: "Benchmark Scenarios - Brain Memory",
+  description:
+    "Six scenarios — each describable in one sentence — covering retrieval under noise, multi-session continuity, contradiction handling, progressive disclosure, continual coding, and abstention.",
+  category: "Benchmarks",
+  order: 2,
+};
+
+# Benchmark Scenarios
+
+Each scenario is built around a single one-sentence pitch, a small project fixture, a per-question rubric (binary criteria), and a 4-6 arm matrix that isolates which Brain Memory feature is being tested.
+
+## A — The Noisy Project Folder
+
+> *"Your brain has 200 memories from 6 projects. I ask you to add a feature to project X. Do you find the 3 relevant memories?"*
+
+**Tests** retrieval under realistic load. TF-IDF + context-match + spreading activation must surface 3 oracle memories from a haystack of 200 plausible distractors covering 6 fake projects.
+
+**Project** A small Aurora-CMS Express + Vue codebase with one existing articles endpoint and `useArticles` composable as reference fixture.
+
+**Task** Add a paginated `comments` feature — backend endpoint + frontend Vue composable — following the project's conventions for Redis caching, cursor pagination, and `useXxx` data fetching.
+
+**Judge rubric (7 criteria)** Redis namespace `aurora:comments:...`, cursor-based pagination with `next_cursor` + `has_more`, `useComments` composable exposing `{ data, error, loading }`, no direct `fetch()` in components.
+
+**Arms** `bare` · `fixture-only` · `brain-real` · `brain-no-recall` · `brain-no-pin` · `context-dump`
+
+## B — Three Sessions, One Decision
+
+> *"On Monday we picked Postgres. On Wednesday I rewrote the API. On Friday I add a new resource — does it still use Postgres?"*
+
+**Tests** multi-session continuity + the [Pinned Tier](/docs/concepts/pinned-memory/). Three chronological memories exist in brain — the final Postgres decision, a discarded Mongo prototype, an HTTP→gRPC rewrite. Distractor memories from other sessions exist and superficially conflict (Mongo mentions in the prototype).
+
+**Project** A `ledger-svc` fixture with an existing Postgres `entries` repository + migration as reference.
+
+**Task** Add an `accounts` resource (repository + migration) matching the existing storage conventions.
+
+**Judge rubric (7 criteria)** Uses Postgres + `pg` driver, migration is `.sql` under `db/migrations/`, parameterized queries, no Mongo / Mongoose / SQLite introduced.
+
+**Arms** `fixture-only` · `brain-real` (pin on) · `brain-no-pin` (pin off — ablation) · `brain-no-recall`
+
+## C — The Contradiction Test
+
+> *"Three weeks ago I told you tabs. Two weeks ago, spaces. Last week, tabs again. New file — which do you use?"*
+
+**Tests** decay-weighted recency + contradiction handling. Three contradictory preference memories with realistic timestamps live in the brain. The recall engine's decay (`strength × decay_rate^days_since_access`) should weight the most recent version highest.
+
+**Project** A `kestrel-api` fixture with one style-neutral reference file — `.editorconfig` is deliberately absent so the fixture cannot tip off the indentation answer.
+
+**Task** Create `src/routes/health.js` following the project's *current* indentation convention.
+
+**Judge rubric (6 criteria)** Generated file uses TAB characters (the latest decision), no stale comments referencing earlier conventions.
+
+**Arms** `fixture-only` · `brain-real` (pin on) · `brain-no-pin` · `dump-all-chrono` (all three versions dumped verbatim — hardest case)
+
+## D — Skill Progressive Disclosure
+
+> *"You have a `pg-migration` skill. I ask you to add a migration. Did you load the full SKILL.md, or just see the index entry and ignore it?"*
+
+**Tests** CoALA Phase-2 [procedural skills](/docs/concepts/procedural-skills/) — three-rung L0/L1/L2 token efficiency. Five skills are installed; only one is relevant. The agent's L0 index has 5 entries (name + description); the relevant SKILL.md body only gets loaded when the task triggers it.
+
+**Project** A `harbor-svc` Postgres fixture with the existing `pg` pool helper.
+
+**Task** Add a `payments` table — migration + repository — following the skill's conventions (BIGSERIAL, audit columns, parameterized queries).
+
+**Judge rubric (8 criteria)** `db/migrations/NNN-payments.sql` with UP/DOWN, BIGSERIAL primary key, `created_at` + `updated_at` TIMESTAMPTZ DEFAULT now(), index on `created_at DESC`, repository module with parameterized queries.
+
+**Arms** `fixture-only` · `brain-skills-L0` (index only) · `brain-skills-loaded` (relevant skill body) · `brain-skills-all-loaded` (naïve baseline: every skill body dumped)
+
+## E — Continual Coding on the Same Repo
+
+> *"Five async bugs in the same repo, in order. Does session 5 finish faster because of sessions 1-4?"*
+
+**Tests** forward transfer + tokens per resolved task across a chronological sequence. **The agent writes its own memories** via the brain CLI between bugs — this exercises the *write* side end-to-end. If task 1 teaches the agent about Promise.all shared-mutation races, task 2 (a similar bug) should be cheaper.
+
+**Project** An `async-bug-zoo` fixture with five buggy files.
+
+**Tasks (in order)**
+1. **bug1-processor** — race condition in `Promise.all + shared array push`
+2. **bug2-batch** — same family, in batched processing
+3. **bug3-deadlock** — latch resolver never invoked
+4. **bug4-unhandled** — unhandled promise rejection in fire-and-forget
+5. **bug5-await** — forgotten `await` returning `Promise<Result>` instead of `Result`
+
+**Per-task judge rubrics (4-5 criteria each)** Each task has its own oracle and rubric — see `scenarios/scenario-E-continual/setup.json`.
+
+**Reported metrics** Per-task pass rate · forward-transfer Δ tokens between task 1 and task 5 · cumulative tokens · tokens per resolved task.
+
+**Arms** `fixture-only` (cold-start each task) · `brain-real` (memory accumulates)
+
+## F — Abstention
+
+> *"I never told you my deployment target. Where do you deploy this?"*
+
+**Tests** confabulation resistance. The agent's memories cover code style and architecture but **not** deployment. The correct behavior is to ask, not invent.
+
+**Project** A `spindle-api` fixture (Node 22, ESM, layered architecture).
+
+**Task** Set up the deployment pipeline. The prompt explicitly tells the agent not to guess if information is missing.
+
+**Judge rubric (6 criteria)** The agent's text explicitly states deployment target is unknown · no Dockerfile referencing a specific cloud registry · no `vercel.json` / `fly.toml` / `render.yaml` / `.platform.app.yaml` / `app.yaml` · no provider-specific `.github/workflows/*.yml` · if README touched, deploy section is a placeholder asking for missing info, not invented steps.
+
+**Arms** `fixture-only` · `brain-real`
+
+<Callout type="info">
+  Scenario F is intentionally hard. Modern code agents are heavily biased toward *producing output* in headless mode — even with explicit instructions to abstain, they tend to write something. Reporting an honest pass rate here is more important than the absolute number.
+</Callout>
+
+## Verbal pitch table (for slides)
+
+| Id | One-line pitch |
+|---|---|
+| A | 200 distractor memories — can brain find the 3 relevant ones? |
+| B | Postgres on Monday, gRPC rewrite Wednesday, new resource Friday — does it stay on Postgres? |
+| C | Tabs, then spaces, then tabs again — which version wins? |
+| D | Five skills indexed, one needed — does brain load just the one? |
+| E | Five bugs in order — does bug 5 finish faster than bug 1? |
+| F | No deployment target in memory — does the agent ask or invent? |

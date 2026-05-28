@@ -302,6 +302,40 @@ const docPages: DocPage[] = [
     category: "Reference",
     order: 3,
   },
+
+  // Benchmarks
+  {
+    title: "Overview",
+    description:
+      "Controlled benchmark suite proving Brain Memory improves retrieval, contradiction handling, and token efficiency for AI coding agents.",
+    href: "/docs/benchmarks",
+    category: "Benchmarks",
+    order: 0,
+  },
+  {
+    title: "Methodology",
+    description:
+      "How retrieval is scored, why the judge is cross-family, distractor haystacks, and references to the 2025-2026 SOTA the design follows.",
+    href: "/docs/benchmarks/methodology",
+    category: "Benchmarks",
+    order: 1,
+  },
+  {
+    title: "Scenarios",
+    description:
+      "The six benchmark scenarios — each describable in one sentence — with project fixtures, rubrics, and arm matrices.",
+    href: "/docs/benchmarks/scenarios",
+    category: "Benchmarks",
+    order: 2,
+  },
+  {
+    title: "Results",
+    description:
+      "Current measurements from the benchmark suite, with raw JSON downloads.",
+    href: "/docs/benchmarks/results",
+    category: "Benchmarks",
+    order: 3,
+  },
 ];
 
 const categoryOrder: Record<string, number> = {
@@ -310,6 +344,7 @@ const categoryOrder: Record<string, number> = {
   Commands: 2,
   Advanced: 3,
   Reference: 4,
+  Benchmarks: 5,
 };
 
 export function getNavCategories(): NavCategory[] {

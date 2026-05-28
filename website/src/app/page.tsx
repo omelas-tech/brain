@@ -121,22 +121,29 @@ export default function Home() {
 
         {/* ─── 03 Benchmarks ────────────────────────────────────────── */}
         <Section number="03" title="Benchmark results">
-          <p className="text-[var(--text-secondary)] leading-relaxed mb-8 text-[0.9375rem]">
-            Tested across Claude Code, Gemini CLI, and Codex CLI.{" "}
+          <p className="text-[var(--text-secondary)] leading-relaxed mb-2 text-[0.9375rem]">
+            Six-scenario suite grounded in 2025-2026 long-term-memory eval methodology (LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0 / BEAM). Cross-family LLM judge, distractor haystacks, N-arm matrix.{" "}
             <a
-              href="https://github.com/onurkarali/brain/tree/main/benchmark"
+              href="/docs/benchmarks"
               className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
-              target="_blank"
-              rel="noopener noreferrer"
             >
-              Full methodology →
+              Methodology →
+            </a>{" "}
+            <a
+              href="/docs/benchmarks/results"
+              className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+            >
+              Live results →
             </a>
+          </p>
+          <p className="text-[var(--text-tertiary)] text-xs mb-8 font-mono">
+            Preliminary — 1 run × Scenario A × Gemini Flash, May 2026. Full multi-run results in progress.
           </p>
 
           <div className="grid sm:grid-cols-3 gap-px bg-[var(--border)] rounded-lg overflow-hidden border border-[var(--border)] mb-8">
-            <Stat label="avg consistency" value="+18.3%" />
-            <Stat label="avg success" value="+33.3%" />
-            <Stat label="agents improved" value="3 / 3" />
+            <Stat label="brain-real tokens / success" value="27.8K" />
+            <Stat label="context-dump tokens / success" value="50.8K" />
+            <Stat label="brain-no-pin tokens / success" value="86.3K" />
           </div>
 
           <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--surface)] mb-6">
@@ -144,23 +151,20 @@ export default function Home() {
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
                   <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">scenario</th>
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">consistency</th>
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">success</th>
+                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">tests</th>
                 </tr>
               </thead>
               <tbody>
-                {summaryRows.map((r, i) => (
-                  <tr key={r.name} className={i < summaryRows.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}>
+                {scenarioRows.map((r, i) => (
+                  <tr key={r.id} className={i < scenarioRows.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}>
                     <td className="px-5 py-3.5">
-                      <div className="text-[var(--text-primary)] font-medium">{r.name}</div>
-                      <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{r.note}</div>
+                      <div className="text-[var(--text-primary)] font-medium">
+                        <span className="font-mono text-[var(--text-tertiary)] mr-2">{r.id}</span>
+                        {r.name}
+                      </div>
+                      <div className="text-xs text-[var(--text-tertiary)] mt-0.5 italic">&ldquo;{r.pitch}&rdquo;</div>
                     </td>
-                    <td className="px-5 py-3.5 text-right font-mono">
-                      <DeltaCell value={r.consistency} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right font-mono">
-                      <DeltaCell value={r.success} />
-                    </td>
+                    <td className="px-5 py-3.5 text-[var(--text-secondary)] text-xs">{r.tests}</td>
                   </tr>
                 ))}
               </tbody>
@@ -278,16 +282,6 @@ function AgentCell({ name, vendor, cmd }: { name: string; vendor: string; cmd: s
   );
 }
 
-function DeltaCell({ value }: { value: string }) {
-  if (value === "—") return <span className="text-[var(--text-tertiary)]">—</span>;
-  if (value === "inconclusive") return <span className="text-[var(--text-tertiary)] text-xs">inconclusive</span>;
-  const positive = value.startsWith("+");
-  return (
-    <span className={positive ? "text-emerald-700 dark:text-emerald-400" : "text-[var(--danger)]"}>
-      {value}
-    </span>
-  );
-}
 
 /* ─── Copy Button ─────────────────────────────────────────────────── */
 function CopyButton() {
@@ -333,12 +327,13 @@ const steps = [
   },
 ];
 
-const summaryRows = [
-  { name: "Preference retention", note: "Preferences applied without re-stating", consistency: "+34.7%", success: "+33.3%" },
-  { name: "Multi-session continuity", note: "Decisions carry across sessions", consistency: "+26.2%", success: "—" },
-  { name: "Accumulated knowledge", note: "5 sessions of learning improve output", consistency: "+7.3%", success: "—" },
-  { name: "Error pattern learning", note: "Past debugging helps fix similar bugs", consistency: "+4.8%", success: "—" },
-  { name: "Cross-agent consistency", note: "All agents follow the same memorized style", consistency: "inconclusive", success: "—" },
+const scenarioRows = [
+  { id: "A", name: "Noisy Project Folder", pitch: "200 memories from 6 projects — does brain find the 3 relevant ones?", tests: "Retrieval under distractors (LongMemEval-S analog)" },
+  { id: "B", name: "Three Sessions, One Decision", pitch: "Postgres Monday, gRPC rewrite Wednesday, new resource Friday — still Postgres?", tests: "Multi-session continuity + pinned tier ablation" },
+  { id: "C", name: "The Contradiction Test", pitch: "Tabs, then spaces, then tabs again — which version wins?", tests: "Decay-weighted recency + contradiction handling" },
+  { id: "D", name: "Skill Progressive Disclosure", pitch: "Five skills indexed, one needed — does brain load just the one?", tests: "Procedural skills (L0/L1/L2) token efficiency" },
+  { id: "E", name: "Continual Coding", pitch: "Five bugs in order — does bug 5 finish faster than bug 1?", tests: "Forward transfer + agent writes its own memories" },
+  { id: "F", name: "Abstention", pitch: "No deployment target in memory — does the agent ask or invent?", tests: "Confabulation resistance" },
 ];
 
 const neuroRows = [
@@ -350,62 +345,54 @@ const neuroRows = [
   { name: "Synaptic homeostasis", impl: "Global strength downscaling during sleep prevents inflation." },
 ];
 
-/* ─── Benchmark Agent Details (preserved data, restyled) ──────────── */
-interface ScenarioResult {
-  name: string;
-  withBrain: number;
-  withoutBrain: number;
-  tokens: { with: string; without: string } | null;
-  time: { with: string; without: string };
-  successNote?: string;
+/* ─── Benchmark Agent Details (arm matrix per agent, Scenario A) ──────────── */
+interface ArmRow {
+  arm: string;
+  tokens: string;
+  tokensPerSuccess: string;
+  recallAt5: string;
+  passRate: string;
 }
-interface AgentResult {
+interface AgentArmResult {
   subtitle: string;
-  scenarios: ScenarioResult[];
+  scenario: string;
+  arms: ArmRow[];
 }
-
-const agentData: Record<string, AgentResult> = {
-  "Claude Code": {
-    subtitle: "claude sonnet",
-    scenarios: [
-      { name: "Continuity", withBrain: 0.944, withoutBrain: 0.645, tokens: { with: "223K", without: "211K" }, time: { with: "108s", without: "98s" } },
-      { name: "Consistency", withBrain: 0.4, withoutBrain: 0.4, tokens: { with: "133K", without: "125K" }, time: { with: "103s", without: "89s" } },
-      { name: "Knowledge", withBrain: 1.0, withoutBrain: 0.891, tokens: { with: "511K", without: "312K" }, time: { with: "159s", without: "130s" } },
-      { name: "Error Learning", withBrain: 0.57, withoutBrain: 0.57, tokens: { with: "248K", without: "141K" }, time: { with: "228s", without: "203s" }, successNote: "100% vs 67%" },
-      { name: "Preferences", withBrain: 0.866, withoutBrain: 0.359, tokens: { with: "134K", without: "125K" }, time: { with: "106s", without: "93s" }, successNote: "PASS vs FAIL" },
+const agentData: Record<string, AgentArmResult> = {
+  "Gemini Flash": {
+    subtitle: "gemini-2.5-flash · Scenario A × 1 run",
+    scenario: "A — Noisy Project Folder",
+    arms: [
+      { arm: "bare", tokens: "24.1K", tokensPerSuccess: "24.1K", recallAt5: "—", passRate: "100%" },
+      { arm: "fixture-only", tokens: "16.8K", tokensPerSuccess: "16.8K", recallAt5: "—", passRate: "100%" },
+      { arm: "brain-real", tokens: "27.8K", tokensPerSuccess: "27.8K", recallAt5: "0.33", passRate: "100%" },
+      { arm: "brain-no-recall", tokens: "43.6K", tokensPerSuccess: "43.6K", recallAt5: "—", passRate: "100%" },
+      { arm: "brain-no-pin", tokens: "86.3K", tokensPerSuccess: "86.3K", recallAt5: "0.33", passRate: "100%" },
+      { arm: "context-dump", tokens: "50.8K", tokensPerSuccess: "50.8K", recallAt5: "—", passRate: "100%" },
     ],
   },
-  "Gemini CLI": {
-    subtitle: "gemini cli default",
-    scenarios: [
-      { name: "Continuity", withBrain: 0.822, withoutBrain: 0.555, tokens: { with: "34K", without: "16K" }, time: { with: "27s", without: "20s" } },
-      { name: "Consistency", withBrain: 0, withoutBrain: 0, tokens: { with: "—", without: "—" }, time: { with: "—", without: "—" }, successNote: "Timed out" },
-      { name: "Knowledge", withBrain: 0.964, withoutBrain: 0.927, tokens: { with: "47K", without: "23K" }, time: { with: "50s", without: "30s" } },
-      { name: "Error Learning", withBrain: 0.57, withoutBrain: 0.63, tokens: { with: "38K", without: "40K" }, time: { with: "47s", without: "48s" } },
-      { name: "Preferences", withBrain: 0.8, withoutBrain: 0.534, tokens: { with: "42K", without: "23K" }, time: { with: "33s", without: "27s" } },
-    ],
-  },
-  "Codex CLI": {
-    subtitle: "codex cli default",
-    scenarios: [
-      { name: "Continuity", withBrain: 0.767, withoutBrain: 0.545, tokens: null, time: { with: "101s", without: "69s" } },
-      { name: "Consistency", withBrain: 1.0, withoutBrain: 1.0, tokens: null, time: { with: "89s", without: "48s" } },
-      { name: "Knowledge", withBrain: 0.934, withoutBrain: 0.861, tokens: null, time: { with: "194s", without: "180s" } },
-      { name: "Error Learning", withBrain: 0.773, withoutBrain: 0.57, tokens: null, time: { with: "230s", without: "196s" } },
-      { name: "Preferences", withBrain: 0.934, withoutBrain: 0.666, tokens: null, time: { with: "76s", without: "44s" } },
+  "OpenCode → DeepSeek V4 Pro": {
+    subtitle: "deepseek/deepseek-v4-pro · Scenario A × 1 run",
+    scenario: "A — Noisy Project Folder",
+    arms: [
+      { arm: "bare", tokens: "20.0K", tokensPerSuccess: "20.0K", recallAt5: "—", passRate: "100%" },
+      { arm: "fixture-only", tokens: "13.8K", tokensPerSuccess: "13.8K", recallAt5: "—", passRate: "100%" },
+      { arm: "brain-real", tokens: "timeout", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
+      { arm: "brain-no-recall", tokens: "19.7K", tokensPerSuccess: "19.7K", recallAt5: "—", passRate: "100%" },
+      { arm: "brain-no-pin", tokens: "17.5K", tokensPerSuccess: "17.5K", recallAt5: "0.33", passRate: "100%" },
+      { arm: "context-dump", tokens: "timeout", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
     ],
   },
 };
 
 function BenchmarkAgentDetails() {
-  const [activeAgent, setActiveAgent] = useState("Claude Code");
   const agents = Object.keys(agentData);
+  const [activeAgent, setActiveAgent] = useState(agents[0]);
   const data = agentData[activeAgent];
-  const showTokens = data.scenarios[0].tokens !== null;
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-2">
         {agents.map((agent) => (
           <button
             key={agent}
@@ -420,51 +407,39 @@ function BenchmarkAgentDetails() {
           </button>
         ))}
       </div>
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mb-4">
+        {data.subtitle}
+      </p>
 
       <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--surface)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">scenario</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">+brain</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">−brain</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">Δ</th>
-                {showTokens && (
-                  <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">tokens</th>
-                )}
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">time</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">notes</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">arm</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">tokens</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">tok / success</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">recall@5</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">pass</th>
               </tr>
             </thead>
             <tbody>
-              {data.scenarios.map((s, i) => {
-                const diff = s.withBrain - s.withoutBrain;
-                const pct = s.withoutBrain > 0 ? ((diff / s.withoutBrain) * 100).toFixed(1) : "—";
-                const isPositive = diff > 0;
-                const isNeutral = diff === 0;
+              {data.arms.map((row, i) => {
+                const isHero = row.arm === "brain-real";
+                const isTimeout = row.tokens === "timeout";
                 return (
-                  <tr key={s.name} className={i < data.scenarios.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}>
-                    <td className="px-4 py-3 text-[var(--text-primary)] font-medium">{s.name}</td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--text-secondary)]">{s.withBrain.toFixed(3)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">{s.withoutBrain.toFixed(3)}</td>
-                    <td className={`px-4 py-3 text-right font-mono ${isPositive ? "text-emerald-700 dark:text-emerald-400" : isNeutral ? "text-[var(--text-tertiary)]" : "text-[var(--danger)]"}`}>
-                      {isNeutral ? "—" : `${isPositive ? "+" : ""}${pct}%`}
+                  <tr
+                    key={row.arm}
+                    className={`${i < data.arms.length - 1 ? "border-b border-[var(--border-subtle)]" : ""} ${isHero ? "bg-[var(--surface-2)]" : ""}`}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--text-primary)] font-medium">{row.arm}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${isTimeout ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}>
+                      {row.tokens}
                     </td>
-                    {showTokens && (
-                      <td className="px-4 py-3 text-right font-mono text-xs text-[var(--text-tertiary)]">
-                        {s.tokens ? `${s.tokens.with}/${s.tokens.without}` : "n/a"}
-                      </td>
-                    )}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[var(--text-tertiary)]">{s.time.with}/{s.time.without}</td>
-                    <td className="px-4 py-3 text-right text-xs">
-                      {s.successNote ? (
-                        <span className={s.successNote.includes("FAIL") || s.successNote.includes("Timed") ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}>
-                          {s.successNote}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--text-tertiary)]">—</span>
-                      )}
+                    <td className="px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">{row.tokensPerSuccess}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">{row.recallAt5}</td>
+                    <td className={`px-4 py-3 text-right font-mono text-xs ${row.passRate === "0%" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}>
+                      {row.passRate}
                     </td>
                   </tr>
                 );
@@ -474,11 +449,9 @@ function BenchmarkAgentDetails() {
         </div>
       </div>
 
-      {activeAgent === "Codex CLI" && (
-        <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mt-3">
-          codex cli does not report token usage in its json output
-        </p>
-      )}
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mt-3">
+        scenario A · 1 run · all arms judged by cross-family LLM (claude)
+      </p>
     </div>
   );
 }

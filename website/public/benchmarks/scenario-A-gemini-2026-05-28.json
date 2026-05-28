@@ -1,0 +1,139 @@
+{
+  "scenario": "scenario-A-noisy-folder",
+  "model": "cloud (claude-sonnet / gemini-flash / gpt)",
+  "mode": "cloud",
+  "timestamp": "2026-05-28T19:31:47.004Z",
+  "results": {
+    "gemini": {
+      "bare": {
+        "tokens": {
+          "input": 21749,
+          "output": 2356
+        },
+        "time_ms": 82404,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: Redis/ioredis used with aurora:comments namespace, cursor-based pagination with next_cursor and has_more, composable in src/composables/ with reactive state and encapsulated fetch.",
+          "family": "claude"
+        },
+        "output_chars": 5861,
+        "tokens_per_success": 24105,
+        "judge_pass_rate": 1
+      },
+      "fixture-only": {
+        "tokens": {
+          "input": 15171,
+          "output": 1663
+        },
+        "time_ms": 53265,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more field, useComments composable in src/composables/, reactive loading+error, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3957,
+        "tokens_per_success": 16834,
+        "judge_pass_rate": 1
+      },
+      "brain-real": {
+        "tokens": {
+          "input": 25535,
+          "output": 2265
+        },
+        "time_ms": 50422,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": {
+          "recall": {
+            "1": 0,
+            "3": 0,
+            "5": 0.333,
+            "10": 0.333
+          }
+        },
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more field, useComments composable in src/composables/, reactive loading+error+data, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3358,
+        "tokens_per_success": 27800,
+        "judge_pass_rate": 1
+      },
+      "brain-no-recall": {
+        "tokens": {
+          "input": 40381,
+          "output": 3218
+        },
+        "time_ms": 90375,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more boolean, useComments composable in src/composables/, reactive loading+error+data, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3702,
+        "tokens_per_success": 43599,
+        "judge_pass_rate": 1
+      },
+      "brain-no-pin": {
+        "tokens": {
+          "input": 80952,
+          "output": 5386
+        },
+        "time_ms": 187575,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": {
+          "recall": {
+            "1": 0,
+            "3": 0,
+            "5": 0.333,
+            "10": 0.333
+          }
+        },
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more field, useComments composable in src/composables/, reactive loading+error+data, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3578,
+        "tokens_per_success": 86338,
+        "judge_pass_rate": 1
+      },
+      "context-dump": {
+        "tokens": {
+          "input": 48132,
+          "output": 2624
+        },
+        "time_ms": 61596,
+        "success": true,
+        "score": 1,
+        "consistency": 1,
+        "retrieval": null,
+        "judge": {
+          "score": 1,
+          "rationale": "All 7 criteria met: ioredis used, aurora:comments namespace, cursor-based pagination, has_more field, useComments composable in src/composables/, reactive loading+error, fetch encapsulated.",
+          "family": "claude"
+        },
+        "output_chars": 3584,
+        "tokens_per_success": 50756,
+        "judge_pass_rate": 1
+      }
+    }
+  },
+  "summary": null
+}
