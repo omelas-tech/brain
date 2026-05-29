@@ -1,502 +1,434 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import BrainField from "./components/BrainField";
+import DecayCurve from "./components/DecayCurve";
 
 export default function Home() {
+  // scroll-reveal
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="min-h-dvh">
+    <>
       <Header />
 
-      <main className="max-w-3xl mx-auto px-5 sm:px-6">
-        {/* ─── Hero ─────────────────────────────────────────────────── */}
-        <section className="pt-[var(--space-hero-top)] pb-[var(--space-hero-bottom)]">
-          <div className="grid lg:grid-cols-[1fr_auto] gap-10 lg:gap-12 items-center">
-            <div>
-              <h1
-                className="font-semibold tracking-tight leading-[1.04] mb-6 sm:mb-8 text-[var(--text-primary)] fade-in"
-                style={{ fontSize: "var(--fs-h1)" }}
-              >
-                Memory for AI agents,{" "}
-                <span className="italic text-[var(--text-secondary)]">
-                  modeled on the brain.
-                </span>
-              </h1>
-              <p
-                className="text-[var(--text-secondary)] leading-relaxed mb-8 max-w-xl fade-in fade-in-delay-1"
-                style={{ fontSize: "var(--fs-lead)" }}
-              >
-                Hierarchical, file-system-based memory that decays, strengthens
-                through recall, and consolidates during sleep. Claude Code,
-                Gemini CLI, and Codex CLI — one brain, all agents.
-              </p>
-              <div className="flex flex-wrap items-center gap-3 fade-in fade-in-delay-2">
-                <Link
-                  href="/docs"
-                  className="font-mono text-sm font-medium bg-[var(--text-primary)] text-[var(--bg)] hover:bg-[var(--accent)] transition-colors px-4 py-2 rounded-md"
-                >
-                  get started
-                </Link>
-                <CopyButton />
-              </div>
-              <div className="mt-6 flex flex-wrap gap-3 fade-in fade-in-delay-3">
-                <img src="https://img.shields.io/npm/v/brain-memory" alt="npm version" className="h-5" />
-                <img src="https://github.com/onurkarali/actions/workflows/ci.yml/badge.svg" alt="CI" className="h-5" />
-                <img src="https://img.shields.io/npm/l/brain-memory" alt="license" className="h-5" />
-              </div>
-            </div>
+      {/* ============ HERO ============ */}
+      <header className="hero" id="top">
+        <BrainField />
 
-            <div className="hidden lg:block fade-in fade-in-delay-3">
-              <Image
-                src="/icon.svg"
-                alt="Brain Memory"
-                width={220}
-                height={220}
-                className="rounded-[44px]"
-                priority
-              />
+        <div className="hero-inner">
+          <div className="hero-copy">
+            <span className="hero-tag">
+              <span className="dot" />beta · live on npm
+            </span>
+            <h1>
+              Memory for AI&nbsp;agents,
+              <br />
+              <span className="serif">modeled on the&nbsp;brain.</span>
+            </h1>
+            <p className="sub">
+              A hierarchical, file-system memory that{" "}
+              <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
+              and consolidates during sleep. Deterministic across Claude&nbsp;Code,
+              Gemini&nbsp;CLI, and Codex&nbsp;CLI — <b>one brain, all agents.</b>
+            </p>
+            <div className="hero-actions">
+              <a className="btn btn-primary" href="#quickstart">
+                Get started
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </a>
+              <CopyButton
+                className="btn btn-ghost"
+                text="npm i -g brain-memory@beta"
+              >
+                <span className="cmd">$</span> npm i -g brain-memory
+              </CopyButton>
+            </div>
+            <div className="hero-badges">
+              <span className="badge"><span className="k">npm</span><span className="v">beta</span></span>
+              <span className="badge"><span className="k">license</span><span className="v amber">MIT</span></span>
+              <span className="badge"><span className="k">deterministic</span><span className="v">recall</span></span>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* ─── 01 Features ──────────────────────────────────────────── */}
-        <Section number="01" title="What's inside">
-          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-7">
-            <Feature
-              title="Hierarchical memory"
-              description="The directory tree is the semantic structure. Browseable in any file explorer."
-            />
-            <Feature
-              title="Strength & decay"
-              description="Memories fade following Ebbinghaus' forgetting curve. Recalled memories strengthen."
-            />
-            <Feature
-              title="Associative network"
-              description="Weighted connections between memories. Recalling one activates related ones."
-            />
-            <Feature
-              title="Spaced reinforcement"
-              description="Longer recall intervals produce larger boosts. Diminishing returns on cramming."
-            />
-            <Feature
-              title="Cognitive types"
-              description="Episodic, semantic, and procedural memories each decay differently."
-            />
-            <Feature
-              title="Cross-agent"
-              description="Claude Code, Gemini CLI, Codex CLI. Same memory store, deterministic recall."
-            />
-            <Feature
-              title="Sleep & consolidation"
-              description="Nine-phase nightly cycle: replay, consolidation, pruning, reorganization."
-            />
-            <Feature
-              title="Portable sync"
-              description="Git remote or AES-256-GCM encrypted export. Self-hosted on your VPS."
-            />
+        <div className="hero-hud" aria-hidden="true">
+          <div className="row"><span className="lbl">nodes</span><span className="num" data-hud="nodes">—</span></div>
+          <div className="row"><span className="lbl">synapses</span><span className="num" data-hud="synapses">—</span></div>
+          <div className="row"><span className="lbl">active</span><span className="num" data-hud="active">—</span></div>
+          <div className="row"><span className="lbl">mean strength</span><span className="num" data-hud="strength">—</span></div>
+          <div className="row"><span className="lbl">recall rate</span><span className="num" data-hud="recall">—</span></div>
+        </div>
+
+        <div className="scroll-cue" aria-hidden="true"><span>scroll</span><span className="line" /></div>
+      </header>
+
+      {/* ============ 01 WHAT'S INSIDE ============ */}
+      <section className="section" id="inside">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">01</span> What&apos;s inside</span>
+            <h2>A memory architecture, not a vector store.</h2>
           </div>
-        </Section>
-
-        {/* ─── 02 How it works ──────────────────────────────────────── */}
-        <Section number="02" title="How it works">
-          <ol className="space-y-7">
-            {steps.map((s, i) => (
-              <li key={s.title} className="flex gap-5">
-                <span className="font-mono text-xs text-[var(--text-tertiary)] pt-1 tabular-nums">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-1">{s.title}</h3>
-                  <p className="text-[var(--text-secondary)] leading-relaxed text-[0.9375rem]">
-                    {s.body}
-                  </p>
+          <div className="feature-grid reveal">
+            {features.map((f) => (
+              <div className="feature" key={f.title}>
+                <div className="ft-top">
+                  <svg className="ft-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: f.icon }} />
+                  <h3>{f.title}</h3>
+                  <span className="ft-num">/</span>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </Section>
-
-        {/* ─── 03 Benchmarks ────────────────────────────────────────── */}
-        <Section number="03" title="Benchmark results">
-          <p className="text-[var(--text-secondary)] leading-relaxed mb-2 text-[0.9375rem]">
-            Six-scenario suite grounded in 2025-2026 long-term-memory eval methodology (LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0 / BEAM). Cross-family LLM judge, distractor haystacks, N-arm matrix.{" "}
-            <a
-              href="/docs/benchmarks"
-              className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
-            >
-              Methodology →
-            </a>{" "}
-            <a
-              href="/docs/benchmarks/results"
-              className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
-            >
-              Live results →
-            </a>
-          </p>
-          <p className="text-[var(--text-tertiary)] text-xs mb-8 font-mono">
-            Preliminary — 1 run × Scenario A × Gemini Flash, May 2026. Full multi-run results in progress.
-          </p>
-
-          <div className="grid sm:grid-cols-3 gap-px bg-[var(--border)] rounded-lg overflow-hidden border border-[var(--border)] mb-8">
-            <Stat label="brain-real tokens / success" value="27.8K" />
-            <Stat label="context-dump tokens / success" value="50.8K" />
-            <Stat label="brain-no-pin tokens / success" value="86.3K" />
-          </div>
-
-          <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--surface)] mb-6">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">scenario</th>
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">tests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scenarioRows.map((r, i) => (
-                  <tr key={r.id} className={i < scenarioRows.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}>
-                    <td className="px-5 py-3.5">
-                      <div className="text-[var(--text-primary)] font-medium">
-                        <span className="font-mono text-[var(--text-tertiary)] mr-2">{r.id}</span>
-                        {r.name}
-                      </div>
-                      <div className="text-xs text-[var(--text-tertiary)] mt-0.5 italic">&ldquo;{r.pitch}&rdquo;</div>
-                    </td>
-                    <td className="px-5 py-3.5 text-[var(--text-secondary)] text-xs">{r.tests}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <BenchmarkAgentDetails />
-        </Section>
-
-        {/* ─── 04 Neuroscience ──────────────────────────────────────── */}
-        <Section number="04" title="Neuroscience foundations">
-          <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--surface)]">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">mechanism</th>
-                  <th className="px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">implementation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {neuroRows.map((r, i) => (
-                  <tr key={r.name} className={i < neuroRows.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}>
-                    <td className="px-5 py-3.5 text-[var(--text-primary)] font-medium">{r.name}</td>
-                    <td className="px-5 py-3.5 text-[var(--text-secondary)]">{r.impl}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-
-        {/* ─── 05 Research & references ────────────────────────────── */}
-        <Section number="05" title="Research & references">
-          <p className="text-[var(--text-secondary)] leading-relaxed mb-6 text-[0.9375rem]">
-            Brain Memory&apos;s architecture and benchmark methodology are grounded in the academic literature on language-agent memory and evaluation. Citations below.
-          </p>
-
-          <div className="space-y-6">
-            {referenceGroups.map((group) => (
-              <div key={group.heading}>
-                <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mb-3">
-                  {group.heading}
-                </h3>
-                <ul className="space-y-2.5">
-                  {group.refs.map((ref) => (
-                    <li key={ref.id} className="text-sm leading-relaxed">
-                      <a
-                        href={ref.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[var(--text-primary)] font-medium hover:text-[var(--accent)]"
-                      >
-                        {ref.title}
-                      </a>
-                      <span className="text-[var(--text-tertiary)] font-mono text-xs ml-2">{ref.id}</span>
-                      <div className="text-[var(--text-secondary)] text-xs mt-0.5">{ref.note}</div>
-                    </li>
-                  ))}
-                </ul>
+                <p>{f.body}</p>
               </div>
             ))}
           </div>
-        </Section>
+        </div>
+      </section>
 
-        {/* ─── 06 Compatibility ─────────────────────────────────────── */}
-        <Section number="06" title="Compatibility">
-          <div className="grid sm:grid-cols-3 gap-px bg-[var(--border)] rounded-lg overflow-hidden border border-[var(--border)]">
-            <AgentCell name="Claude Code" vendor="anthropic" cmd="brain-memory --claude --global" />
-            <AgentCell name="Gemini CLI" vendor="google" cmd="brain-memory --gemini --global" />
-            <AgentCell name="Codex CLI" vendor="openai" cmd="brain-memory --codex --global" />
+      {/* ============ 02 HOW IT WORKS ============ */}
+      <section className="section" id="how">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">02</span> How it works</span>
+            <h2>The lifecycle of a memory.</h2>
           </div>
-        </Section>
+          <div className="works-layout">
+            <div className="steps reveal">
+              {steps.map((s, i) => (
+                <div className="step" key={s.title}>
+                  <span className="st-num">{String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h3>{s.title}</h3>
+                    <p dangerouslySetInnerHTML={{ __html: s.body }} />
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        {/* ─── 06 Quick start ───────────────────────────────────────── */}
-        <Section number="07" title="Quick start">
-          <div className="border border-[var(--border)] rounded-lg p-6 bg-[var(--surface)] mb-4">
-            <code className="font-mono text-base sm:text-lg text-[var(--text-primary)]">
-              <span className="text-[var(--text-tertiary)]">$ </span>
-              npm install -g brain-memory@beta
-            </code>
+            <div className="decay-panel reveal">
+              <div className="dp-head">
+                <span className="dp-title">Forgetting curve</span>
+                <span className="dp-sub">strength(t) = e^(−λt)</span>
+              </div>
+              <DecayCurve />
+              <div className="decay-legend">
+                <span className="li"><span className="swatch" style={{ background: "var(--accent)" }} />strength</span>
+                <span className="li"><span className="swatch" style={{ background: "var(--accent-soft)" }} />full timeline</span>
+                <span className="li"><span className="swatch" style={{ background: "var(--accent)", width: 4, height: 4, borderRadius: "50%" }} />recall event</span>
+              </div>
+            </div>
           </div>
-          <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-            Install globally, then run{" "}
-            <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">brain-memory</code>{" "}
-            to configure your runtime(s).
+        </div>
+      </section>
+
+      {/* ============ 03 BENCHMARKS ============ */}
+      <section className="section" id="benchmarks">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">03</span> Benchmark results</span>
+            <h2>Six-scenario suite for long-term agent memory.</h2>
+            <p className="lede">
+              Grounded in 2025–2026 long-term-memory evaluation methodology —
+              LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0 / BEAM. Cross-family
+              LLM judge, distractor haystacks, <em>N</em>-arm matrix.{" "}
+              <a href="/docs/benchmarks">Methodology →</a>{" "}
+              <a href="/docs/benchmarks/results">Live results →</a>
+            </p>
+          </div>
+
+          <div className="stat-row reveal">
+            <div className="stat"><div className="v">27.8<span className="u">K</span></div><div className="k">brain-real tokens / success</div></div>
+            <div className="stat"><div className="v">50.8<span className="u">K</span></div><div className="k">context-dump tokens / success</div></div>
+            <div className="stat"><div className="v">86.3<span className="u">K</span></div><div className="k">brain-no-pin tokens / success</div></div>
+          </div>
+
+          <table className="data-table scenarios reveal">
+            <thead><tr><th style={{ width: "40%" }}>Scenario</th><th>What it tests</th></tr></thead>
+            <tbody>
+              {scenarioRows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <span className="sc-id">{r.id}</span> <span className="sc-name">{r.name}</span>
+                    <span className="sc-q">&ldquo;{r.pitch}&rdquo;</span>
+                  </td>
+                  <td>{r.tests}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <BenchmarkResults />
+        </div>
+      </section>
+
+      {/* ============ 04 NEUROSCIENCE ============ */}
+      <section className="section" id="neuro">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">04</span> Neuroscience foundations</span>
+            <h2>Every mechanism maps to a published model.</h2>
+          </div>
+          <div className="neuro-table reveal">
+            <table className="data-table">
+              <thead><tr><th style={{ width: "32%" }}>Mechanism</th><th>Implementation in Brain Memory</th></tr></thead>
+              <tbody>
+                {neuroRows.map((r) => (
+                  <tr key={r.name}><td>{r.name}</td><td>{r.impl}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ 05 RESEARCH ============ */}
+      <section className="section" id="references">
+        <div className="wrap">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">05</span> Research &amp; references</span>
+            <h2>Grounded in the literature.</h2>
+            <p className="lede">
+              Brain Memory&apos;s architecture and benchmark methodology draw on the
+              academic literature on language-agent memory and evaluation. Selected
+              citations below.
+            </p>
+          </div>
+
+          {referenceGroups.map((group) => (
+            <div className="ref-group reveal" key={group.heading}>
+              <h4>{group.heading}</h4>
+              {group.refs.map((ref) => (
+                <div className="ref" key={ref.id}>
+                  <a href={ref.url} target="_blank" rel="noopener noreferrer" className="r-title">{ref.title}</a>
+                  <span className="r-meta">{ref.id}</span>
+                  <p className="r-desc">{ref.note}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ 06 COMPATIBILITY ============ */}
+      <section className="section" id="compat">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">06</span> Compatibility</span>
+            <h2>One memory store. Every agent.</h2>
+          </div>
+          <div className="compat-grid reveal">
+            {compat.map((c) => (
+              <div className="compat-card" key={c.name}>
+                <div className="cc-name">{c.name}</div>
+                <div className="cc-tag">{c.vendor}</div>
+                <div className="code-chip">brain-memory <span className="flag">{c.flag}</span> --global</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ 07 QUICK START ============ */}
+      <section className="section" id="quickstart">
+        <div className="wrap">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">07</span> Quick start</span>
+            <h2>Install globally, then wire your runtime.</h2>
+          </div>
+          <div className="qs-block reveal">
+            <div className="qs-line">
+              <span className="prompt">$</span>
+              <span className="cmd">npm install -g brain-memory@beta</span>
+              <CopyButton className="copy" text="npm install -g brain-memory@beta">copy</CopyButton>
+            </div>
+          </div>
+          <p className="qs-note reveal">
+            Then run <code>brain-memory --claude</code> (or <code>--gemini</code> /{" "}
+            <code>--codex</code>) to configure your runtime(s). One store,
+            deterministic recall, all agents.
           </p>
-        </Section>
-      </main>
+        </div>
+      </section>
 
       <Footer />
-    </div>
+    </>
   );
 }
 
-/* ─── Section wrapper ─────────────────────────────────────────────── */
-function Section({
-  number,
-  title,
+/* ─── Copy button (hero ghost + quick-start) ──────────────────────── */
+function CopyButton({
+  text,
+  className,
   children,
 }: {
-  number: string;
-  title: string;
+  text: string;
+  className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <section className="py-[var(--space-section)] border-t border-[var(--border)]">
-      <div className="flex items-baseline gap-3 mb-8">
-        <span className="font-mono text-xs text-[var(--text-tertiary)] tabular-nums">{number}</span>
-        <h2
-          className="font-semibold text-[var(--text-primary)] tracking-tight"
-          style={{ fontSize: "var(--fs-h2)" }}
-        >
-          {title}
-        </h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Feature({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <h3 className="font-semibold text-[var(--text-primary)] mb-1.5">{title}</h3>
-      <p className="text-[var(--text-secondary)] leading-relaxed text-[0.9375rem]">{description}</p>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-[var(--surface)] p-5">
-      <div className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight mb-1">{value}</div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">{label}</div>
-    </div>
-  );
-}
-
-function AgentCell({ name, vendor, cmd }: { name: string; vendor: string; cmd: string }) {
-  return (
-    <div className="bg-[var(--surface)] p-5">
-      <div className="font-semibold text-[var(--text-primary)] mb-0.5">{name}</div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-3">{vendor}</div>
-      <code className="block font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] rounded px-2 py-1.5 text-[var(--text-secondary)] overflow-x-auto whitespace-nowrap">
-        {cmd}
-      </code>
-    </div>
-  );
-}
-
-
-/* ─── Copy Button ─────────────────────────────────────────────────── */
-function CopyButton() {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText("npm install -g brain-memory@beta");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const isGhost = className?.includes("copy"); // quick-start variant swaps label
   return (
     <button
-      onClick={handleCopy}
-      className="font-mono text-xs border border-[var(--border-strong)] hover:border-[var(--text-primary)] rounded-md px-3 py-2 inline-flex items-center gap-2 transition-colors"
+      className={className}
+      onClick={async () => {
+        try { await navigator.clipboard.writeText(text); } catch {}
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1400);
+      }}
     >
-      <span className="text-[var(--text-tertiary)]">$</span>
-      <span className="text-[var(--text-primary)]">npm i -g brain-memory</span>
-      <span className="text-[var(--text-tertiary)]">{copied ? "✓" : "⧉"}</span>
+      {isGhost && copied ? "copied" : children}
     </button>
   );
 }
 
+/* ─── Benchmark results (real data, per-agent tabs) ───────────────── */
+function BenchmarkResults() {
+  const agents = Object.keys(agentData);
+  const [active, setActive] = useState(agents[0]);
+  const data = agentData[active];
+
+  return (
+    <div className="reveal">
+      <div className="bench-tabs">
+        {agents.map((a) => (
+          <button
+            key={a}
+            className={`bench-tab${active === a ? " active" : ""}`}
+            onClick={() => setActive(a)}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
+      <div className="bench-meta">{data.subtitle}</div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table className="results">
+          <thead>
+            <tr><th>arm</th><th>tokens</th><th>tok / success</th><th>recall@5</th><th>pass</th></tr>
+          </thead>
+          <tbody>
+            {data.arms.map((row) => {
+              const hl = row.arm === "brain-real";
+              const timeout = row.tokens === "timeout";
+              return (
+                <tr key={row.arm} className={hl ? "hl" : ""}>
+                  <td>{row.arm}</td>
+                  <td className={timeout ? "danger" : ""}>{row.tokens}</td>
+                  <td>{row.tokensPerSuccess}</td>
+                  <td>{row.recallAt5}</td>
+                  <td className={row.passRate === "0%" ? "danger" : "pass"}>{row.passRate}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="bench-note">
+        {data.scenario} · 1 run · all arms judged by a cross-family LLM. Results
+        in progress; numbers update as runs complete.
+      </p>
+    </div>
+  );
+}
+
 /* ─── Static content ──────────────────────────────────────────────── */
+const features = [
+  { title: "Hierarchical memory", icon: '<path d="M3 4h6l2 2h10v3M3 4v16h18V9M3 9h18"/>', body: "The directory tree is the semantic structure. Browse memory in any file explorer — no opaque embeddings." },
+  { title: "Strength & decay", icon: '<path d="M3 20c4-12 14-12 18 0M3 20h18"/>', body: "Memories fade along an exponential forgetting curve. Recall arrests decay and pushes strength back up." },
+  { title: "Associative network", icon: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3 9M17 8l-4 8"/>', body: "Weighted edges link related memories. Recalling one activates its neighbours via spreading activation." },
+  { title: "Spaced reinforcement", icon: '<path d="M4 18V8m6 10V5m6 13v-7"/><circle cx="4" cy="6" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="16" cy="9" r="1.5"/>', body: "Longer intervals between recalls produce larger, more durable boosts. The spacing effect, by design." },
+  { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
+  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Gemini CLI, and Codex CLI share one store. Identical scoring, deterministic recall everywhere." },
+  { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
+  { title: "Portable sync", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Git remote or AES-256-GCM encrypted export. Self-host the whole brain on your own VPS." },
+];
+
 const steps = [
-  {
-    title: "Memorize",
-    body: "Agents store decisions, learnings, and preferences as Markdown files with YAML frontmatter. Initial strength is set by type and impact.",
-  },
-  {
-    title: "Decay",
-    body: "Strength decays exponentially per memory's decay rate. Episodic fades fast; procedural is sticky.",
-  },
-  {
-    title: "Recall",
-    body: "Deterministic TF-IDF + decayed strength + spreading activation + context match. Identical scoring across all agents.",
-  },
-  {
-    title: "Reinforce",
-    body: "Recalled memories strengthen via spaced reinforcement. Longer gaps → larger boosts. Decay rate improves with each recall.",
-  },
-  {
-    title: "Sleep",
-    body: "Nine-phase maintenance: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, reorganize, consolidate, prune, REM dream, expertise detection.",
-  },
+  { title: "Memorize", body: 'Agents write decisions, learnings, and preferences as Markdown with YAML frontmatter. Initial strength is set by <span class="mono-em">type</span> and <span class="mono-em">impact</span>.' },
+  { title: "Decay", body: "Strength decays exponentially at each memory's own rate. Episodic fades fast; procedural is sticky." },
+  { title: "Recall", body: 'Deterministic scoring: <span class="mono-em">TF-IDF × decayed-strength + spreading-activation × context-match</span>. Identical results across every agent.' },
+  { title: "Reinforce", body: "Recalled memories strengthen via spaced reinforcement. Longer gaps → larger boosts; the decay rate itself improves with each recall." },
+  { title: "Sleep", body: "The nine-phase cycle runs maintenance: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, pruning, REM recombination, expertise detection." },
 ];
 
 const scenarioRows = [
-  { id: "A", name: "Noisy Project Folder", pitch: "200 memories from 6 projects — does brain find the 3 relevant ones?", tests: "Retrieval under distractors (LongMemEval-S analog)" },
-  { id: "B", name: "Three Sessions, One Decision", pitch: "Postgres Monday, gRPC rewrite Wednesday, new resource Friday — still Postgres?", tests: "Multi-session continuity + pinned tier ablation" },
-  { id: "C", name: "The Contradiction Test", pitch: "Tabs, then spaces, then tabs again — which version wins?", tests: "Decay-weighted recency + contradiction handling" },
+  { id: "A", name: "Noisy Project Folder", pitch: "200 memories from 6 projects — does brain find the 3 relevant ones?", tests: "Retrieval under distractors · LongMemEval-S analog" },
+  { id: "B", name: "Three Sessions, One Decision", pitch: "Postgres Monday, gRPC rewrite Wednesday, new resource Friday — still Postgres?", tests: "Multi-session continuity · pinned-tier ablation" },
+  { id: "C", name: "The Contradiction Test", pitch: "Tabs, then spaces, then tabs again — which version wins?", tests: "Decay-weighted recency · contradiction handling" },
   { id: "D", name: "Skill Progressive Disclosure", pitch: "Five skills indexed, one needed — does brain load just the one?", tests: "Procedural skills (L0/L1/L2) token efficiency" },
-  { id: "E", name: "Continual Coding", pitch: "Five bugs in order — does bug 5 finish faster than bug 1?", tests: "Forward transfer + agent writes its own memories" },
-  { id: "F", name: "Abstention", pitch: "No deployment target in memory — does the agent ask or invent?", tests: "Confabulation resistance" },
+  { id: "E", name: "Continual Coding", pitch: "Five bugs in order — does bug 5 finish faster than bug 1?", tests: "Forward transfer · agent writes its own memories" },
+  { id: "F", name: "Abstention", pitch: "No deployment target in memory — does the agent ask or invent?", tests: "Confabulation resistance · stale-fact rejection" },
+];
+
+const neuroRows = [
+  { name: "Spreading activation", impl: "Recalling memory A automatically surfaces its linked neighbours B and C along weighted edges." },
+  { name: "Hebbian learning", impl: "Memories recalled together strengthen their mutual link — neurons that fire together, wire together." },
+  { name: "Context-dependent recall", impl: "Memories encoded in a similar context score higher at retrieval time." },
+  { name: "Spacing effect", impl: "Longer recall intervals produce larger, longer-lasting strength boosts." },
+  { name: "Ebbinghaus decay", impl: "Exponential forgetting with per-memory decay rates set by cognitive type." },
+  { name: "Synaptic homeostasis", impl: "Global strength down-scaling during sleep prevents runaway inflation." },
+];
+
+const compat = [
+  { name: "Claude Code", vendor: "Anthropic", flag: "--claude" },
+  { name: "Gemini CLI", vendor: "Google", flag: "--gemini" },
+  { name: "Codex CLI", vendor: "OpenAI", flag: "--codex" },
 ];
 
 const referenceGroups = [
   {
     heading: "Foundations",
     refs: [
-      {
-        title: "Cognitive Architectures for Language Agents (CoALA)",
-        id: "arxiv 2309.02427",
-        url: "https://arxiv.org/abs/2309.02427",
-        note: "Sumers, Yao, Narasimhan, Griffiths — the agent-memory model Brain Memory implements. Pinned tier, procedural skills, and budget-aware working memory all map directly to CoALA's semantic / procedural / episodic decomposition.",
-      },
-      {
-        title: "MemGPT: Towards LLMs as Operating Systems",
-        id: "arxiv 2310.08560",
-        url: "https://arxiv.org/abs/2310.08560",
-        note: "Packer et al. — paging-style memory management that motivated budget-bounded working memory.",
-      },
-      {
-        title: "Generative Agents: Interactive Simulacra of Human Behavior",
-        id: "arxiv 2304.03442",
-        url: "https://arxiv.org/abs/2304.03442",
-        note: "Park et al. — recency · importance · relevance retrieval blend that inspired Brain's TF-IDF + decay + salience scoring.",
-      },
-      {
-        title: "Ebbinghaus — Über das Gedächtnis (1885)",
-        id: "Ebbinghaus 1885",
-        url: "https://en.wikipedia.org/wiki/Forgetting_curve",
-        note: "Original forgetting curve. Brain's per-memory exponential decay rates and spaced-reinforcement strength boosts follow directly.",
-      },
+      { title: "Cognitive Architectures for Language Agents (CoALA)", id: "arXiv 2309.02427", url: "https://arxiv.org/abs/2309.02427", note: "Sumers, Yao, Narasimhan, Griffiths — the agent-memory model Brain Memory implements. Pinned tier, procedural skills, and budget-aware working memory map to CoALA's semantic / procedural / episodic decomposition." },
+      { title: "MemGPT: Towards LLMs as Operating Systems", id: "arXiv 2310.08560", url: "https://arxiv.org/abs/2310.08560", note: "Packer et al. — paging-style memory management that motivated budget-bounded working memory." },
+      { title: "Generative Agents: Interactive Simulacra of Human Behavior", id: "arXiv 2304.03442", url: "https://arxiv.org/abs/2304.03442", note: "Park et al. — recency · importance · relevance retrieval that inspired the recall scoring weights." },
+      { title: "Ebbinghaus — Über das Gedächtnis (1885)", id: "foundational", url: "https://en.wikipedia.org/wiki/Forgetting_curve", note: "The original forgetting curve. Brain Memory's exponential decay and spaced-reinforcement boosts follow it directly." },
     ],
   },
   {
-    heading: "Memory benchmarks (the suite this work follows)",
+    heading: "Memory benchmarks",
     refs: [
-      {
-        title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory",
-        id: "arxiv 2410.10813",
-        url: "https://arxiv.org/abs/2410.10813",
-        note: "Distractor-haystack design (S / M / Oracle), abstention category, and the rubric-based LLM judge with 97% human agreement that the new suite adopts.",
-      },
-      {
-        title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents",
-        id: "arxiv 2507.05257",
-        url: "https://arxiv.org/abs/2507.05257",
-        note: "Four-competency framework. FactConsolidation directly inspired Scenario C (The Contradiction Test).",
-      },
-      {
-        title: "SWE-Bench-CL: Continual Learning for Coding Agents",
-        id: "arxiv 2507.00014",
-        url: "https://arxiv.org/abs/2507.00014",
-        note: "Repo-scoped chronological evaluation with forward-transfer / forgetting metrics. Template for Scenario E (Continual Coding).",
-      },
-      {
-        title: "Mem0 / BEAM: Memory Architectures for Production Agents",
-        id: "arxiv 2504.19413",
-        url: "https://arxiv.org/abs/2504.19413",
-        note: "Tokens-per-query co-reported with accuracy. Source of the tokens-per-successful-task headline metric.",
-      },
-      {
-        title: "LoCoMo: Long-Conversation Memory Benchmark",
-        id: "arxiv 2402.17753",
-        url: "https://arxiv.org/abs/2402.17753",
-        note: "Multi-session conversational evaluation. Considered solved (>90%) since 2025 — referenced for completeness.",
-      },
-      {
-        title: "MIRIX: Modular Memory for AI Personal Assistants",
-        id: "arxiv 2507.07957",
-        url: "https://arxiv.org/abs/2507.07957",
-        note: "Realistic synthetic-but-grounded memory data (multimodal screenshots).",
-      },
+      { title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory", id: "arXiv 2410.10813", url: "https://arxiv.org/abs/2410.10813", note: "Distractor-haystack design (Scenario A) and the rubric-based LLM judge." },
+      { title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents", id: "arXiv 2507.05257", url: "https://arxiv.org/abs/2507.05257", note: "Four-competency framework; FactConsolidation inspired Scenario C (The Contradiction Test)." },
+      { title: "SWE-Bench-CL: Continual Learning for Coding Agents", id: "arXiv 2507.00014", url: "https://arxiv.org/abs/2507.00014", note: "Forward transfer in continual coding — basis for Scenario E." },
+      { title: "Mem0 / BEAM: Memory Architectures for Production Agents", id: "arXiv 2504.19413", url: "https://arxiv.org/abs/2504.19413", note: "Tokens-per-query co-reported with accuracy — source of the tokens-per-successful-task metric." },
     ],
   },
   {
-    heading: "Methodology — judging and benchmark hygiene",
+    heading: "Methodology",
     refs: [
-      {
-        title: "Preference Leakage: A Pitfall in LLM-as-a-Judge",
-        id: "arxiv 2502.01534",
-        url: "https://arxiv.org/abs/2502.01534",
-        note: "Documents the cost of same-family judging. Brain's benchmark enforces a cross-family judge map.",
-      },
-      {
-        title: "When Judgment Becomes Noise: Position Bias in LLM Judges",
-        id: "arxiv 2509.20293",
-        url: "https://arxiv.org/abs/2509.20293",
-        note: "Empirical position-bias study. Brain's benchmark uses position-swap on every pairwise judgment.",
-      },
-      {
-        title: "Silent Judge: When LLM Evaluators Take Shortcuts",
-        id: "arxiv 2509.26072",
-        url: "https://arxiv.org/abs/2509.26072",
-        note: "Shortcut biases that motivate rubric-based judging with explicit oracle answers.",
-      },
-      {
-        title: "LastingBench: Defending Benchmarks Against Data Leakage",
-        id: "arxiv 2506.21614",
-        url: "https://arxiv.org/abs/2506.21614",
-        note: "Why public benchmarks decay. Brain's distractor pool is deterministic synthetic data to mitigate this.",
-      },
+      { title: "Preference Leakage: A Pitfall in LLM-as-a-Judge", id: "arXiv 2502.01534", url: "https://arxiv.org/abs/2502.01534", note: "Documents same-family judging cost. Brain's benchmark enforces a cross-family judge map." },
+      { title: "When Judgment Becomes Noise: Position Bias in LLM Judges", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293", note: "Empirical position-bias study. Brain's benchmark uses position-swap on every pairwise judgment." },
+      { title: "LastingBench: Defending Benchmarks Against Data Leakage", id: "arXiv 2506.21614", url: "https://arxiv.org/abs/2506.21614", note: "Synthetic, decay-driven scenarios guard against memorised public-set answers." },
     ],
   },
 ];
 
-const neuroRows = [
-  { name: "Spreading activation", impl: "Recalling memory A automatically surfaces linked memories B and C." },
-  { name: "Hebbian learning", impl: "Memories recalled together strengthen mutual links." },
-  { name: "Context-dependent recall", impl: "Memories encoded in similar context score higher at retrieval." },
-  { name: "Spacing effect", impl: "Longer recall intervals produce larger strength boosts." },
-  { name: "Ebbinghaus decay", impl: "Exponential forgetting with per-memory decay rates." },
-  { name: "Synaptic homeostasis", impl: "Global strength downscaling during sleep prevents inflation." },
-];
-
-/* ─── Benchmark Agent Details (arm matrix per agent, Scenario A) ──────────── */
-interface ArmRow {
-  arm: string;
-  tokens: string;
-  tokensPerSuccess: string;
-  recallAt5: string;
-  passRate: string;
-}
-interface AgentArmResult {
-  subtitle: string;
-  scenario: string;
-  arms: ArmRow[];
-}
+interface ArmRow { arm: string; tokens: string; tokensPerSuccess: string; recallAt5: string; passRate: string; }
+interface AgentArmResult { subtitle: string; scenario: string; arms: ArmRow[]; }
 const agentData: Record<string, AgentArmResult> = {
   "Gemini Flash": {
     subtitle: "gemini-2.5-flash · Scenario A × 1 run",
-    scenario: "A — Noisy Project Folder",
+    scenario: "Scenario A — Noisy Project Folder",
     arms: [
       { arm: "bare", tokens: "24.1K", tokensPerSuccess: "24.1K", recallAt5: "—", passRate: "100%" },
       { arm: "fixture-only", tokens: "16.8K", tokensPerSuccess: "16.8K", recallAt5: "—", passRate: "100%" },
@@ -508,7 +440,7 @@ const agentData: Record<string, AgentArmResult> = {
   },
   "OpenCode → DeepSeek V4 Pro": {
     subtitle: "deepseek/deepseek-v4-pro · Scenario A × 1 run",
-    scenario: "A — Noisy Project Folder",
+    scenario: "Scenario A — Noisy Project Folder",
     arms: [
       { arm: "bare", tokens: "20.0K", tokensPerSuccess: "20.0K", recallAt5: "—", passRate: "100%" },
       { arm: "fixture-only", tokens: "13.8K", tokensPerSuccess: "13.8K", recallAt5: "—", passRate: "100%" },
@@ -519,74 +451,3 @@ const agentData: Record<string, AgentArmResult> = {
     ],
   },
 };
-
-function BenchmarkAgentDetails() {
-  const agents = Object.keys(agentData);
-  const [activeAgent, setActiveAgent] = useState(agents[0]);
-  const data = agentData[activeAgent];
-
-  return (
-    <div>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {agents.map((agent) => (
-          <button
-            key={agent}
-            onClick={() => setActiveAgent(agent)}
-            className={`font-mono text-xs px-3 py-1.5 rounded-md transition-colors ${
-              activeAgent === agent
-                ? "bg-[var(--text-primary)] text-[var(--bg)]"
-                : "border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)]"
-            }`}
-          >
-            {agent}
-          </button>
-        ))}
-      </div>
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mb-4">
-        {data.subtitle}
-      </p>
-
-      <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--surface)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">arm</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">tokens</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">tok / success</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">recall@5</th>
-                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] text-right">pass</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.arms.map((row, i) => {
-                const isHero = row.arm === "brain-real";
-                const isTimeout = row.tokens === "timeout";
-                return (
-                  <tr
-                    key={row.arm}
-                    className={`${i < data.arms.length - 1 ? "border-b border-[var(--border-subtle)]" : ""} ${isHero ? "bg-[var(--surface-2)]" : ""}`}
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--text-primary)] font-medium">{row.arm}</td>
-                    <td className={`px-4 py-3 text-right font-mono ${isTimeout ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}>
-                      {row.tokens}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">{row.tokensPerSuccess}</td>
-                    <td className="px-4 py-3 text-right font-mono text-[var(--text-tertiary)]">{row.recallAt5}</td>
-                    <td className={`px-4 py-3 text-right font-mono text-xs ${row.passRate === "0%" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}>
-                      {row.passRate}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)] mt-3">
-        scenario A · 1 run · all arms judged by cross-family LLM (claude)
-      </p>
-    </div>
-  );
-}

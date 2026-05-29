@@ -11,7 +11,7 @@ export default function PrivacyPage() {
     <div className="min-h-dvh">
       <Header />
 
-      <main className="max-w-3xl mx-auto px-5 sm:px-6 py-[var(--space-section)]">
+      <main className="max-w-3xl mx-auto px-5 sm:px-6 pt-28 pb-[var(--space-section)]">
         <div className="flex items-baseline gap-3 mb-2">
           <span className="font-mono text-xs text-[var(--text-tertiary)]">00</span>
           <h1

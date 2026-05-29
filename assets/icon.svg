@@ -1,21 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#F0EFE8"/>
-  <g stroke="#1A1A1A" stroke-width="20" stroke-linecap="round">
-    <line x1="512" y1="512" x2="512" y2="232"/>
-    <line x1="512" y1="512" x2="754.49" y2="372"/>
-    <line x1="512" y1="512" x2="754.49" y2="652"/>
-    <line x1="512" y1="512" x2="512" y2="792"/>
-    <line x1="512" y1="512" x2="269.51" y2="652"/>
-    <line x1="512" y1="512" x2="269.51" y2="372"/>
+  <defs>
+    <radialGradient id="bm-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFD27A" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#E8A33D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#07090A"/>
+  <circle cx="512" cy="512" r="384" fill="url(#bm-glow)" opacity="0.7"/>
+  <g stroke="#E8A33D" stroke-width="38" stroke-linecap="round">
+    <line x1="512" y1="512" x2="256" y2="256" stroke-opacity="0.4"/>
+    <line x1="512" y1="512" x2="800" y2="256" stroke-opacity="0.82"/>
+    <line x1="512" y1="512" x2="864" y2="544" stroke-opacity="0.5"/>
+    <line x1="512" y1="512" x2="768" y2="800" stroke-opacity="0.75"/>
+    <line x1="512" y1="512" x2="256" y2="736" stroke-opacity="0.4"/>
+    <line x1="512" y1="512" x2="192" y2="512" stroke-opacity="0.35"/>
   </g>
-  <g fill="#1A1A1A">
-    <circle cx="512" cy="232" r="44"/>
-    <circle cx="754.49" cy="372" r="44"/>
-    <circle cx="754.49" cy="652" r="44"/>
-    <circle cx="512" cy="792" r="44"/>
-    <circle cx="269.51" cy="652" r="44"/>
-    <circle cx="269.51" cy="372" r="44"/>
-  </g>
-  <circle cx="512" cy="512" r="98" fill="#1A1A1A"/>
-  <circle cx="512" cy="512" r="58" fill="#E7B300"/>
+  <circle cx="256" cy="256" r="51" fill="#9A6E28"/>
+  <circle cx="864" cy="544" r="45" fill="#DCA044"/>
+  <circle cx="768" cy="800" r="61" fill="#F0B24A"/>
+  <circle cx="256" cy="736" r="51" fill="#A9762E"/>
+  <circle cx="192" cy="512" r="42" fill="#8A6022"/>
+  <circle cx="800" cy="256" r="83" fill="#FFDD8C"/>
+  <circle cx="672" cy="368" r="42" fill="#FFF0CC"/>
+  <circle cx="512" cy="512" r="118" fill="#FFF2D2"/>
+  <circle cx="512" cy="512" r="61" fill="#FFFFFF"/>
 </svg>

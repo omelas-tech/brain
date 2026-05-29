@@ -1,16 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-space-grotesk",
   display: "swap",
 });
 
 const jbmono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jbmono",
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-instrument-serif",
   display: "swap",
 });
 
@@ -32,7 +41,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Omelas" }],
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
     ],
@@ -49,10 +58,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E0E0D" },
-  ],
+  themeColor: "#07090A",
 };
 
 export default function RootLayout({
@@ -61,7 +67,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jbmono.variable}`}>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${jbmono.variable} ${instrumentSerif.variable}`}
+    >
       <body className="min-h-dvh bg-[var(--bg)] text-[var(--text-primary)] antialiased">
         {children}
       </body>
