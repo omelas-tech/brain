@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.17] - 2026-05-29
+
+### Fixed
+
+- **Claude Code now registers all `/brain:*` slash commands.** The command files (`commands/brain/*.md`) shipped without YAML frontmatter; current Claude Code requires a `description` field to register a `.md` as a slash command, so all 14 commands were silently skipped (only `/brain:skill` surfaced, via the separate skills path). Added `description` + `argument-hint` frontmatter to every command file — the field Claude Code needs, and tolerated by the Gemini / Codex / OpenCode install targets too.
+
 ## [0.1.0-beta.16] - 2026-05-28
 
 ### Changed
