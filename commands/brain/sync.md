@@ -1,3 +1,8 @@
+---
+description: Sync memories via Git remote, Brain Cloud, or export/import
+argument-hint: "[subcommand]"
+---
+
 # /brain:sync — Portable Sync
 
 You are managing synchronization for the Brain Memory system. This enables manual push/pull of `~/.brain/` memories via any Git remote, plus encrypted single-file export/import for portable transfers.

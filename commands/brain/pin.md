@@ -1,3 +1,8 @@
+---
+description: Pin a memory to the always-present tier
+argument-hint: "[id|query]"
+---
+
 # /brain:pin — Pin a Memory (Always-Present Tier)
 
 You are pinning a memory into the **always-present semantic tier**. Pinned memories are injected at every session start regardless of recall score, and are decay-exempt — they never fade.

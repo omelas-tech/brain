@@ -1,3 +1,8 @@
+---
+description: Store memories from the current conversation context
+argument-hint: "[topic]"
+---
+
 # /brain:memorize — Store a New Memory
 
 You are storing memories in the Brain Memory system. Your job is to decide **what** to remember and **how to classify** it. The `brain memorize` CLI handles all file operations.

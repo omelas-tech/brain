@@ -1,3 +1,7 @@
+---
+description: Initialize the brain memory structure
+---
+
 # /brain:init — Initialize Brain Memory Structure
 
 You are initializing the Brain Memory system. This creates a `~/.brain/` directory that serves as a hierarchical, file-system-based memory store inspired by human cognition.

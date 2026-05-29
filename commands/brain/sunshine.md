@@ -1,3 +1,8 @@
+---
+description: Deep forensic erasure — trace and remove all references to a memory
+argument-hint: "[target]"
+---
+
 # /brain:sunshine — Deep Forensic Memory Erasure
 
 You are performing **deep forensic erasure** on a memory in the Brain Memory system. Like the procedure in *Eternal Sunshine of the Spotless Mind*, this command doesn't just delete a memory — it traces every ripple that memory left across the entire `~/.brain/` tree and surgically removes or repairs each one. When complete, it's as if the memory never existed.

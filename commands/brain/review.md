@@ -1,3 +1,8 @@
+---
+description: Spaced-repetition review session for memories due for reinforcement
+argument-hint: "[scope]"
+---
+
 # /brain:review — Spaced Repetition Review
 
 You are conducting a spaced repetition review session. This command surfaces memories that are due for review based on optimal spacing intervals, measures recall quality, and schedules the next review. Regular review sessions dramatically improve long-term retention.

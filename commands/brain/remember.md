@@ -1,3 +1,8 @@
+---
+description: Recall relevant memories with spreading activation and context matching
+argument-hint: "[query]"
+---
+
 # /brain:remember — Recall Relevant Memories
 
 You are recalling memories from the Brain Memory system. This command uses the **deterministic recall engine** (`brain recall`) to score and rank memories, then presents the results.

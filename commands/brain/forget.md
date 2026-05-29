@@ -1,3 +1,8 @@
+---
+description: Decay or archive memories
+argument-hint: "[target]"
+---
+
 # /brain:forget — Decay or Remove Memories
 
 You are managing memory decay in the Brain Memory system. This command accelerates forgetting for specific memories or prunes memories that have naturally decayed below usefulness.

@@ -1,3 +1,7 @@
+---
+description: Dashboard with brain health overview
+---
+
 # /brain:status — Brain Overview Dashboard
 
 You are displaying a comprehensive overview of the Brain Memory system's current state.

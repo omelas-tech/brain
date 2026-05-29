@@ -1,3 +1,8 @@
+---
+description: Full maintenance cycle: replay, homeostasis, consolidation, pruning, dreaming
+argument-hint: "[scope]"
+---
+
 # /brain:sleep — Overnight Memory Reorganization
 
 You are performing a **sleep cycle** on the Brain Memory system. Just like the human brain during sleep — where the hippocampus replays recent experiences and the neocortex reorganizes them into long-term structured knowledge — this command restructures, consolidates, prunes, and deepens the `~/.brain/` hierarchy.

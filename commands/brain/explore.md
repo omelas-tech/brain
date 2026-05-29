@@ -1,3 +1,8 @@
+---
+description: Browse the brain memory hierarchy
+argument-hint: "[category]"
+---
+
 # /brain:explore — Browse the Brain Structure
 
 You are exploring the Brain Memory system's hierarchical structure. This gives the user a visual overview of their memory landscape.

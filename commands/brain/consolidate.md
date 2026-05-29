@@ -1,3 +1,8 @@
+---
+description: Merge related weak memories into stronger combined memories
+argument-hint: "[scope]"
+---
+
 # /brain:consolidate — Merge Related Memories
 
 You are consolidating memories in the Brain Memory system. Consolidation combines multiple related or weakening memories into a single stronger, more coherent memory — mimicking how human brains merge similar experiences into generalized knowledge.

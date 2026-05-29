@@ -1,3 +1,8 @@
+---
+description: Remove a memory from the always-present tier
+argument-hint: "[id|query]"
+---
+
 # /brain:unpin — Remove a Memory from the Always-Present Tier
 
 You are unpinning a memory. It will no longer load automatically at session start and returns to normal recall + decay (an independent `stable` flag, if set, is left untouched).
