@@ -133,7 +133,7 @@ Then append the contents of the corresponding prompt file to your agent's instru
 | `/brain:sunshine [target]` | Deep forensic erasure — trace and remove all references |
 | `/brain:sleep [scope]` | Full maintenance cycle — 9 neuroscience-inspired phases |
 | `/brain:status` | Dashboard with brain health metrics and recommendations |
-| `/brain:skill [list\|show\|add\|use\|remove\|export]` | Manage procedural skills — reusable how-to workflows with progressive disclosure |
+| `/brain:skills [list\|show\|add\|use\|remove\|export]` | Manage procedural skills — reusable how-to workflows with progressive disclosure |
 | `/brain:sync [subcommand]` | Sync memories via Git remote or export/import for portability |
 
 ## Session Lifecycle

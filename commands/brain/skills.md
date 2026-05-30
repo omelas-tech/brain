@@ -3,7 +3,7 @@ description: Manage procedural skills (list, show, add, use, remove, export)
 argument-hint: "[subcommand]"
 ---
 
-# /brain:skill — Manage Procedural Skills
+# /brain:skills — Manage Procedural Skills
 
 You are managing **procedural memory** — reusable "how to do things" stored as `~/.brain/_skills/<name>/SKILL.md`. Skills use **progressive disclosure** so they never bloat the context window:
 

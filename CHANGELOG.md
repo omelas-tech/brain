@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.18] - 2026-05-30
+
+### Fixed
+
+- **`/brain:*` slash commands now actually register in Claude Code** (completes the beta.17 fix). On case-insensitive filesystems (default on macOS), the `skill` command file `skill.md` collides with `SKILL.md` — Claude Code's skill loader treated the entire `commands/brain/` directory as a single skill named `brain`, shadowing all 14 commands so none appeared in autocomplete. Renamed the command `skill` → `skills` (`commands/brain/skills.md`, invoked as `/brain:skills`) to remove the collision. The CLI subcommand remains `brain skill`. Updated slash-command references in `prompts/{claude,gemini,opencode}.md`, `CLAUDE.md`, and `README.md`.
+
 ## [0.1.0-beta.17] - 2026-05-29
 
 ### Fixed
