@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.19] - 2026-05-30
+
+### Fixed
+
+- **Installer now removes stale command files on update**, so the beta.18 `/brain:skill` → `/brain:skills` rename actually takes effect for existing users. Previously the installer only *copied* the current command set and never deleted renamed/removed files — so an upgrader's old `skill.md` lingered next to the new `skills.md`, and on case-insensitive filesystems that leftover `skill.md` (== `SKILL.md`) kept the whole `commands/brain/` directory shadowed as a single skill, hiding every `/brain:*` command. `installForRuntime` now wipes the `brain` command dir (and stale `brain-*` skill dirs for the Codex skills layout) before writing the fresh set.
+
 ## [0.1.0-beta.18] - 2026-05-30
 
 ### Fixed

@@ -225,9 +225,23 @@ function installForRuntime(runtime, scope) {
 
   if (config.commandStyle === 'skills') {
     const skillsDest = path.join(targetDir, config.commandsSubdir);
+    // Clear stale brain-* skill dirs first so renamed/removed commands don't
+    // linger across upgrades (e.g. brain-skill → brain-skills).
+    if (fs.existsSync(skillsDest)) {
+      for (const entry of fs.readdirSync(skillsDest)) {
+        if (entry.startsWith('brain-')) {
+          fs.rmSync(path.join(skillsDest, entry), { recursive: true, force: true });
+        }
+      }
+    }
     installSkills(commandsSrc, skillsDest);
   } else {
     const commandsDest = path.join(targetDir, config.commandsSubdir, 'brain');
+    // Wipe the brain command dir before copying so renamed/removed commands
+    // don't linger across upgrades. This is critical on case-insensitive
+    // filesystems: a leftover skill.md (== SKILL.md) makes Claude Code treat
+    // the whole dir as one skill and hides every /brain:* command.
+    fs.rmSync(commandsDest, { recursive: true, force: true });
     copyDir(commandsSrc, commandsDest);
   }
 
