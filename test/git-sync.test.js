@@ -325,3 +325,70 @@ describe('getSyncConfig / writeSyncConfig', () => {
     assert.deepEqual(loaded, config);
   });
 });
+
+// ===========================================================================
+// pull: divergence, merge conflicts & unreachable remote (lines 335-372)
+// ===========================================================================
+describe('pull conflict & failure handling', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  const gitCfg = () => ({ type: 'git', remote: bareRemote, branch: 'main', encrypt: false });
+
+  it('non-fast-forward push is reported as committed-but-not-pushed', () => {
+    writeSyncConfig(brainDir, gitCfg());
+    writeBrainFile('note.md', 'ORIGINAL\n');
+    assert.equal(push(brainDir, 'init').pushed, true);
+
+    // A second brain advances the remote behind brain1's back.
+    const dir2 = path.join(tmpDir, 'brain2');
+    fs.mkdirSync(dir2, { recursive: true });
+    writeSyncConfig(dir2, gitCfg());
+    assert.equal(pull(dir2).pulled, true);
+    fs.writeFileSync(path.join(dir2, 'note.md'), 'FROM-BRAIN-2\n');
+    assert.equal(push(dir2, 'b2').pushed, true);
+
+    // brain1 commits a conflicting change → push is rejected (non-fast-forward).
+    writeBrainFile('note.md', 'FROM-BRAIN-1\n');
+    const p = push(brainDir, 'b1');
+    assert.equal(p.committed, true);
+    assert.equal(p.pushed, false);
+    assert.match(p.message, /push failed/i);
+  });
+
+  it('detects a true merge conflict and lists the conflicting file', () => {
+    writeSyncConfig(brainDir, gitCfg());
+    writeBrainFile('note.md', 'ORIGINAL\n');
+    push(brainDir, 'init');
+
+    const dir2 = path.join(tmpDir, 'brain2');
+    fs.mkdirSync(dir2, { recursive: true });
+    writeSyncConfig(dir2, gitCfg());
+    pull(dir2);
+    fs.writeFileSync(path.join(dir2, 'note.md'), 'FROM-BRAIN-2\n');
+    push(dir2, 'b2');
+
+    writeBrainFile('note.md', 'FROM-BRAIN-1\n');
+    push(brainDir, 'b1'); // commits locally, push rejected
+
+    const r = pull(brainDir);
+    assert.equal(r.pulled, false);
+    assert.equal(r.hasConflicts, true);
+    assert.ok(r.conflictFiles.includes('note.md'), `conflict files: ${JSON.stringify(r.conflictFiles)}`);
+    assert.match(r.message, /Merge conflict in 1 file/);
+
+    // The failed merge must be aborted, leaving the repo clean (no .git/MERGE_HEAD).
+    const { repoDir } = resolvePaths(brainDir);
+    assert.ok(!fs.existsSync(path.join(repoDir, '.git', 'MERGE_HEAD')), 'merge was aborted');
+  });
+
+  it('reports an unreachable remote instead of throwing', () => {
+    writeSyncConfig(brainDir, { ...gitCfg(), remote: path.join(tmpDir, 'ghost.git') });
+    writeBrainFile('a.md', 'x');
+    push(brainDir); // commits locally; push to the bogus remote fails silently
+    const r = pull(brainDir);
+    assert.equal(r.pulled, false);
+    assert.equal(r.hasConflicts, false);
+    assert.match(r.message, /unreachable/i);
+  });
+});

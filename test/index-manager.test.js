@@ -498,3 +498,136 @@ describe('readMeta / writeMeta — path validation', () => {
     );
   });
 });
+
+// ===========================================================================
+// Deep-erasure utilities (previously untested)
+// ===========================================================================
+const {
+  removeEdgesForMemory,
+  removeFromReviewQueue,
+  readConfig,
+  writeConfig,
+  DEFAULT_CONFIG,
+  readPinned,
+  readSkillsIndex,
+  readSearchIndex,
+  writeSearchIndex,
+} = require('../src/index-manager');
+
+describe('removeEdgesForMemory', () => {
+  it('removes both outgoing and incoming edges and cleans up empty maps', () => {
+    let assoc = { edges: {} };
+    reinforceEdge(assoc, 'a', 'b', 'manual');
+    reinforceEdge(assoc, 'c', 'b', 'manual'); // c→b and b→c
+    reinforceEdge(assoc, 'a', 'c', 'manual');
+    removeEdgesForMemory(assoc, 'b');
+    // No edge anywhere should reference b.
+    assert.equal(assoc.edges['b'], undefined, 'outgoing map for b deleted');
+    for (const src of Object.keys(assoc.edges)) {
+      assert.equal(assoc.edges[src]['b'], undefined, `${src} no longer links to b`);
+    }
+    // a↔c survives.
+    assert.ok(assoc.edges['a'] && assoc.edges['a']['c']);
+  });
+
+  it('deletes a source map that becomes empty after removal', () => {
+    let assoc = { edges: {} };
+    reinforceEdge(assoc, 'x', 'y', 'manual'); // only x↔y
+    removeEdgesForMemory(assoc, 'y');
+    assert.deepEqual(assoc.edges, {}, 'x map emptied and pruned');
+  });
+
+  it('returns associations unchanged when there are no edges', () => {
+    assert.deepEqual(removeEdgesForMemory(null, 'a'), null);
+    assert.deepEqual(removeEdgesForMemory({}, 'a'), {});
+  });
+});
+
+describe('removeFromReviewQueue', () => {
+  it('filters out every item matching the memory id, preserving the rest', () => {
+    const queue = { items: [
+      { memory_id: 'm1', due: 1 },
+      { memory_id: 'm2', due: 2 },
+      { memory_id: 'm1', due: 3 },
+    ] };
+    removeFromReviewQueue(queue, 'm1');
+    assert.equal(queue.items.length, 1);
+    assert.equal(queue.items[0].memory_id, 'm2');
+  });
+
+  it('is a no-op when nothing matches', () => {
+    const queue = { items: [{ memory_id: 'a' }] };
+    removeFromReviewQueue(queue, 'zzz');
+    assert.equal(queue.items.length, 1);
+  });
+
+  it('tolerates null queue or a missing/invalid items array', () => {
+    assert.equal(removeFromReviewQueue(null, 'm'), null);
+    const bad = { items: 'not-an-array' };
+    assert.equal(removeFromReviewQueue(bad, 'm'), bad);
+  });
+});
+
+describe('reinforceEdge weight dynamics', () => {
+  it('Hebbian reinforcement converges toward but never exceeds 1.0', () => {
+    let assoc = { edges: {} };
+    for (let i = 0; i < 200; i++) reinforceEdge(assoc, 'a', 'b', 'co_retrieval');
+    const w = assoc.edges['a']['b'].weight;
+    assert.ok(w <= 1.0 && w > 0.99, `converged near 1.0, got ${w}`);
+    assert.equal(assoc.edges['a']['b'].co_retrievals, 199); // first create is co_retrievals 0
+  });
+
+  it('honors a custom initial weight on first creation', () => {
+    let assoc = { edges: {} };
+    reinforceEdge(assoc, 'a', 'b', 'manual', 0.5);
+    assert.equal(assoc.edges['a']['b'].weight, 0.5);
+    assert.equal(assoc.edges['b']['a'].weight, 0.5);
+  });
+
+  it('refuses to self-link', () => {
+    let assoc = { edges: {} };
+    reinforceEdge(assoc, 'a', 'a', 'manual');
+    assert.equal(assoc.edges['a'], undefined);
+  });
+});
+
+describe('config / pinned / skills / search-index readers are corruption-tolerant', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('readConfig merges over defaults and falls back when the file is corrupt', () => {
+    // Missing file → pure defaults.
+    assert.deepEqual(readConfig(tmpDir), { ...DEFAULT_CONFIG });
+    // Partial override merges on top of defaults.
+    writeConfig({ working_memory_budget_tokens: 99 }, tmpDir);
+    const merged = readConfig(tmpDir);
+    assert.equal(merged.working_memory_budget_tokens, 99);
+    assert.equal(merged.recall_budget_tokens, DEFAULT_CONFIG.recall_budget_tokens);
+    // Corrupt JSON → defaults, never throws.
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'config.json'), '{not json');
+    assert.deepEqual(readConfig(tmpDir), { ...DEFAULT_CONFIG });
+  });
+
+  it('readPinned/readSkillsIndex return an empty manifest on missing, corrupt, or wrong-shape data', () => {
+    assert.deepEqual(readPinned(tmpDir), { version: 1, pins: [] });
+    assert.deepEqual(readSkillsIndex(tmpDir), { version: 1, skills: [] });
+
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'pinned.json'), '{bad');
+    assert.deepEqual(readPinned(tmpDir), { version: 1, pins: [] });
+
+    // Right JSON, wrong shape (pins not an array) → still the safe empty form.
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'pinned.json'), JSON.stringify({ version: 1, pins: { a: 1 } }));
+    assert.deepEqual(readPinned(tmpDir), { version: 1, pins: [] });
+
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'skills-index.json'), JSON.stringify({ skills: 'nope' }));
+    assert.deepEqual(readSkillsIndex(tmpDir), { version: 1, skills: [] });
+  });
+
+  it('readSearchIndex returns null when absent but rethrows on corrupt JSON', () => {
+    assert.equal(readSearchIndex(tmpDir), null);
+    writeSearchIndex({ documents: {}, df: {}, doc_count: 0 }, tmpDir);
+    assert.equal(readSearchIndex(tmpDir).doc_count, 0);
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'search-index.json'), '{corrupt');
+    assert.throws(() => readSearchIndex(tmpDir));
+  });
+});

@@ -53,10 +53,20 @@ function request(url, opts = {}, _redirectCount = 0) {
       // Follow redirects
       if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
         const redirectUrl = new URL(res.headers.location, url).href;
-        // For 307/308, preserve method and body; for 301/302, switch to GET
-        const newOpts = [307, 308].includes(res.statusCode)
-          ? opts
-          : { ...opts, method: 'GET', body: undefined };
+        // For 307/308, preserve method and body; for 301/302, switch to GET.
+        // When dropping the body we must also drop the body-describing headers,
+        // or the redirected GET advertises a Content-Length it never sends and
+        // the socket hangs waiting to flush a body that isn't coming.
+        let newOpts;
+        if ([307, 308].includes(res.statusCode)) {
+          newOpts = opts;
+        } else {
+          const headers = { ...(opts.headers || {}) };
+          for (const h of Object.keys(headers)) {
+            if (/^content-(length|type)$/i.test(h)) delete headers[h];
+          }
+          newOpts = { ...opts, method: 'GET', body: undefined, headers };
+        }
         res.resume(); // drain the response
         return resolve(request(redirectUrl, newOpts, _redirectCount + 1));
       }

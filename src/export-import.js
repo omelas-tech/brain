@@ -105,7 +105,7 @@ function importBrain(inputPath, brainDir, passphrase, options = {}) {
     }
   }
 
-  if (!payload || !payload.files || typeof payload.files !== 'object') {
+  if (!payload || !payload.files || typeof payload.files !== 'object' || Array.isArray(payload.files)) {
     throw new Error('Invalid export format: missing files object.');
   }
 
@@ -151,9 +151,24 @@ function previewImport(inputPath, brainDir, passphrase) {
   let payload;
 
   if (passphrase) {
-    payload = JSON.parse(decrypt(raw, passphrase));
+    try {
+      payload = JSON.parse(decrypt(raw, passphrase));
+    } catch (err) {
+      if (err.message.includes('Unsupported state') || err.message.includes('unable to authenticate') || err.message.includes('Invalid encrypted data')) {
+        throw new Error('Decryption failed — wrong passphrase or corrupted file.');
+      }
+      throw err;
+    }
   } else {
-    payload = JSON.parse(raw.toString('utf8'));
+    try {
+      payload = JSON.parse(raw.toString('utf8'));
+    } catch {
+      throw new Error('Invalid export file. If the file is encrypted, provide a passphrase.');
+    }
+  }
+
+  if (!payload || !payload.files || typeof payload.files !== 'object' || Array.isArray(payload.files)) {
+    throw new Error('Invalid export format: missing files object.');
   }
 
   const files = Object.keys(payload.files);

@@ -111,3 +111,132 @@ describe('session-start skills index (L0)', () => {
     assert.ok(p.budget.skills_tokens <= 5, 'within skills budget');
   });
 });
+
+// ===========================================================================
+// Edge cases & error handling
+// ===========================================================================
+const { slug, isAdvertised } = require('../src/skills');
+
+describe('skills slug normalization', () => {
+  it('lowercases, collapses non-alphanumerics, trims dashes', () => {
+    assert.equal(slug('Structured Code Review!'), 'structured-code-review');
+    assert.equal(slug('  --Foo__Bar--  '), 'foo-bar');
+    assert.equal(slug('API v2.0'), 'api-v2-0');
+  });
+  it('returns empty string for empty/nullish input', () => {
+    assert.equal(slug(''), '');
+    assert.equal(slug(null), '');
+    assert.equal(slug(undefined), '');
+    assert.equal(slug('!!!'), '');
+  });
+});
+
+describe('addSkill validation & replacement', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('rejects a missing/blank name with an error and writes nothing', () => {
+    assert.ok(addSkill(tmpDir, {}).error);
+    assert.ok(addSkill(tmpDir, { name: '   ' }).error);
+    assert.ok(addSkill(tmpDir, { name: '!!!' }).error);
+    assert.equal(readSkillsIndex(tmpDir).skills.length, 0);
+  });
+
+  it('re-adding the same name replaces (no duplicate index entries) and resets counters', () => {
+    addSkill(tmpDir, { name: 'Deploy', description: 'v1', body: 'old' });
+    useSkill(tmpDir, 'deploy'); // bump use_count to 1
+    addSkill(tmpDir, { name: 'deploy', description: 'v2', body: 'new' });
+    const idx = readSkillsIndex(tmpDir);
+    assert.equal(idx.skills.filter((s) => s.name === 'deploy').length, 1);
+    assert.equal(idx.skills[0].description, 'v2');
+    assert.equal(idx.skills[0].use_count, 0, 'counters reset on replace');
+    assert.ok(showSkill(tmpDir, 'deploy').content.includes('new'));
+  });
+
+  it('persists triggers and strength into the SKILL.md frontmatter', () => {
+    addSkill(tmpDir, { name: 'x', description: 'd', triggers: ['a', 'b'], strength: 0.8, body: 'B' });
+    const fm = fs.readFileSync(path.join(getBrainDir(tmpDir), '_skills/x/SKILL.md'), 'utf-8');
+    assert.ok(fm.includes('triggers: ["a", "b"]'));
+    assert.ok(fm.includes('strength: 0.8'));
+    assert.ok(fm.includes('cognitive_type: procedural'));
+  });
+});
+
+describe('isAdvertised demotion threshold (Tier B §10.3)', () => {
+  it('advertises until 3 uses regardless of failures', () => {
+    assert.equal(isAdvertised({ use_count: 2, fail_count: 2 }), true, 'under the 3-use floor');
+  });
+  it('keeps advertising at exactly 50% failure (strictly > 0.5 demotes)', () => {
+    assert.equal(isAdvertised({ use_count: 4, fail_count: 2 }), true);  // 0.5, not > 0.5
+    assert.equal(isAdvertised({ use_count: 3, fail_count: 2 }), false); // 0.66 > 0.5
+  });
+  it('treats missing counters as zero', () => {
+    assert.equal(isAdvertised({}), true);
+  });
+});
+
+describe('useSkill clamping, persistence & errors', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('errors on an unknown skill', () => {
+    assert.ok(useSkill(tmpDir, 'ghost').error);
+  });
+
+  it('strength floors at 0 after repeated failures and never goes negative', () => {
+    addSkill(tmpDir, { name: 'f', description: 'd', strength: 0.15 });
+    let last;
+    for (let i = 0; i < 5; i++) last = useSkill(tmpDir, 'f', { failed: true });
+    assert.ok(last.strength >= 0, 'never negative');
+    assert.equal(last.strength, 0);
+    assert.equal(last.fail_count, 5);
+  });
+
+  it('strength rises toward but never exceeds 1.0 on repeated success', () => {
+    addSkill(tmpDir, { name: 's', description: 'd', strength: 0.9 });
+    let last;
+    for (let i = 0; i < 50; i++) last = useSkill(tmpDir, 's');
+    assert.ok(last.strength <= 1.0);
+    assert.ok(last.strength > 0.9);
+  });
+
+  it('writes updated counters/strength back into the SKILL.md frontmatter', () => {
+    addSkill(tmpDir, { name: 'p', description: 'd' });
+    useSkill(tmpDir, 'p', { failed: true });
+    const fm = fs.readFileSync(path.join(getBrainDir(tmpDir), '_skills/p/SKILL.md'), 'utf-8');
+    assert.ok(fm.includes('use_count: 1'));
+    assert.ok(fm.includes('fail_count: 1'));
+    assert.ok(/last_used: "20\d\d-/.test(fm), 'last_used timestamp recorded');
+  });
+});
+
+describe('showSkill / exportSkill / removeSkill edges', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('showSkill normalizes the name before lookup', () => {
+    addSkill(tmpDir, { name: 'Deploy Steps', description: 'd', body: 'CONTENT' });
+    assert.ok(showSkill(tmpDir, 'Deploy Steps').content.includes('CONTENT'));
+    assert.ok(showSkill(tmpDir, 'deploy-steps').content.includes('CONTENT'));
+  });
+
+  it('exportSkill supports the gemini target and propagates a missing-skill error', () => {
+    addSkill(tmpDir, { name: 'g', description: 'd', body: 'GEM' });
+    const destRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-host-g-'));
+    try {
+      const r = exportSkill(tmpDir, 'g', 'gemini', destRoot);
+      assert.equal(r.target, 'gemini');
+      assert.ok(fs.existsSync(path.join(destRoot, '.gemini', 'skills', 'g', 'SKILL.md')));
+      assert.ok(exportSkill(tmpDir, 'does-not-exist', 'claude', destRoot).error);
+    } finally {
+      fs.rmSync(destRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('removeSkill on an unknown skill leaves the index untouched', () => {
+    addSkill(tmpDir, { name: 'keep', description: 'd' });
+    removeSkill(tmpDir, 'never-existed');
+    assert.equal(readSkillsIndex(tmpDir).skills.length, 1);
+    assert.ok(listSkills(tmpDir).find((s) => s.name === 'keep'));
+  });
+});

@@ -140,3 +140,121 @@ describe('session-start pinned tier', () => {
     assert.equal(ranked.find((m) => m.id === 'mem_1').decayed_strength, 0.6);
   });
 });
+
+// ===========================================================================
+// estimateTokens (previously untested)
+// ===========================================================================
+const { estimateTokens, setFrontmatterFields } = require('../src/pinning');
+
+describe('estimateTokens', () => {
+  it('returns an explicit numeric token_estimate verbatim, including 0', () => {
+    assert.equal(estimateTokens({ token_estimate: 42 }), 42);
+    assert.equal(estimateTokens({ token_estimate: 0 }), 0);
+  });
+  it('falls back to a chars/4 estimate of the title when token_estimate is absent or non-numeric', () => {
+    assert.equal(estimateTokens({ title: '' }), 2);                  // ceil(8/4)
+    assert.equal(estimateTokens({ title: 'abcd' }), 3);             // ceil(12/4)
+    assert.equal(estimateTokens({ token_estimate: 'oops', title: 'abcd' }), 3);
+  });
+  it('handles null/undefined/empty entries without throwing', () => {
+    assert.equal(estimateTokens(null), 2);
+    assert.equal(estimateTokens(undefined), 2);
+    assert.equal(estimateTokens({}), 2);
+  });
+});
+
+// ===========================================================================
+// setFrontmatterFields (previously untested)
+// ===========================================================================
+describe('setFrontmatterFields', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  function writeMd(rel, fmLines, body) {
+    const full = path.join(getBrainDir(tmpDir), rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, `---\n${fmLines.join('\n')}\n---\n${body}\n`);
+    return full;
+  }
+
+  it('updates an existing field in place and preserves the body', () => {
+    const full = writeMd('a.md', ['id: m1', 'strength: 0.5'], 'BODY-TEXT');
+    setFrontmatterFields(getBrainDir(tmpDir), 'a.md', { strength: 0.9 });
+    const out = fs.readFileSync(full, 'utf-8');
+    assert.ok(out.includes('strength: 0.9'));
+    assert.ok(!out.includes('strength: 0.5'));
+    assert.ok(out.includes('BODY-TEXT'));
+  });
+
+  it('inserts a missing field rather than dropping it', () => {
+    const full = writeMd('b.md', ['id: m2'], 'B');
+    setFrontmatterFields(getBrainDir(tmpDir), 'b.md', { pinned: true });
+    assert.ok(fs.readFileSync(full, 'utf-8').includes('pinned: true'));
+  });
+
+  it('quotes string values but writes numbers/booleans bare', () => {
+    const full = writeMd('c.md', ['id: m3'], 'B');
+    setFrontmatterFields(getBrainDir(tmpDir), 'c.md', { pin_scope: 'project:app', pin_priority: 3, pinned: true });
+    const out = fs.readFileSync(full, 'utf-8');
+    assert.ok(out.includes('pin_scope: "project:app"'));
+    assert.ok(out.includes('pin_priority: 3'));
+    assert.ok(out.includes('pinned: true'));
+  });
+
+  it('is a silent no-op on a missing file', () => {
+    assert.doesNotThrow(() => setFrontmatterFields(getBrainDir(tmpDir), 'nope.md', { x: 1 }));
+  });
+
+  it('is a silent no-op when the file has no frontmatter block', () => {
+    const full = path.join(getBrainDir(tmpDir), 'plain.md');
+    fs.writeFileSync(full, 'just a body, no frontmatter\n');
+    setFrontmatterFields(getBrainDir(tmpDir), 'plain.md', { pinned: true });
+    assert.equal(fs.readFileSync(full, 'utf-8'), 'just a body, no frontmatter\n');
+  });
+});
+
+// ===========================================================================
+// pin/unpin opts validation & manifest semantics
+// ===========================================================================
+describe('pinMemory / unpinMemory edge cases', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('coerces a non-finite priority to 0 but keeps a valid negative/decimal one', () => {
+    seedMemory('mem_a');
+    assert.equal(pinMemory(tmpDir, 'mem_a', { priority: Infinity }).priority, 0);
+    assert.equal(pinMemory(tmpDir, 'mem_a', { priority: NaN }).priority, 0);
+    assert.equal(pinMemory(tmpDir, 'mem_a', { priority: 'high' }).priority, 0);
+    assert.equal(pinMemory(tmpDir, 'mem_a', { priority: -2 }).priority, -2);
+  });
+
+  it('pinning the same memory twice keeps exactly one manifest entry (idempotent)', () => {
+    seedMemory('mem_b');
+    pinMemory(tmpDir, 'mem_b', { scope: 'project:app', priority: 1 });
+    pinMemory(tmpDir, 'mem_b', { scope: 'global', priority: 5 });
+    const pins = readPinned(tmpDir).pins.filter((p) => p.id === 'mem_b');
+    assert.equal(pins.length, 1);
+    assert.equal(pins[0].scope, 'global');
+    assert.equal(pins[0].priority, 5);
+  });
+
+  it('unpin reports was_pinned and removed accurately', () => {
+    seedMemory('mem_c');
+    // Never pinned → was_pinned false, removed false.
+    const u1 = unpinMemory(tmpDir, 'mem_c');
+    assert.equal(u1.was_pinned, false);
+    assert.equal(u1.removed, false);
+    // Pin then unpin → was_pinned true, removed true.
+    pinMemory(tmpDir, 'mem_c');
+    const u2 = unpinMemory(tmpDir, 'mem_c');
+    assert.equal(u2.was_pinned, true);
+    assert.equal(u2.removed, true);
+    // Second unpin is idempotent.
+    assert.equal(unpinMemory(tmpDir, 'mem_c').removed, false);
+  });
+
+  it('errors clearly when the memory id does not exist', () => {
+    assert.ok(pinMemory(tmpDir, 'ghost').error);
+    assert.ok(unpinMemory(tmpDir, 'ghost').error);
+  });
+});

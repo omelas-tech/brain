@@ -383,3 +383,79 @@ describe('rebuildIndex', () => {
     assert.ok(scores['mem_missing'] > 0);
   });
 });
+
+// ===========================================================================
+// buildMemoryText — field weighting & the content branch
+// ===========================================================================
+describe('buildMemoryText', () => {
+  it('repeats the title 3x and tags 2x for weighting', () => {
+    const text = buildMemoryText({ title: 'alpha', tags: ['beta'], body: 'gamma' });
+    assert.equal((text.match(/alpha/g) || []).length, 3);
+    assert.equal((text.match(/beta/g) || []).length, 2);
+    assert.equal((text.match(/gamma/g) || []).length, 1);
+  });
+
+  it('appends content only when it differs from body', () => {
+    const differs = buildMemoryText({ title: 't', body: 'body-text', content: 'extra-content' });
+    assert.ok(differs.includes('extra-content'));
+
+    const same = buildMemoryText({ title: 't', body: 'identical', content: 'identical' });
+    // 'identical' appears once (as body), not duplicated as content.
+    assert.equal((same.match(/identical/g) || []).length, 1);
+  });
+
+  it('handles a content-only memory with no title/body/tags', () => {
+    assert.equal(buildMemoryText({ content: 'lonely' }), 'lonely');
+    assert.equal(buildMemoryText({}), '');
+  });
+});
+
+// ===========================================================================
+// cosineSimilarity — correctness & degenerate vectors
+// ===========================================================================
+describe('cosineSimilarity', () => {
+  it('is 1 for identical vectors and 0 for orthogonal ones', () => {
+    assert.ok(Math.abs(cosineSimilarity({ a: 1, b: 2 }, { a: 1, b: 2 }) - 1) < 1e-9);
+    assert.equal(cosineSimilarity({ a: 1 }, { b: 1 }), 0);
+  });
+  it('is 0 when either vector is empty (no division by zero)', () => {
+    assert.equal(cosineSimilarity({}, { a: 1 }), 0);
+    assert.equal(cosineSimilarity({ a: 1 }, {}), 0);
+  });
+});
+
+// ===========================================================================
+// readSearchIndex — corruption surfaces, absence is null
+// ===========================================================================
+describe('tfidf.readSearchIndex error handling', () => {
+  let dir;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-tfidf-')); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  it('returns null when the index file is absent', () => {
+    assert.equal(readSearchIndex(dir), null);
+  });
+  it('round-trips a written index and throws on corrupt JSON', () => {
+    const si = createSearchIndex();
+    addDocument(si, 'm1', { title: 'hello world', body: '', tags: [] });
+    writeSearchIndex(dir, si);
+    assert.equal(readSearchIndex(dir).doc_count, 1);
+
+    fs.writeFileSync(path.join(dir, 'search-index.json'), '{ corrupt');
+    assert.throws(() => readSearchIndex(dir));
+  });
+});
+
+// ===========================================================================
+// tokenize — guards
+// ===========================================================================
+describe('tokenize guards', () => {
+  it('returns an empty array for empty/undefined/null input', () => {
+    assert.deepEqual(tokenize(''), []);
+    assert.deepEqual(tokenize(undefined), []);
+    assert.deepEqual(tokenize(null), []);
+  });
+  it('drops a string that is entirely stopwords', () => {
+    assert.deepEqual(tokenize('the and of a to'), []);
+  });
+});

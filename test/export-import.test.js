@@ -195,3 +195,107 @@ describe('previewImport', () => {
     assert.ok(preview.exportedAt);
   });
 });
+
+// ===========================================================================
+// Error handling & payload validation
+// ===========================================================================
+const { encrypt } = require('../src/crypto');
+
+describe('importBrain error & validation paths', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('throws a friendly error for a wrong passphrase (auth failure)', () => {
+    writeBrainFile('index.json', '{"memories":[]}');
+    exportBrain(brainDir, exportPath, 'correct-horse');
+    assert.throws(
+      () => importBrain(exportPath, brainDir, 'wrong-passphrase'),
+      /wrong passphrase or corrupted/i
+    );
+  });
+
+  it('rethrows a non-auth error when the passphrase is right but the plaintext is not JSON', () => {
+    // Decrypt succeeds, JSON.parse fails → must surface the parse error (line 98), not the auth message.
+    fs.writeFileSync(exportPath, encrypt('this is decryptable but not JSON', 'pw'));
+    assert.throws(() => importBrain(exportPath, brainDir, 'pw'), (err) => {
+      assert.ok(!/wrong passphrase/i.test(err.message), 'not misreported as an auth failure');
+      return err instanceof SyntaxError || /JSON/i.test(err.message);
+    });
+  });
+
+  it('rejects a payload whose files field is an array, not an object', () => {
+    fs.writeFileSync(exportPath, JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), files: [] }));
+    assert.throws(() => importBrain(exportPath, brainDir, null), /Invalid export format/);
+  });
+
+  it('rejects a payload missing the files object entirely', () => {
+    fs.writeFileSync(exportPath, JSON.stringify({ version: 1 }));
+    assert.throws(() => importBrain(exportPath, brainDir, null), /Invalid export format/);
+  });
+
+  it('rejects a plaintext file that is not valid JSON with a passphrase hint', () => {
+    fs.writeFileSync(exportPath, 'not json, not encrypted');
+    assert.throws(() => importBrain(exportPath, brainDir, null), /If the file is encrypted, provide a passphrase/);
+  });
+});
+
+describe('previewImport error handling', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('gives a friendly error (not a raw crypto error) on a wrong passphrase', () => {
+    writeBrainFile('index.json', '{}');
+    exportBrain(brainDir, exportPath, 'right');
+    assert.throws(() => previewImport(exportPath, brainDir, 'nope'), /wrong passphrase or corrupted/i);
+  });
+});
+
+describe('importBrain merge mode (mtime comparison)', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('skips files whose local copy is newer than the export, imports when older', () => {
+    writeBrainFile('a.md', 'EXPORTED-V1');
+    exportBrain(brainDir, exportPath, null);
+    const exportedAt = new Date(JSON.parse(fs.readFileSync(exportPath, 'utf8')).exportedAt);
+    const localFile = path.join(brainDir, 'a.md');
+
+    // Local copy is NEWER than the export → merge must skip it.
+    fs.writeFileSync(localFile, 'LOCAL-NEWER');
+    const future = new Date(exportedAt.getTime() + 86400000);
+    fs.utimesSync(localFile, future, future);
+    const skip = importBrain(exportPath, brainDir, null, { mode: 'merge' });
+    assert.equal(skip.skipped, 1);
+    assert.equal(skip.fileCount, 0);
+    assert.equal(fs.readFileSync(localFile, 'utf8'), 'LOCAL-NEWER', 'newer local copy preserved');
+
+    // Local copy is OLDER than the export → merge imports it.
+    const past = new Date(exportedAt.getTime() - 86400000);
+    fs.utimesSync(localFile, past, past);
+    const imp = importBrain(exportPath, brainDir, null, { mode: 'merge' });
+    assert.equal(imp.fileCount, 1);
+    assert.equal(fs.readFileSync(localFile, 'utf8'), 'EXPORTED-V1', 'older local copy overwritten');
+  });
+});
+
+describe('collectFiles exclusion & round-trip', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('excludes top-level .sync but keeps normal nested files', () => {
+    writeBrainFile('professional/deep/x.md', 'keep');
+    writeBrainFile('.sync/repo/secret', 'drop');
+    exportBrain(brainDir, exportPath, null);
+    const keys = Object.keys(JSON.parse(fs.readFileSync(exportPath, 'utf8')).files);
+    assert.ok(keys.includes('professional/deep/x.md'));
+    assert.ok(!keys.some((k) => k.startsWith('.sync')), '.sync tree excluded');
+  });
+
+  it('round-trips an empty brain (zero files) without error', () => {
+    const r = exportBrain(brainDir, exportPath, null);
+    assert.equal(r.fileCount, 0);
+    const dest = path.join(tmpDir, 'restored');
+    const imp = importBrain(exportPath, dest, null);
+    assert.equal(imp.fileCount, 0);
+  });
+});

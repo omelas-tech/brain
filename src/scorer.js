@@ -293,6 +293,8 @@ function improveDecayRate(decayRate) {
  * @returns {number} Consolidated strength (capped at 1.0)
  */
 function computeConsolidatedStrength(sourceStrengths) {
+  // No sources to consolidate — Math.max(...[]) is -Infinity, so guard explicitly.
+  if (!Array.isArray(sourceStrengths) || sourceStrengths.length === 0) return 0;
   const maxStrength = Math.max(...sourceStrengths);
   return Math.min(1.0, maxStrength + 0.15);
 }

@@ -150,3 +150,75 @@ describe('computeSessionStart', () => {
     assert.equal(p.low_confidence_alerts[0].id, 'mem_lo');
   });
 });
+
+// ===========================================================================
+// parseArgs (exported, previously only exercised indirectly)
+// ===========================================================================
+const { parseArgs } = require('../bin/session-start');
+
+describe('parseArgs', () => {
+  it('returns sensible defaults for no args', () => {
+    assert.deepEqual(parseArgs([]), { project: null, topics: null, task: null, top: 5 });
+  });
+  it('parses every recognized flag', () => {
+    const a = parseArgs(['--project', 'app', '--topics', 'x,y', '--task', 'impl', '--top', '3']);
+    assert.equal(a.project, 'app');
+    assert.equal(a.topics, 'x,y');
+    assert.equal(a.task, 'impl');
+    assert.equal(a.top, 3);
+  });
+  it('falls back to top=5 when --top is not a number', () => {
+    assert.equal(parseArgs(['--top', 'abc']).top, 5);
+  });
+  it('ignores unknown flags and tolerates a trailing valueless flag', () => {
+    const a = parseArgs(['--bogus', 'val', '--project']);
+    assert.equal(a.project, undefined); // argv[++i] runs off the end
+    assert.equal(a.top, 5);
+  });
+});
+
+// ===========================================================================
+// Pinned tier: scope filtering, priority ordering, missing-body tolerance
+// ===========================================================================
+describe('computeSessionStart pinned tier', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('includes global pins always but project pins only for the matching project', () => {
+    seed({
+      g: entry({ title: 'Global', pinned: true, pin_scope: 'global', path: 'g.md' }),
+      mine: entry({ title: 'Mine', pinned: true, pin_scope: 'project:myapp', path: 'mine.md' }),
+      other: entry({ title: 'Other', pinned: true, pin_scope: 'project:other', path: 'other.md' }),
+    });
+    const ids = computeSessionStart(tmpDir, { project: 'myapp' }).pinned.map((p) => p.id);
+    assert.ok(ids.includes('g'));
+    assert.ok(ids.includes('mine'));
+    assert.ok(!ids.includes('other'), 'out-of-project pin excluded');
+  });
+
+  it('drops all project-scoped pins when no project is supplied', () => {
+    seed({ mine: entry({ pinned: true, pin_scope: 'project:myapp', path: 'mine.md' }) });
+    assert.equal(computeSessionStart(tmpDir, {}).pinned.length, 0);
+  });
+
+  it('orders pins by descending priority', () => {
+    seed({
+      lo: entry({ title: 'Lo', pinned: true, pin_scope: 'global', pin_priority: 1, path: 'lo.md' }),
+      hi: entry({ title: 'Hi', pinned: true, pin_scope: 'global', pin_priority: 9, path: 'hi.md' }),
+    });
+    const pinned = computeSessionStart(tmpDir, {}).pinned;
+    assert.equal(pinned[0].id, 'hi');
+    assert.equal(pinned[1].id, 'lo');
+  });
+
+  it('reads a pinned body from disk and tolerates a pin whose file is missing', () => {
+    seed({
+      present: entry({ title: 'Present', pinned: true, pin_scope: 'global', path: 'present.md' }),
+      gone: entry({ title: 'Gone', pinned: true, pin_scope: 'global', path: 'gone.md' }),
+    });
+    fs.writeFileSync(path.join(getBrainDir(tmpDir), 'present.md'), '---\nid: present\n---\nVISIBLE BODY\n');
+    const pinned = computeSessionStart(tmpDir, {}).pinned;
+    assert.equal(pinned.find((p) => p.id === 'present').content, 'VISIBLE BODY');
+    assert.equal(pinned.find((p) => p.id === 'gone').content, '', 'missing file → empty body, no throw');
+  });
+});

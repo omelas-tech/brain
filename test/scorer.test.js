@@ -549,3 +549,79 @@ describe('rankMemories', () => {
     assert.deepEqual(result, []);
   });
 });
+
+// ===========================================================================
+// Edge cases & boundary conditions
+// ===========================================================================
+describe('computeDecayedStrength — decay exemption', () => {
+  it('returns the base strength untouched when exempt (pinned/stable)', () => {
+    // 400 days old would normally decay heavily; exempt short-circuits all of it.
+    assert.equal(computeDecayedStrength(0.8, 0.99, daysAgo(400), true), 0.8);
+  });
+});
+
+describe('computeRecencyBonus — boundaries', () => {
+  it('is exactly 0 at the 365-day horizon', () => {
+    assert.ok(Math.abs(computeRecencyBonus(daysAgo(365))) < 1e-6);
+  });
+  it('clamps to 1.0 for a future timestamp (never exceeds 1)', () => {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString();
+    assert.equal(computeRecencyBonus(tomorrow), 1.0);
+  });
+});
+
+describe('computeConsolidatedStrength — domain edges', () => {
+  it('returns 0 for an empty source list (no -Infinity leak)', () => {
+    assert.equal(computeConsolidatedStrength([]), 0);
+    assert.equal(computeConsolidatedStrength(undefined), 0);
+  });
+  it('adds the consolidation bonus and caps at 1.0', () => {
+    assert.ok(Math.abs(computeConsolidatedStrength([0.0]) - 0.15) < 1e-9);
+    assert.equal(computeConsolidatedStrength([0.9, 0.5]), 1.0); // 0.9 + 0.15 capped
+  });
+});
+
+describe('computeRecallScore — renormalization & zero values', () => {
+  it('uses only the three base terms when no extras are supplied', () => {
+    // weights 0.38/0.18/0.08 renormalize over their sum; all-1 inputs → exactly 1.
+    assert.ok(Math.abs(computeRecallScore(1, 1, 1) - 1) < 1e-9);
+  });
+  it('includes an extra that is exactly 0 (0 != null), shifting the normalization', () => {
+    const withZeroSalience = computeRecallScore(1, 1, 1, { salience: 0 });
+    const withoutSalience = computeRecallScore(1, 1, 1);
+    // Adding salience:0 with weight 0.08 drags the renormalized score below 1.
+    assert.ok(withZeroSalience < withoutSalience);
+    assert.ok(Math.abs(withZeroSalience - (0.38 + 0.18 + 0.08) / (0.38 + 0.18 + 0.08 + 0.08)) < 1e-9);
+  });
+});
+
+describe('computeSpacedBoost / reinforceStrength', () => {
+  it('caps the spacing multiplier at 3.0 for very long intervals', () => {
+    // spacingMultiplier maxes at 3.0; recallCount 0 → boost = 0.05 * 3 = 0.15.
+    assert.ok(Math.abs(computeSpacedBoost(100000, 0) - 0.15) < 1e-9);
+  });
+  it('falls back to a flat +0.05 when spacing info is missing', () => {
+    assert.ok(Math.abs(reinforceStrength(0.5, 7) - 0.55) < 1e-9);   // recallCount undefined
+    assert.ok(Math.abs(reinforceStrength(0.5) - 0.55) < 1e-9);      // both missing
+  });
+  it('never lets reinforced strength exceed 1.0', () => {
+    assert.equal(reinforceStrength(1.0, 30, 0), 1.0);
+  });
+});
+
+describe('computeContextMatch — composition', () => {
+  it('scores a full project+topics+task match as 1.0', () => {
+    const ctx = { project: 'p', topics: ['a', 'b'], task_type: 't' };
+    assert.ok(Math.abs(computeContextMatch(ctx, ctx) - 1.0) < 1e-9);
+  });
+  it('weights a topics-only Jaccard match correctly', () => {
+    const enc = { topics: ['a', 'b'] };
+    const rec = { topics: ['b', 'c'] };
+    // jaccard = 1/3, weighted 0.4 → 0.1333…
+    assert.ok(Math.abs(computeContextMatch(enc, rec) - 0.4 / 3) < 1e-9);
+  });
+  it('returns 0 when either context is missing', () => {
+    assert.equal(computeContextMatch(null, {}), 0);
+    assert.equal(computeContextMatch({}, null), 0);
+  });
+});
