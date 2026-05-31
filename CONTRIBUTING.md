@@ -5,7 +5,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 ## Development Setup
 
 ```bash
-git clone https://github.com/onurkarali/brain.git
+git clone https://github.com/omelas-tech/brain.git
 cd brain
 npm install  # no dependencies — installs devDependencies only
 ```
@@ -95,4 +95,4 @@ git push && git push --tags
 
 ## Reporting Issues
 
-Open an issue at [github.com/onurkarali/brain/issues](https://github.com/onurkarali/brain/issues). Include steps to reproduce, expected vs actual behavior, and your Node.js version.
+Open an issue at [github.com/omelas-tech/brain/issues](https://github.com/omelas-tech/brain/issues). Include steps to reproduce, expected vs actual behavior, and your Node.js version.
