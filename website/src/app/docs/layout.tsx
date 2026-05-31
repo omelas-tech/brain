@@ -53,7 +53,7 @@ export default function DocsLayout({
               home
             </Link>
             <a
-              href="https://github.com/onurkarali/brain"
+              href="https://github.com/omelas-tech/brain"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"

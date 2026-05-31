@@ -28,7 +28,7 @@ export default function Header() {
         <div className="nav-links">
           <a href="#inside" className="hidden md:inline-flex">Docs</a>
           <a href="#benchmarks" className="hidden md:inline-flex">Benchmarks</a>
-          <a href="https://github.com/onurkarali/brain" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">GitHub</a>
+          <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">GitHub</a>
           <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">npm</a>
           <a href="https://app.brainmemory.work/login" className="hidden md:inline-flex">Login</a>
           <a className="nav-cta" href="#quickstart">Get started</a>
@@ -51,7 +51,7 @@ export default function Header() {
           <div className="flex flex-col px-6 py-3 gap-1 font-mono text-sm">
             <a href="#inside" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Docs</a>
             <a href="#benchmarks" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Benchmarks</a>
-            <a href="https://github.com/onurkarali/brain" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>GitHub</a>
+            <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>GitHub</a>
             <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>npm</a>
             <a href="https://app.brainmemory.work/login" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Login</a>
           </div>

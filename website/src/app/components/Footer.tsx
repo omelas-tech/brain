@@ -12,7 +12,7 @@ export default function Footer() {
           </span>
           <div className="footer-links">
             <Link href="/docs">Docs</Link>
-            <a href="https://github.com/onurkarali/brain" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer">npm</a>
             <Link href="/privacy">Privacy</Link>
             <a href="https://omelas.tech" target="_blank" rel="noopener noreferrer">Omelas</a>
