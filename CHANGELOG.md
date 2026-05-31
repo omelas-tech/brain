@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [0.1.0-beta.20] - 2026-05-31
 
+### Fixed
+
+- **`memorize` and `skill add` now read piped stdin portably (fixes CI on Linux & Windows).** Both CLIs read input by opening the `/dev/stdin` *path*, which works on macOS but throws `ENXIO` on Linux CI runners and doesn't exist on Windows — so the contradiction-surfacing tests failed on every non-macOS job. Switched to reading file descriptor `0` (`fs.readFileSync(0, …)`), which reads piped stdin correctly across Linux, macOS, and Windows.
+
 ### Changed
 
 - **Project moved to the Omelas organization.** Repository transferred to `github.com/omelas-tech/brain` (old `onurkarali/brain` URLs redirect). Updated `repository`, `bugs`, and all in-repo/website GitHub references accordingly, and set `homepage` to `https://brainmemory.work/`. No code or behavior changes — metadata only. The npm package name stays `brain-memory` (unscoped); install is unchanged.

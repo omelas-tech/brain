@@ -51,7 +51,7 @@ function main(argv) {
     case 'add': {
       if (process.stdin.isTTY) return fail({ error: 'Pipe a skill JSON via stdin' });
       let input;
-      try { input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf-8')); }
+      try { input = JSON.parse(fs.readFileSync(0, 'utf-8')); }
       catch (e) { return fail({ error: `Invalid JSON: ${e.message}` }); }
       return done(addSkill(undefined, input));
     }

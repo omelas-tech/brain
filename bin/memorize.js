@@ -246,7 +246,10 @@ async function main() {
     process.exit(1);
   }
 
-  inputData = fs.readFileSync('/dev/stdin', 'utf-8');
+  // Read from fd 0 rather than the '/dev/stdin' path: the path form fails with
+  // ENXIO on Linux CI runners and doesn't exist on Windows, whereas fd 0 reads
+  // piped stdin portably across Linux, macOS, and Windows.
+  inputData = fs.readFileSync(0, 'utf-8');
 
   let input;
   try {
