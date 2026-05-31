@@ -21,7 +21,9 @@ function teardown() {
 function runMemorize(payload) {
   const out = execFileSync('node', [MEMORIZE], {
     input: JSON.stringify(payload),
-    env: { ...process.env, HOME: tmpDir },
+    // Set both HOME (Linux/macOS) and USERPROFILE (Windows) so os.homedir()
+    // resolves to the temp brain dir on every platform.
+    env: { ...process.env, HOME: tmpDir, USERPROFILE: tmpDir },
     encoding: 'utf-8',
   });
   return JSON.parse(out);
