@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.20] - 2026-05-31
+
+### Changed
+
+- **Project moved to the Omelas organization.** Repository transferred to `github.com/omelas-tech/brain` (old `onurkarali/brain` URLs redirect). Updated `repository`, `bugs`, and all in-repo/website GitHub references accordingly, and set `homepage` to `https://brainmemory.work/`. No code or behavior changes — metadata only. The npm package name stays `brain-memory` (unscoped); install is unchanged.
+
 ## [0.1.0-beta.19] - 2026-05-30
 
 ### Fixed
