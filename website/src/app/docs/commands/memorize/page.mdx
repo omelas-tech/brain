@@ -30,7 +30,7 @@ When you run `/brain:memorize`, the agent:
 
 1. **Analyzes the session** — Reviews the conversation for significant content worth preserving
 2. **Classifies each memory** — Determines memory type, cognitive type, strength, salience, confidence, tags, and hierarchy path
-3. **Calls `brain-memorize` CLI** — Pipes the classified memories as JSON to a single CLI command that handles all file operations: ID generation, directory creation, file writing, index updates, association edges, and search index
+3. **Calls `brain memorize` CLI** — Pipes the classified memories as JSON to a single CLI command that handles all file operations: ID generation, directory creation, file writing, index updates, association edges, and search index
 4. **Reports results** — Shows what was stored with IDs, paths, and metadata
 
 The entire flow is a single tool call — no multi-step file juggling.
@@ -146,10 +146,10 @@ Agent: Focused on deployment-related content from this session:
 
 ## CLI
 
-Brain Memory also installs a `brain-memorize` CLI for programmatic use:
+Brain Memory also provides a `brain memorize` CLI for programmatic use:
 
 ```bash
-brain-memorize <<'EOF'
+brain memorize <<'EOF'
 {
   "memories": [{
     "title": "Chose event-driven architecture",
@@ -168,7 +168,7 @@ EOF
 Add `--sync` to auto-push after storing:
 
 ```bash
-brain-memorize --sync <<'EOF'
+brain memorize --sync <<'EOF'
 ...
 EOF
 ```

@@ -46,7 +46,7 @@ export default function Home() {
               A hierarchical, file-system memory that{" "}
               <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
               and consolidates during sleep. Deterministic across Claude&nbsp;Code,
-              Gemini&nbsp;CLI, and Codex&nbsp;CLI — <b>one brain, all agents.</b>
+              Gemini&nbsp;CLI, Codex&nbsp;CLI, and OpenCode — <b>one brain, any model, every agent.</b>
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#quickstart">
@@ -239,7 +239,7 @@ export default function Home() {
               <div className="compat-card" key={c.name}>
                 <div className="cc-name">{c.name}</div>
                 <div className="cc-tag">{c.vendor}</div>
-                <div className="code-chip">brain-memory <span className="flag">{c.flag}</span> --global</div>
+                <div className="code-chip">brain <span className="flag">{c.flag}</span> --global</div>
               </div>
             ))}
           </div>
@@ -261,8 +261,8 @@ export default function Home() {
             </div>
           </div>
           <p className="qs-note reveal">
-            Then run <code>brain-memory --claude</code> (or <code>--gemini</code> /{" "}
-            <code>--codex</code>) to configure your runtime(s). One store,
+            Then run <code>brain --claude</code> (or <code>--gemini</code> /{" "}
+            <code>--codex</code> / <code>--opencode</code>, or <code>--all</code>) to configure your runtime(s). One store,
             deterministic recall, all agents.
           </p>
         </div>
@@ -357,7 +357,7 @@ const features = [
   { title: "Associative network", icon: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3 9M17 8l-4 8"/>', body: "Weighted edges link related memories. Recalling one activates its neighbours via spreading activation." },
   { title: "Spaced reinforcement", icon: '<path d="M4 18V8m6 10V5m6 13v-7"/><circle cx="4" cy="6" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="16" cy="9" r="1.5"/>', body: "Longer intervals between recalls produce larger, more durable boosts. The spacing effect, by design." },
   { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
-  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Gemini CLI, and Codex CLI share one store. Identical scoring, deterministic recall everywhere." },
+  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Gemini CLI, Codex CLI, and OpenCode share one store — and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
   { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
   { title: "Portable sync", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Git remote or AES-256-GCM encrypted export. Self-host the whole brain on your own VPS." },
 ];
@@ -392,6 +392,7 @@ const compat = [
   { name: "Claude Code", vendor: "Anthropic", flag: "--claude" },
   { name: "Gemini CLI", vendor: "Google", flag: "--gemini" },
   { name: "Codex CLI", vendor: "OpenAI", flag: "--codex" },
+  { name: "OpenCode", vendor: "Any model", flag: "--opencode" },
 ];
 
 const referenceGroups = [

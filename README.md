@@ -450,7 +450,9 @@ Failed recalls reset the interval to 1 day. Successful recalls extend the interv
 
 ### Cross-Agent Memory Sharing
 
-`~/.brain/` is a single global directory in the user's home folder. All memories are shared across every project and every supported agent automatically. A decision stored by Claude Code in one project is immediately available to Gemini CLI or Codex CLI in any other project — no configuration, no export, no per-project setup. The format is agent-agnostic: plain Markdown files with YAML frontmatter, readable by any tool.
+`~/.brain/` is a single global directory in the user's home folder. All memories are shared across every project and every supported agent automatically. A decision stored by Claude Code in one project is immediately available to Gemini CLI, OpenAI Codex CLI, or OpenCode in any other project — no configuration, no export, no per-project setup. The format is agent-agnostic: plain Markdown files with YAML frontmatter, readable by any tool.
+
+Brain Memory is **model-agnostic** as well as agent-portable: because memory is plain files rather than embeddings welded to a particular model, the LLM underneath your agent can be anything — GPT, Claude, Gemini, or any model routed through a gateway — and your memory is unaffected. **Switch your model or switch your agent, and you keep remembering and pick up exactly where you left off.**
 
 To share memories across different machines, use `/brain:sync` (see below).
 

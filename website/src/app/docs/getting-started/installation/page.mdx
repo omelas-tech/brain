@@ -3,7 +3,7 @@ import Steps, { Step } from "@/app/components/docs/Steps";
 
 export const metadata = {
   title: "Installation - Brain Memory",
-  description: "How to install Brain Memory for Claude Code, Gemini CLI, and OpenAI Codex CLI.",
+  description: "How to install Brain Memory for Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode.",
   category: "Getting Started",
   order: 1,
 };
@@ -16,10 +16,10 @@ Brain Memory is installed in two steps: a global npm install (for CLI tools) and
 
 ```bash
 npm install -g brain-memory@beta
-brain-memory
+brain
 ```
 
-The first command installs the package globally — this gives you both the interactive setup wizard and the CLI tools (`brain-memorize`, `brain-recall`, `brain-reinforce`) that agents rely on for deterministic scoring.
+The first command installs the package globally — this gives you both the interactive setup wizard and the `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) that agents rely on for deterministic scoring.
 
 The second command runs the setup wizard, which asks which runtime(s) to configure (Claude Code, Gemini CLI, OpenAI Codex CLI, or all) and whether to install globally or for the current project.
 
@@ -28,7 +28,7 @@ The second command runs the setup wizard, which asks which runtime(s) to configu
 </Callout>
 
 <Callout type="warning">
-  **Do not use `npx brain-memory`** for installation. `npx` runs the setup wizard in a temporary directory that is discarded after execution. The CLI tools (`brain-memorize`, `brain-recall`, `brain-reinforce`) won't be available in your PATH, and agents will fall back to less reliable manual file operations. Always use `npm install -g`.
+  **Do not use `npx brain-memory`** for installation. `npx` runs the setup wizard in a temporary directory that is discarded after execution. The `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) won't be available in your PATH, and agents will fall back to less reliable manual file operations. Always use `npm install -g`.
 </Callout>
 
 ## Non-Interactive Install
@@ -39,16 +39,19 @@ Pass flags to skip the interactive prompts:
 npm install -g brain-memory@beta
 
 # Claude Code, global
-brain-memory --claude --global
+brain --claude --global
 
 # Gemini CLI, local project
-brain-memory --gemini --local
+brain --gemini --local
 
 # OpenAI Codex CLI, global
-brain-memory --codex --global
+brain --codex --global
+
+# OpenCode, global
+brain --opencode --global
 
 # All runtimes, global
-brain-memory --all --global
+brain --all --global
 ```
 
 ## What Gets Installed
@@ -104,16 +107,17 @@ To update Brain Memory to the latest version:
 
 ```bash
 npm install -g brain-memory@beta
-brain-memory update
+brain update
 ```
 
 The first command updates the package and CLI tools. The second command refreshes the slash command prompts for your installed runtimes. You can target specific runtimes:
 
 ```bash
-brain-memory update --claude
-brain-memory update --gemini
-brain-memory update --codex
-brain-memory update --all
+brain update --claude
+brain update --gemini
+brain update --codex
+brain update --opencode
+brain update --all
 ```
 
 <Callout type="info">
@@ -123,7 +127,7 @@ brain-memory update --all
 ## Uninstall
 
 ```bash
-brain-memory uninstall
+brain uninstall
 npm uninstall -g brain-memory
 ```
 
@@ -132,13 +136,13 @@ The first command removes slash commands and prompt sections from your agent's c
 To also delete your memories:
 
 ```bash
-brain-memory uninstall --delete-data
+brain uninstall --delete-data
 ```
 
 To skip confirmation prompts:
 
 ```bash
-brain-memory uninstall --yes
+brain uninstall --yes
 ```
 
 <Callout type="warning">

@@ -2,18 +2,27 @@ import Callout from "@/app/components/docs/Callout";
 
 export const metadata = {
   title: "Cross-Agent Memory Sharing - Brain Memory",
-  description: "How memories are shared across Claude Code, Gemini CLI, and OpenAI Codex CLI.",
+  description: "How memories are shared across Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode — and why Brain Memory is model-agnostic.",
   category: "Advanced",
   order: 23,
 };
 
 # Cross-Agent Memory Sharing
 
-Brain Memory uses a single global directory — `~/.brain/` — that is shared across all supported AI agents. A decision stored by Claude Code in one project is immediately available to Gemini CLI or OpenAI Codex CLI in any other project, with no configuration, no export, and no per-project setup.
+Brain Memory uses a single global directory — `~/.brain/` — that is shared across all supported AI agents. A decision stored by Claude Code in one project is immediately available to Gemini CLI, OpenAI Codex CLI, or OpenCode in any other project, with no configuration, no export, and no per-project setup.
+
+## Model-Agnostic, Too
+
+Portability runs along two independent axes:
+
+- **Agent-portable** — the four supported agents (Claude Code, Gemini CLI, OpenAI Codex CLI, OpenCode) all read and write the same brain.
+- **Model-agnostic** — because memory is plain files, not embeddings welded to a particular model, the LLM driving your agent can be anything (GPT, Claude, Gemini, or any model routed through a gateway). Switching the underlying model changes nothing about your memory.
+
+Put together: **switch your model or switch your agent, and you keep remembering — pick up exactly where you left off.**
 
 ## How It Works
 
-All three supported agents read and write to the same `~/.brain/` directory:
+All four supported agents read and write to the same `~/.brain/` directory:
 
 ```
 ~/.brain/                          ← Single shared directory
@@ -26,6 +35,9 @@ All three supported agents read and write to the same `~/.brain/` directory:
 ├── personal/
 │   └── education/
 │       └── rust-ownership.md      ← Created by Gemini CLI
+├── professional/
+│   └── learnings/
+│       └── async-pitfalls.md      ← Created by OpenCode
 └── ...
 ```
 
@@ -58,7 +70,7 @@ Everything in `~/.brain/` is automatically shared:
 
 ## What Does Not Get Shared
 
-- **Agent configuration** — Each agent's command prompts and prompt sections are installed separately in their own config directories (`~/.claude/`, `~/.gemini/`, `~/.codex/`)
+- **Agent configuration** — Each agent's command prompts and prompt sections are installed separately in their own config directories (`~/.claude/`, `~/.gemini/`, `~/.codex/`, `~/.config/opencode/`)
 - **Session state** — Each agent maintains its own session context during active use
 - **Sync state** — The `~/.brain/.sync/` directory is local and agent-independent
 
@@ -94,13 +106,17 @@ The only requirement is that each agent has its own command prompts installed. D
 
 ```bash
 npm install -g brain-memory@beta
-brain-memory --all --global
+brain --all --global
 ```
 
-This installs the CLI tools and configures command prompts for Claude Code, Gemini CLI, and OpenAI Codex CLI simultaneously, all pointing to the same `~/.brain/` directory.
+This installs the CLI tools and configures command prompts for Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode simultaneously, all pointing to the same `~/.brain/` directory.
 
 <Callout type="info">
-  Each agent has slightly different command syntax (slash commands for Claude/Gemini, skills for Codex), but they all operate on the same underlying brain structure and data format.
+  Each agent has slightly different command syntax (slash commands for Claude/Gemini/OpenCode, skills for Codex), but they all operate on the same underlying brain structure and data format.
+</Callout>
+
+<Callout type="tip">
+  Identical, deterministic recall across agents relies on the `brain` CLI being on your `PATH` — always install with `npm install -g` (not `npx`), so every agent shells out to the same scoring engine instead of falling back to manual file operations.
 </Callout>
 
 <Callout type="tip">
