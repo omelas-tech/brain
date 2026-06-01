@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 import Steps, { Step } from "@/app/components/docs/Steps";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/getting-started/installation", {
   title: "Installation - Brain Memory",
   description: "How to install Brain Memory for Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode.",
   category: "Getting Started",
   order: 1,
-};
+});
 
 # Installation
 

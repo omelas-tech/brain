@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/benchmarks/scenarios", {
   title: "Benchmark Scenarios - Brain Memory",
   description:
     "Six scenarios — each describable in one sentence — covering retrieval under noise, multi-session continuity, contradiction handling, progressive disclosure, continual coding, and abstention.",
   category: "Benchmarks",
   order: 2,
-};
+});
 
 # Benchmark Scenarios
 

@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/sunshine", {
   title: "/brain:sunshine - Brain Memory",
   description: "Deep forensic erasure — trace and remove all references to a memory.",
   category: "Commands",
   order: 16,
-};
+});
 
 # /brain:sunshine
 

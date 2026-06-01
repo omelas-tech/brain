@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 import Steps, { Step } from "@/app/components/docs/Steps";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/portable-sync", {
   title: "Portable Sync - Brain Memory",
   description: "Sync memories across devices via Git remote or export/import with optional encryption.",
   category: "Advanced",
   order: 24,
-};
+});
 
 # Portable Sync
 

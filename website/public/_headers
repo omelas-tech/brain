@@ -1,0 +1,13 @@
+# Cloudflare static-asset headers.
+# The build-time Open Graph image is emitted as an extensionless file
+# (out/opengraph-image), which would otherwise be served as
+# application/octet-stream and rejected by social/AI link scrapers.
+/opengraph-image
+  Content-Type: image/png
+  Cache-Control: public, max-age=86400
+
+# Ensure the LLM index files are served as UTF-8 plain text.
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8

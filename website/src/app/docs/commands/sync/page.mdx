@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 import Steps, { Step } from "@/app/components/docs/Steps";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/sync", {
   title: "/brain:sync - Brain Memory",
   description: "Sync memories via Git remote or export/import for portability.",
   category: "Commands",
   order: 19,
-};
+});
 
 # /brain:sync
 

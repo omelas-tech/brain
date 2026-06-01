@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/benchmarks/results", {
   title: "Benchmark Results - Brain Memory",
   description:
     "Latest smoke-test results from the Brain Memory benchmark across Gemini and DeepSeek V4 Pro on Scenario A. Raw JSON downloads included.",
   category: "Benchmarks",
   order: 3,
-};
+});
 
 # Benchmark Results
 

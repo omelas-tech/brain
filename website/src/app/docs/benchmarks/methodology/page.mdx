@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/benchmarks/methodology", {
   title: "Benchmark Methodology - Brain Memory",
   description:
     "How the Brain Memory benchmark grades retrieval, runs cross-family LLM judges, builds distractor haystacks, and avoids the methodological traps the 2025-2026 long-term-memory literature has flagged.",
   category: "Benchmarks",
   order: 1,
-};
+});
 
 # Benchmark Methodology
 

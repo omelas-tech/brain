@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/concepts/strength-decay", {
   title: "Strength & Decay - Brain Memory",
   description: "How memory strength is determined and how it decays over time.",
   category: "Concepts",
   order: 5,
-};
+});
 
 # Strength & Decay
 

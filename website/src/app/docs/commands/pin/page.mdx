@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/pin", {
   title: "/brain:pin - Brain Memory",
   description:
     "Pin a memory to the always-present tier so it loads every session and never decays.",
   category: "Commands",
   order: 3,
-};
+});
 
 # /brain:pin
 

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, JetBrains_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import JsonLd from "./components/JsonLd";
+import { SITE_URL } from "@/lib/docs";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -23,22 +25,49 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+const TITLE = "Brain Memory — Memory for AI Agents";
+const DESCRIPTION =
+  "A hierarchical, file-system-based memory system for AI coding agents. Inspired by human neuroscience — memories decay, strengthen through recall, and connect via associative networks.";
+const OG_DESCRIPTION =
+  "A hierarchical, file-system-based memory system for AI coding agents inspired by human neuroscience.";
+
 export const metadata: Metadata = {
-  title: "Brain Memory — Memory for AI Agents",
-  description:
-    "A hierarchical, file-system-based memory system for AI coding agents. Inspired by human neuroscience — memories decay, strengthen through recall, and connect via associative networks.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: "Brain Memory",
+  category: "technology",
+  publisher: "Omelas",
+  authors: [{ name: "Omelas", url: "https://omelas.tech" }],
+  creator: "Omelas",
   keywords: [
     "brain-memory",
     "AI agent memory",
+    "memory for AI agents",
     "Claude Code",
     "Gemini CLI",
     "OpenAI Codex",
+    "OpenCode",
     "neuroscience",
     "spaced repetition",
     "hierarchical memory",
     "context engineering",
+    "agent memory system",
   ],
-  authors: [{ name: "Omelas" }],
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -48,13 +77,64 @@ export const metadata: Metadata = {
     apple: "/icon.png",
   },
   openGraph: {
-    title: "Brain Memory — Memory for AI Agents",
-    description:
-      "A hierarchical, file-system-based memory system for AI coding agents inspired by human neuroscience.",
+    title: TITLE,
+    description: OG_DESCRIPTION,
     type: "website",
-    url: "https://brainmemory.work",
-    images: [{ url: "/icon.png", width: 1024, height: 1024 }],
+    url: SITE_URL,
+    siteName: "Brain Memory",
+    locale: "en_US",
+    // og:image is generated automatically from app/opengraph-image.tsx.
   },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: OG_DESCRIPTION,
+    // twitter:image is generated automatically from app/opengraph-image.tsx.
+  },
+};
+
+// Site-wide structured data: who publishes this, what the site is, and what
+// the software is. Linked via @id so search engines treat them as one graph.
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://omelas.tech/#organization",
+      name: "Omelas",
+      url: "https://omelas.tech",
+      logo: `${SITE_URL}/icon.png`,
+      sameAs: ["https://github.com/omelas-tech"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "Brain Memory",
+      description: OG_DESCRIPTION,
+      publisher: { "@id": "https://omelas.tech/#organization" },
+      inLanguage: "en",
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#software`,
+      name: "Brain Memory",
+      description:
+        "A hierarchical, file-system-based memory system for AI coding agents — neuroscience-inspired recall, decay, and consolidation that works across Claude Code, Gemini CLI, Codex CLI, and OpenCode.",
+      url: SITE_URL,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "macOS, Linux, Windows",
+      softwareHelp: `${SITE_URL}/docs`,
+      downloadUrl: "https://www.npmjs.com/package/brain-memory",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      author: { "@id": "https://omelas.tech/#organization" },
+      publisher: { "@id": "https://omelas.tech/#organization" },
+    },
+  ],
 };
 
 export const viewport: Viewport = {
@@ -72,6 +152,7 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${jbmono.variable} ${instrumentSerif.variable}`}
     >
       <body className="min-h-dvh bg-[var(--bg)] text-[var(--text-primary)] antialiased">
+        <JsonLd data={structuredData} />
         {children}
       </body>
     </html>

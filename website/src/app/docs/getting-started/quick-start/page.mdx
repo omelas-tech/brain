@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 import Steps, { Step } from "@/app/components/docs/Steps";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/getting-started/quick-start", {
   title: "Quick Start - Brain Memory",
   description: "Get up and running with Brain Memory in five minutes.",
   category: "Getting Started",
   order: 2,
-};
+});
 
 # Quick Start
 

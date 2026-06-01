@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/working-memory", {
   title: "Working Memory & Session Start - Brain Memory",
   description:
     "How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.",
   category: "Advanced",
   order: 5,
-};
+});
 
 # Working Memory & Session Start
 

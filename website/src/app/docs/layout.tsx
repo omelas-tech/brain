@@ -5,6 +5,7 @@ import DocsNav from "@/app/components/docs/DocsNav";
 import DocsMobileNav from "@/app/components/docs/DocsMobileNav";
 import SearchDialog from "@/app/components/docs/SearchDialog";
 import TableOfContents from "@/app/components/docs/TableOfContents";
+import DocStructuredData from "@/app/components/docs/DocStructuredData";
 
 export const metadata: Metadata = {
   title: "Documentation — Brain Memory",
@@ -19,6 +20,7 @@ export default function DocsLayout({
 }) {
   return (
     <div className="min-h-dvh">
+      <DocStructuredData />
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[90rem] items-center justify-between px-4 sm:px-6">

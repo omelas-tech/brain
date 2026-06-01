@@ -1,12 +1,14 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/benchmarks", {
   title: "Benchmarks - Brain Memory",
   description:
     "Controlled benchmark suite proving Brain Memory improves retrieval, contradiction handling, and token efficiency for AI coding agents.",
   category: "Benchmarks",
   order: 0,
-};
+});
 
 # Benchmarks
 

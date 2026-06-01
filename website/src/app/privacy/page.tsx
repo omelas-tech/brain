@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 export const metadata = {
   title: "Privacy Policy — Brain Memory",
   description: "Privacy policy for the Brain Memory website.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

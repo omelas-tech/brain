@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/forget", {
   title: "/brain:forget - Brain Memory",
   description: "Decay, archive, or remove memories.",
   category: "Commands",
   order: 15,
-};
+});
 
 # /brain:forget
 

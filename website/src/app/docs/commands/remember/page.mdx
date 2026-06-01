@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/remember", {
   title: "/brain:remember - Brain Memory",
   description: "Recall relevant memories with spreading activation and context matching.",
   category: "Commands",
   order: 11,
-};
+});
 
 # /brain:remember
 

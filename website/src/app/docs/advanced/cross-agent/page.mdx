@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/cross-agent", {
   title: "Cross-Agent Memory Sharing - Brain Memory",
   description: "How memories are shared across Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode — and why Brain Memory is model-agnostic.",
   category: "Advanced",
   order: 23,
-};
+});
 
 # Cross-Agent Memory Sharing
 

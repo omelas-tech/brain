@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/consolidate", {
   title: "/brain:consolidate - Brain Memory",
   description: "Merge related weak memories into stronger combined ones.",
   category: "Commands",
   order: 14,
-};
+});
 
 # /brain:consolidate
 

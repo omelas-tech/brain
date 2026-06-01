@@ -1,11 +1,13 @@
 import Callout from "@/app/components/docs/Callout";
 
-export const metadata = {
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/review", {
   title: "/brain:review - Brain Memory",
   description: "Spaced repetition review session for due memories.",
   category: "Commands",
   order: 12,
-};
+});
 
 # /brain:review
 

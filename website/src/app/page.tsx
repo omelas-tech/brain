@@ -6,6 +6,41 @@ import Footer from "./components/Footer";
 import BrainField from "./components/BrainField";
 import DecayCurve from "./components/DecayCurve";
 
+// FAQ structured data — eligible for FAQ rich results and used as direct
+// answer fuel by AI search engines. Every answer below is factual.
+const FAQ = [
+  {
+    q: "What is Brain Memory?",
+    a: "Brain Memory is a hierarchical, file-system-based memory system for AI coding agents. Modeled on human neuroscience, memories decay on an Ebbinghaus curve, strengthen through recall, connect via associative networks, and consolidate during a sleep cycle.",
+  },
+  {
+    q: "Which AI agents does Brain Memory support?",
+    a: "Brain Memory works across Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode. A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
+  },
+  {
+    q: "Is Brain Memory free and open source?",
+    a: "Yes. Brain Memory is free and open source, published on npm as brain-memory and developed in the open by Omelas on GitHub.",
+  },
+  {
+    q: "Where are my memories stored?",
+    a: "All memories live in a single global ~/.brain/ directory in your home folder as human-readable Markdown files with YAML frontmatter. There is no database and no server — the file system is the database, so it is fully browseable, Git-friendly, and portable.",
+  },
+  {
+    q: "How is Brain Memory different from a vector database?",
+    a: "Instead of opaque embeddings in a vector store, Brain Memory uses transparent Markdown files scored by a deterministic engine that combines TF-IDF relevance, neuroscience-inspired strength and decay, spreading activation across an associative network, and context-dependent recall. It requires no runtime dependencies and is readable by both humans and agents.",
+  },
+];
+
+const faqStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map(({ q, a }) => ({
+    "@type": "Question",
+    name: q,
+    acceptedAnswer: { "@type": "Answer", text: a },
+  })),
+};
+
 export default function Home() {
   // scroll-reveal
   useEffect(() => {
@@ -26,6 +61,13 @@ export default function Home() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqStructuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <Header />
 
       {/* ============ HERO ============ */}
