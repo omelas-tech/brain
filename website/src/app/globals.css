@@ -192,7 +192,14 @@ body {
   overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
-#brain-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+/* Reined into the centered content grid so its right edge lines up with the
+   header and the HUD readout (rather than bleeding to the viewport edge). */
+#brain-canvas {
+  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
+  margin-inline: auto;
+  width: 100%; max-width: calc(var(--max) - 2 * var(--gutter));
+  height: 100%; z-index: 0;
+}
 .hero::before {
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
@@ -272,7 +279,11 @@ body {
 .badge .v.amber { background: var(--beta-bg); color: var(--beta-fg); }
 
 .hero-hud {
-  position: absolute; right: var(--gutter); bottom: 30px; z-index: 2;
+  position: absolute;
+  /* Align to the content grid's right edge (matching the header), not the
+     screen edge. (100% = .hero content width, excludes the scrollbar.) */
+  right: calc(max((100% - var(--max)) / 2, 0px) + var(--gutter));
+  bottom: 30px; z-index: 2;
   font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.05em;
   color: var(--fg-3); text-align: right; line-height: 1.9;
   display: grid; gap: 1px;
