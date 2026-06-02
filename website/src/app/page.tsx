@@ -125,7 +125,7 @@ export default function Home() {
 
       {/* ============ 01 WHAT'S INSIDE ============ */}
       <section className="section" id="inside">
-        <div className="wrap wide">
+        <div className="wrap">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">01</span> What&apos;s inside</span>
             <h2>A memory architecture, not a vector store.</h2>
@@ -147,7 +147,7 @@ export default function Home() {
 
       {/* ============ 02 HOW IT WORKS ============ */}
       <section className="section" id="how">
-        <div className="wrap wide">
+        <div className="wrap">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">02</span> How it works</span>
             <h2>The lifecycle of a memory.</h2>
@@ -183,7 +183,7 @@ export default function Home() {
 
       {/* ============ 03 BENCHMARKS ============ */}
       <section className="section" id="benchmarks">
-        <div className="wrap wide">
+        <div className="wrap">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">03</span> Benchmark results</span>
             <h2>Six-scenario suite for long-term agent memory.</h2>
@@ -223,7 +223,7 @@ export default function Home() {
 
       {/* ============ 04 NEUROSCIENCE ============ */}
       <section className="section" id="neuro">
-        <div className="wrap wide">
+        <div className="wrap">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">04</span> Neuroscience foundations</span>
             <h2>Every mechanism maps to a published model.</h2>
@@ -271,7 +271,7 @@ export default function Home() {
 
       {/* ============ 06 COMPATIBILITY ============ */}
       <section className="section" id="compat">
-        <div className="wrap wide">
+        <div className="wrap">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">06</span> Compatibility</span>
             <h2>One memory store. Every agent.</h2>
