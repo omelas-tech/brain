@@ -9,7 +9,7 @@
 // Keep this list complete and in sync with the actual MDX files under
 // src/app/docs/. The `dir` of each page is derived from its `href`.
 
-export const SITE_URL = "https://brainmemory.work";
+export const SITE_URL = "https://brainmemory.ai";
 
 /** @typedef {{ title: string, description: string, href: string, category: string, order: number }} DocPage */
 

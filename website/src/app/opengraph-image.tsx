@@ -116,7 +116,7 @@ export default function OpengraphImage() {
           }}
         >
           <span style={{ color: AMBER, fontSize: 27, letterSpacing: 1 }}>
-            brainmemory.work
+            brainmemory.ai
           </span>
           <span style={{ color: DIM, fontSize: 25 }}>npm i -g brain-memory</span>
         </div>

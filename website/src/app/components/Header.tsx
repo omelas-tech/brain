@@ -30,7 +30,7 @@ export default function Header() {
           <a href="#benchmarks" className="hidden md:inline-flex">Benchmarks</a>
           <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">GitHub</a>
           <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">npm</a>
-          <a href="https://app.brainmemory.work/login" className="hidden md:inline-flex">Login</a>
+          <a href="https://app.brainmemory.ai/login" className="hidden md:inline-flex">Login</a>
           <a className="nav-cta" href="#quickstart">Get started</a>
 
           {/* Mobile hamburger */}
@@ -53,7 +53,7 @@ export default function Header() {
             <a href="#benchmarks" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Benchmarks</a>
             <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>GitHub</a>
             <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>npm</a>
-            <a href="https://app.brainmemory.work/login" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Login</a>
+            <a href="https://app.brainmemory.ai/login" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Login</a>
           </div>
         </div>
       )}

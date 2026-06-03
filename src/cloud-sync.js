@@ -1,7 +1,7 @@
 /**
  * Brain Memory — Cloud Sync Engine
  *
- * Push/pull ~/.brain/ memories via the Brain Cloud API (api.brainmemory.work).
+ * Push/pull ~/.brain/ memories via the Brain Cloud API (api.brainmemory.ai).
  * Uses the device code OAuth flow for CLI authentication.
  *
  * Zero external dependencies — uses Node.js built-in https, fs, child_process.
@@ -16,7 +16,7 @@ const http = require('http');
 
 const CLOUD_DIR = '.cloud';
 const CONFIG_FILE = 'config.json';
-const DEFAULT_API_URL = 'https://api.brainmemory.work';
+const DEFAULT_API_URL = 'https://api.brainmemory.ai';
 
 // Files/dirs inside ~/.brain/ that should NOT be synced
 const TAR_EXCLUDES = ['.sync', '.cloud', '.DS_Store', '_archived'];

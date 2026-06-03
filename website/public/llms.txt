@@ -6,63 +6,63 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 
 ## Getting Started
 
-- [Overview](https://brainmemory.work/docs): Introduction to Brain Memory — a neuroscience-inspired memory system for AI coding agents.
-- [Installation](https://brainmemory.work/docs/getting-started/installation): Install the Brain Memory plugin for Claude Code, Gemini CLI, or OpenAI Codex.
-- [Quick Start](https://brainmemory.work/docs/getting-started/quick-start): Get up and running with Brain Memory in under 5 minutes.
+- [Overview](https://brainmemory.ai/docs): Introduction to Brain Memory — a neuroscience-inspired memory system for AI coding agents.
+- [Installation](https://brainmemory.ai/docs/getting-started/installation): Install the Brain Memory plugin for Claude Code, Gemini CLI, or OpenAI Codex.
+- [Quick Start](https://brainmemory.ai/docs/getting-started/quick-start): Get up and running with Brain Memory in under 5 minutes.
 
 ## Concepts
 
-- [Memory Types](https://brainmemory.work/docs/concepts/memory-types): Learn about the 8 memory types: decision, insight, goal, experience, learning, relationship, preference, and observation.
-- [Cognitive Types](https://brainmemory.work/docs/concepts/cognitive-types): Understand episodic, semantic, and procedural memory — modeled after human cognition.
-- [Strength & Decay](https://brainmemory.work/docs/concepts/strength-decay): How memories strengthen through recall and weaken over time via exponential decay.
-- [Associative Network](https://brainmemory.work/docs/concepts/associative-network): Memories connect via weighted edges with spreading activation and Hebbian learning.
-- [Context-Dependent Recall](https://brainmemory.work/docs/concepts/context-recall): Memories encoded in a similar context to the current session are scored higher during recall.
-- [Salience & Confidence](https://brainmemory.work/docs/concepts/salience-confidence): Emotional significance and epistemic certainty scores that influence memory behavior.
-- [Pinned Memory](https://brainmemory.work/docs/concepts/pinned-memory): Pin critical conventions and preferences to the always-present tier — loaded every session, never decaying.
-- [Procedural Skills](https://brainmemory.work/docs/concepts/procedural-skills): Reusable how-to workflows served via progressive disclosure and learned from repeated experience.
+- [Memory Types](https://brainmemory.ai/docs/concepts/memory-types): Learn about the 8 memory types: decision, insight, goal, experience, learning, relationship, preference, and observation.
+- [Cognitive Types](https://brainmemory.ai/docs/concepts/cognitive-types): Understand episodic, semantic, and procedural memory — modeled after human cognition.
+- [Strength & Decay](https://brainmemory.ai/docs/concepts/strength-decay): How memories strengthen through recall and weaken over time via exponential decay.
+- [Associative Network](https://brainmemory.ai/docs/concepts/associative-network): Memories connect via weighted edges with spreading activation and Hebbian learning.
+- [Context-Dependent Recall](https://brainmemory.ai/docs/concepts/context-recall): Memories encoded in a similar context to the current session are scored higher during recall.
+- [Salience & Confidence](https://brainmemory.ai/docs/concepts/salience-confidence): Emotional significance and epistemic certainty scores that influence memory behavior.
+- [Pinned Memory](https://brainmemory.ai/docs/concepts/pinned-memory): Pin critical conventions and preferences to the always-present tier — loaded every session, never decaying.
+- [Procedural Skills](https://brainmemory.ai/docs/concepts/procedural-skills): Reusable how-to workflows served via progressive disclosure and learned from repeated experience.
 
 ## Commands
 
-- [init](https://brainmemory.work/docs/commands/init): Initialize the ~/.brain/ directory structure and default configuration.
-- [memorize](https://brainmemory.work/docs/commands/memorize): Store new memories from the current session context with automatic categorization.
-- [remember](https://brainmemory.work/docs/commands/remember): Recall relevant memories using spreading activation and context-dependent scoring.
-- [pin](https://brainmemory.work/docs/commands/pin): Pin a memory to the always-present tier — loaded every session, never decaying.
-- [unpin](https://brainmemory.work/docs/commands/unpin): Remove a memory from the always-present tier, returning it to normal recall and decay.
-- [review](https://brainmemory.work/docs/commands/review): Spaced repetition review session for memories due for reinforcement.
-- [explore](https://brainmemory.work/docs/commands/explore): Browse the brain hierarchy and discover memories by category.
-- [consolidate](https://brainmemory.work/docs/commands/consolidate): Merge related weak memories into stronger combined memories.
-- [forget](https://brainmemory.work/docs/commands/forget): Decay or archive memories that are no longer relevant.
-- [sunshine](https://brainmemory.work/docs/commands/sunshine): Deep forensic erasure — trace and remove all references to a memory.
-- [sleep](https://brainmemory.work/docs/commands/sleep): Full maintenance cycle: replay, synaptic homeostasis, consolidation, pruning, and REM dreaming.
-- [status](https://brainmemory.work/docs/commands/status): Dashboard with brain health overview, memory counts, and strength distribution.
-- [skill](https://brainmemory.work/docs/commands/skill): Manage procedural skills — reusable how-to workflows with progressive disclosure.
-- [sync](https://brainmemory.work/docs/commands/sync): Sync memories via Git remote or export/import for cross-device portability.
+- [init](https://brainmemory.ai/docs/commands/init): Initialize the ~/.brain/ directory structure and default configuration.
+- [memorize](https://brainmemory.ai/docs/commands/memorize): Store new memories from the current session context with automatic categorization.
+- [remember](https://brainmemory.ai/docs/commands/remember): Recall relevant memories using spreading activation and context-dependent scoring.
+- [pin](https://brainmemory.ai/docs/commands/pin): Pin a memory to the always-present tier — loaded every session, never decaying.
+- [unpin](https://brainmemory.ai/docs/commands/unpin): Remove a memory from the always-present tier, returning it to normal recall and decay.
+- [review](https://brainmemory.ai/docs/commands/review): Spaced repetition review session for memories due for reinforcement.
+- [explore](https://brainmemory.ai/docs/commands/explore): Browse the brain hierarchy and discover memories by category.
+- [consolidate](https://brainmemory.ai/docs/commands/consolidate): Merge related weak memories into stronger combined memories.
+- [forget](https://brainmemory.ai/docs/commands/forget): Decay or archive memories that are no longer relevant.
+- [sunshine](https://brainmemory.ai/docs/commands/sunshine): Deep forensic erasure — trace and remove all references to a memory.
+- [sleep](https://brainmemory.ai/docs/commands/sleep): Full maintenance cycle: replay, synaptic homeostasis, consolidation, pruning, and REM dreaming.
+- [status](https://brainmemory.ai/docs/commands/status): Dashboard with brain health overview, memory counts, and strength distribution.
+- [skill](https://brainmemory.ai/docs/commands/skill): Manage procedural skills — reusable how-to workflows with progressive disclosure.
+- [sync](https://brainmemory.ai/docs/commands/sync): Sync memories via Git remote or export/import for cross-device portability.
 
 ## Advanced
 
-- [Scoring Formula](https://brainmemory.work/docs/advanced/scoring-formula): The v4 recall scoring formula: relevance, decayed strength, recency, spreading bonus, context match, and salience.
-- [Spaced Reinforcement](https://brainmemory.work/docs/advanced/spaced-reinforcement): How recall spacing affects strength boosts and decay rate improvements.
-- [Sleep Cycle](https://brainmemory.work/docs/advanced/sleep-cycle): Deep dive into the sleep maintenance cycle: replay, homeostasis, crystallization, and dreaming.
-- [Cross-Agent Sharing](https://brainmemory.work/docs/advanced/cross-agent): Share memories across Claude Code, Gemini CLI, and OpenAI Codex agents.
-- [Portable Sync](https://brainmemory.work/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
-- [Working Memory & Session Start](https://brainmemory.work/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
+- [Scoring Formula](https://brainmemory.ai/docs/advanced/scoring-formula): The v4 recall scoring formula: relevance, decayed strength, recency, spreading bonus, context match, and salience.
+- [Spaced Reinforcement](https://brainmemory.ai/docs/advanced/spaced-reinforcement): How recall spacing affects strength boosts and decay rate improvements.
+- [Sleep Cycle](https://brainmemory.ai/docs/advanced/sleep-cycle): Deep dive into the sleep maintenance cycle: replay, homeostasis, crystallization, and dreaming.
+- [Cross-Agent Sharing](https://brainmemory.ai/docs/advanced/cross-agent): Share memories across Claude Code, Gemini CLI, and OpenAI Codex agents.
+- [Portable Sync](https://brainmemory.ai/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
+- [Working Memory & Session Start](https://brainmemory.ai/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
 
 ## Reference
 
-- [File Structure](https://brainmemory.work/docs/reference/file-structure): Complete reference for the ~/.brain/ directory layout and file organization.
-- [Memory File Format](https://brainmemory.work/docs/reference/memory-format): YAML frontmatter schema and Markdown body format for memory files.
-- [Configuration](https://brainmemory.work/docs/reference/configuration): Configuration options for decay rates, scoring weights, and sync settings.
-- [Changelog](https://brainmemory.work/docs/reference/changelog): Release history and version notes for the Brain Memory plugin.
+- [File Structure](https://brainmemory.ai/docs/reference/file-structure): Complete reference for the ~/.brain/ directory layout and file organization.
+- [Memory File Format](https://brainmemory.ai/docs/reference/memory-format): YAML frontmatter schema and Markdown body format for memory files.
+- [Configuration](https://brainmemory.ai/docs/reference/configuration): Configuration options for decay rates, scoring weights, and sync settings.
+- [Changelog](https://brainmemory.ai/docs/reference/changelog): Release history and version notes for the Brain Memory plugin.
 
 ## Benchmarks
 
-- [Overview](https://brainmemory.work/docs/benchmarks): Controlled benchmark suite proving Brain Memory improves retrieval, contradiction handling, and token efficiency for AI coding agents.
-- [Methodology](https://brainmemory.work/docs/benchmarks/methodology): How retrieval is scored, why the judge is cross-family, distractor haystacks, and references to the 2025-2026 SOTA the design follows.
-- [Scenarios](https://brainmemory.work/docs/benchmarks/scenarios): The six benchmark scenarios — each describable in one sentence — with project fixtures, rubrics, and arm matrices.
-- [Results](https://brainmemory.work/docs/benchmarks/results): Current measurements from the benchmark suite, with raw JSON downloads.
+- [Overview](https://brainmemory.ai/docs/benchmarks): Controlled benchmark suite proving Brain Memory improves retrieval, contradiction handling, and token efficiency for AI coding agents.
+- [Methodology](https://brainmemory.ai/docs/benchmarks/methodology): How retrieval is scored, why the judge is cross-family, distractor haystacks, and references to the 2025-2026 SOTA the design follows.
+- [Scenarios](https://brainmemory.ai/docs/benchmarks/scenarios): The six benchmark scenarios — each describable in one sentence — with project fixtures, rubrics, and arm matrices.
+- [Results](https://brainmemory.ai/docs/benchmarks/results): Current measurements from the benchmark suite, with raw JSON downloads.
 
 ## Optional
 
 - [GitHub repository](https://github.com/omelas-tech/brain): source code and issues
 - [npm package](https://www.npmjs.com/package/brain-memory): install with `npm install -g brain-memory`
-- [Full documentation corpus](https://brainmemory.work/llms-full.txt): every page concatenated as plain text
+- [Full documentation corpus](https://brainmemory.ai/llms-full.txt): every page concatenated as plain text

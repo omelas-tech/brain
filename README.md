@@ -614,7 +614,7 @@ npm test               # Unit tests
 node harness/runner.js # Full benchmark (cloud APIs)
 ```
 
-Live methodology and per-scenario detail: [brainmemory.work/docs/benchmarks](https://brainmemory.work/docs/benchmarks) · Source: [`benchmark/`](benchmark/)
+Live methodology and per-scenario detail: [brainmemory.ai/docs/benchmarks](https://brainmemory.ai/docs/benchmarks) · Source: [`benchmark/`](benchmark/)
 
 ## Contributing
 

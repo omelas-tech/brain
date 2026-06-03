@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.21] - 2026-06-03
+
+### Changed
+
+- **Primary domain moved to `brainmemory.ai`.** The website, dashboard, and Brain Cloud API now live at `brainmemory.ai`, `app.brainmemory.ai`, and `api.brainmemory.ai`. The plugin's default sync endpoint (`DEFAULT_API_URL`) is now `https://api.brainmemory.ai`. The old `brainmemory.work` hosts remain as redirects — `api.brainmemory.work` issues a `308` to the new API, so existing installs keep syncing without changes.
+
 ## [0.1.0-beta.20] - 2026-05-31
 
 ### Fixed
