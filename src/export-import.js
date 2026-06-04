@@ -25,7 +25,7 @@ const EXCLUDED = new Set(['.sync', '.DS_Store']);
  */
 function exportBrain(brainDir, outputPath, passphrase) {
   if (!fs.existsSync(brainDir)) {
-    throw new Error('~/.brain/ directory not found. Run /brain:init first.');
+    throw new Error('~/.brain/ directory not found. Reinstall with `npx brain-memory`, or run /brain:sync to create it.');
   }
 
   const files = {};

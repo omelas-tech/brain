@@ -287,14 +287,14 @@ describe('installForRuntime (local scope)', () => {
 
     const commandsDir = path.join(tmpDir, '.gemini', 'commands', 'brain');
     assert.ok(fs.existsSync(commandsDir));
-    assert.ok(fs.existsSync(path.join(commandsDir, 'init.md')));
+    assert.ok(fs.existsSync(path.join(commandsDir, 'memorize.md')));
   });
 
   it('installs openai commands as skill directories', () => {
     installForRuntime('openai', 'local');
 
     const skillsDir = path.join(tmpDir, '.codex', 'skills');
-    assert.ok(fs.existsSync(path.join(skillsDir, 'brain-init', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(skillsDir, 'brain-remember', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md')));
   });
 
@@ -675,7 +675,7 @@ describe('uninstallForRuntime', () => {
   it('install then uninstall leaves no brain commands (openai skills, global)', () => {
     installForRuntime('openai', 'global');
     const skillsDir = path.join(tmpDir, 'global', '.codex', 'skills');
-    assert.ok(fs.existsSync(path.join(skillsDir, 'brain-init', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md')));
 
     uninstallForRuntime('openai', 'global');
 

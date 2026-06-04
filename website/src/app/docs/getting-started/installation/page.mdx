@@ -63,7 +63,7 @@ The installer copies two things to your agent's configuration directory:
 1. **Command prompts** — Slash command definitions (e.g., `/brain:memorize`, `/brain:remember`) that teach the agent how to use the memory system
 2. **Prompt section** — Instructions appended to your agent's main prompt file (`CLAUDE.md`, `GEMINI.md`, or `AGENTS.md`) that enable session lifecycle behavior (auto-loading memories at start, suggesting memorization at end)
 
-Your actual memories live in `~/.brain/` and are created when you first run `/brain:init`.
+Your actual memories live in `~/.brain/`, which the installer creates for you (it's also auto-created on your first `/brain:memorize` or `/brain:sync`).
 
 ## Manual Install
 

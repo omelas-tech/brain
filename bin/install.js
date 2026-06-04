@@ -148,19 +148,17 @@ async function runInstall(flags) {
   ✓ Installation complete!
 
   Available commands:
-    /brain:init          Initialize brain structure
-    /brain:memorize      Store a new memory
     /brain:remember      Recall relevant memories
-    /brain:review        Spaced repetition review session
-    /brain:explore       Browse the brain hierarchy
-    /brain:consolidate   Merge related memories
-    /brain:forget        Decay or remove memories
-    /brain:sunshine      Deep forensic memory erasure
-    /brain:sleep         Full maintenance cycle
+    /brain:memorize      Store a new memory
     /brain:status        Brain overview dashboard
-    /brain:sync          Sync memories via Git remote or export/import
+    /brain:pin           Pin (or unpin) a memory in the always-present tier
+    /brain:forget        Decay, archive, or forensically erase (--deep) memories
+    /brain:sync          Sync via Brain Cloud, Git remote, or export/import
+    /brain:skills        Manage procedural skills
+    /brain:sleep         Full maintenance cycle (usually automatic)
 
-  Get started by running /brain:init in your agent session.
+  Your brain is ready — recall and memorize happen automatically. Just start working,
+  or run /brain:status to see an overview.
     `);
   } finally {
     rl.close();

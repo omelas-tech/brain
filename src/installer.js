@@ -114,7 +114,11 @@ function detectInstallations() {
       let commandsFound = false;
       if (config.commandStyle === 'skills') {
         const skillsDir = path.join(targetDir, config.commandsSubdir);
-        commandsFound = fs.existsSync(path.join(skillsDir, 'brain-init', 'SKILL.md'));
+        commandsFound = fs.existsSync(skillsDir) &&
+          fs.readdirSync(skillsDir).some(
+            (d) => d.startsWith('brain-') &&
+              fs.existsSync(path.join(skillsDir, d, 'SKILL.md'))
+          );
       } else {
         const commandsDir = path.join(targetDir, config.commandsSubdir, 'brain');
         commandsFound = fs.existsSync(commandsDir) &&

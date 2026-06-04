@@ -11,7 +11,7 @@ export const metadata = docMeta("/docs/reference/configuration", {
 
 # Configuration
 
-Brain configuration lives in `~/.brain/index.json` under the `config` key. All settings have sensible defaults set during `/brain:init`.
+Brain configuration lives in `~/.brain/index.json` under the `config` key. All settings have sensible defaults set when the brain is created (at install, or on first sync).
 
 ## Full Configuration
 
@@ -43,7 +43,7 @@ Brain configuration lives in `~/.brain/index.json` under the `config` key. All s
 | `consolidation_threshold` | float | 0.3 | Strength below which memories become candidates for consolidation. Lower values wait longer before consolidating. |
 | `decay_check_interval_days` | integer | 7 | How often (in days) to suggest decay maintenance. The agent will remind you to run `/brain:sleep` after this many days. |
 | `strength_boost_on_recall` | float | 0.05 | Base strength increase per recall event, before spacing and diminishing adjustments are applied. |
-| `auto_consolidate` | boolean | true | Whether to suggest consolidation when candidates are found during recall. Set to false to only consolidate via explicit `/brain:consolidate` or `/brain:sleep`. |
+| `auto_consolidate` | boolean | true | Whether to suggest consolidation when candidates are found during recall. Set to false to only consolidate via `/brain:sleep`. |
 | `propagation_window_days` | integer | 7 | How far back (in days) to look for recent memories during Knowledge Propagation in sleep. Recent memories within this window are evaluated against the existing hierarchy. |
 
 ## Association Config

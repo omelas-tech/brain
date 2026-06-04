@@ -106,12 +106,13 @@ export const docPages = [
     order: 7,
   },
 
-  // Commands
+  // Commands — the everyday loop (remember/memorize) is ambient; the rest is a
+  // small manual surface plus a background maintenance job.
   {
-    title: "init",
+    title: "remember",
     description:
-      "Initialize the ~/.brain/ directory structure and default configuration.",
-    href: "/docs/commands/init",
+      "Recall relevant memories using spreading activation and context-dependent scoring.",
+    href: "/docs/commands/remember",
     category: "Commands",
     order: 0,
   },
@@ -124,81 +125,36 @@ export const docPages = [
     order: 1,
   },
   {
-    title: "remember",
+    title: "status",
     description:
-      "Recall relevant memories using spreading activation and context-dependent scoring.",
-    href: "/docs/commands/remember",
+      "Dashboard with brain health overview, memory counts, and strength distribution.",
+    href: "/docs/commands/status",
     category: "Commands",
     order: 2,
   },
   {
     title: "pin",
     description:
-      "Pin a memory to the always-present tier — loaded every session, never decaying.",
+      "Pin a memory to the always-present tier — loaded every session, never decaying. Toggles: also unpins.",
     href: "/docs/commands/pin",
     category: "Commands",
     order: 3,
   },
   {
-    title: "unpin",
+    title: "forget",
     description:
-      "Remove a memory from the always-present tier, returning it to normal recall and decay.",
-    href: "/docs/commands/unpin",
+      "Decay or archive memories. With --deep, performs forensic erasure — traces and removes every reference.",
+    href: "/docs/commands/forget",
     category: "Commands",
     order: 4,
   },
   {
-    title: "review",
+    title: "sync",
     description:
-      "Spaced repetition review session for memories due for reinforcement.",
-    href: "/docs/commands/review",
+      "Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run).",
+    href: "/docs/commands/sync",
     category: "Commands",
     order: 5,
-  },
-  {
-    title: "explore",
-    description: "Browse the brain hierarchy and discover memories by category.",
-    href: "/docs/commands/explore",
-    category: "Commands",
-    order: 6,
-  },
-  {
-    title: "consolidate",
-    description: "Merge related weak memories into stronger combined memories.",
-    href: "/docs/commands/consolidate",
-    category: "Commands",
-    order: 7,
-  },
-  {
-    title: "forget",
-    description: "Decay or archive memories that are no longer relevant.",
-    href: "/docs/commands/forget",
-    category: "Commands",
-    order: 8,
-  },
-  {
-    title: "sunshine",
-    description:
-      "Deep forensic erasure — trace and remove all references to a memory.",
-    href: "/docs/commands/sunshine",
-    category: "Commands",
-    order: 9,
-  },
-  {
-    title: "sleep",
-    description:
-      "Full maintenance cycle: replay, synaptic homeostasis, consolidation, pruning, and REM dreaming.",
-    href: "/docs/commands/sleep",
-    category: "Commands",
-    order: 10,
-  },
-  {
-    title: "status",
-    description:
-      "Dashboard with brain health overview, memory counts, and strength distribution.",
-    href: "/docs/commands/status",
-    category: "Commands",
-    order: 11,
   },
   {
     title: "skill",
@@ -206,15 +162,15 @@ export const docPages = [
       "Manage procedural skills — reusable how-to workflows with progressive disclosure.",
     href: "/docs/commands/skill",
     category: "Commands",
-    order: 12,
+    order: 6,
   },
   {
-    title: "sync",
+    title: "sleep",
     description:
-      "Sync memories via Git remote or export/import for cross-device portability.",
-    href: "/docs/commands/sync",
+      "Full maintenance cycle: replay, homeostasis, consolidation, review reinforcement, pruning, and REM dreaming. Usually runs in the background.",
+    href: "/docs/commands/sleep",
     category: "Commands",
-    order: 13,
+    order: 7,
   },
 
   // Advanced

@@ -28,13 +28,13 @@ Salience captures how emotionally or motivationally significant a memory is. Hig
 
 ### Protection From Pruning
 
-Memories with salience **>= 0.7** are **never auto-pruned**. Even if their strength decays below the archive threshold (0.1), they will not be moved to `_archived/` during the [sleep cycle](/docs/advanced/sleep-cycle/). They must be explicitly removed via `/brain:forget` or `/brain:sunshine`.
+Memories with salience **>= 0.7** are **never auto-pruned**. Even if their strength decays below the archive threshold (0.1), they will not be moved to `_archived/` during the [sleep cycle](/docs/advanced/sleep-cycle/). They must be explicitly removed via `/brain:forget` (or `/brain:forget --deep` for full forensic erasure).
 
 This models how emotionally significant memories persist in the human brain long after neutral memories fade.
 
 ### Consolidation Anchoring
 
-During [consolidation](/docs/commands/consolidate/), the memory with the highest salience in a group serves as the **anchor**. Its framing, key details, and perspective take priority in the synthesized result. Lower-salience memories in the group contribute supplementary details.
+During [consolidation](/docs/commands/sleep/) (a phase of the sleep cycle), the memory with the highest salience in a group serves as the **anchor**. Its framing, key details, and perspective take priority in the synthesized result. Lower-salience memories in the group contribute supplementary details.
 
 ### Scoring Impact
 
@@ -115,5 +115,5 @@ These two dimensions are independent:
 | Low salience, low confidence | Uncertain and unimportant | A casual observation about a library version |
 
 <Callout type="tip">
-  If you notice the brain status showing frequently-used memories with low confidence, run `/brain:review` to evaluate and either verify or discard them.
+  If you notice the brain status showing frequently-used memories with low confidence, review and either verify or discard them — the `/brain:sleep` cycle also surfaces these for reinforcement.
 </Callout>

@@ -14,6 +14,32 @@ You are managing synchronization for the Brain Memory system. This enables manua
 - Push operations execute immediately (no confirmation) — the user said "push"
 - Pull/import operations warn before overwriting local data
 
+## First run — auto-initialize if missing
+
+The installer normally creates `~/.brain/` at install time. If `~/.brain/index.json` is
+**missing** when any sync subcommand runs, create the standard structure first (no separate
+init command is needed), then continue:
+
+```
+~/.brain/
+├── index.json          # { version: 2, memory_count: 0, memories: {}, config: {…} }
+├── associations.json   # { version: 1, edges: {} }
+├── contexts.json       # { version: 1, sessions: [] }
+├── review-queue.json   # { version: 1, items: [] }
+├── professional/_meta.json
+├── personal/_meta.json
+├── social/_meta.json
+├── family/_meta.json
+├── _consolidated/_meta.json
+└── _archived/index.json   # { version: 1, archived_count: 0, memories: {} }
+```
+
+Each `_meta.json` is `{ "category": "<name>", "description": "<from defaults>", "created":
+"<ISO>", "memory_count": 0, "subcategories": [] }`. The `index.json` `config` block carries the
+standard decay/association defaults (max_depth 6, consolidation_threshold 0.3, association_config
+with spreading-activation depth 2, etc.). After creating the structure, proceed with the
+requested subcommand.
+
 ## Subcommands
 
 Parse the user's input to determine the subcommand:
@@ -172,7 +198,7 @@ Then return — do not attempt the push.
 ### Steps
 
 1. **Check prerequisites:**
-   - Verify `~/.brain/` exists. If not, suggest `/brain:init` first.
+   - Verify `~/.brain/` exists. If not, auto-initialize it first (see "First run" above).
    - Verify `git` is available (`checkGitAvailable()` from `src/git-sync.js`).
    - Check if sync is already configured (`~/.brain/.sync/config.json`). If so, ask if they want to reconfigure.
 

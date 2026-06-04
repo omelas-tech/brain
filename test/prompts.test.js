@@ -133,10 +133,10 @@ describe('Prompt source files — session lifecycle sections', () => {
         );
       });
 
-      it('contains review command with correct prefix', () => {
+      it('contains memorize command with correct prefix', () => {
         assert.ok(
-          content.includes(`${prefix}review`),
-          `${file} should reference ${prefix}review in session start`
+          content.includes(`${prefix}memorize`),
+          `${file} should reference ${prefix}memorize`
         );
       });
 
@@ -181,12 +181,12 @@ describe('Prompt content consistency across runtimes', () => {
     const openai = readPrompt('openai.md');
 
     // Claude and Gemini use /brain: prefix
-    assert.ok(claude.includes('/brain:init'));
-    assert.ok(gemini.includes('/brain:init'));
+    assert.ok(claude.includes('/brain:memorize'));
+    assert.ok(gemini.includes('/brain:memorize'));
 
     // OpenAI uses /brain- prefix
-    assert.ok(openai.includes('/brain-init'));
-    assert.ok(!openai.includes('/brain:init'));
+    assert.ok(openai.includes('/brain-memorize'));
+    assert.ok(!openai.includes('/brain:memorize'));
   });
 });
 
@@ -242,7 +242,7 @@ describe('Integration: install + init round-trip', () => {
     // Commands copied
     const commandsDir = path.join(tmpDir, '.claude', 'commands', 'brain');
     const commands = fs.readdirSync(commandsDir).filter((f) => f.endsWith('.md'));
-    assert.ok(commands.length >= 11, `Expected >= 11 commands, got ${commands.length}`);
+    assert.ok(commands.length >= 8, `Expected >= 8 commands, got ${commands.length}`);
     assert.ok(commands.includes('memorize.md'));
     assert.ok(commands.includes('remember.md'));
     assert.ok(commands.includes('sleep.md'));
@@ -255,8 +255,8 @@ describe('Integration: install + init round-trip', () => {
 
     const skillsDir = path.join(tmpDir, '.codex', 'skills');
     const skills = fs.readdirSync(skillsDir);
-    assert.ok(skills.length >= 11, `Expected >= 11 skills, got ${skills.length}`);
-    assert.ok(skills.includes('brain-init'));
+    assert.ok(skills.length >= 8, `Expected >= 8 skills, got ${skills.length}`);
+    assert.ok(skills.includes('brain-remember'));
     assert.ok(skills.includes('brain-memorize'));
     assert.ok(skills.includes('brain-sync'));
 

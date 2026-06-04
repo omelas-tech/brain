@@ -30,14 +30,18 @@ Get Brain Memory working in under five minutes. This guide walks you through ins
     ```
   </Step>
 
-  <Step title="Initialize your brain">
-    Open a new session with your AI agent and run:
+  <Step title="Confirm your brain is ready">
+    The installer already created your `~/.brain/` directory — the structure with default
+    categories (`professional/`, `personal/`, `social/`, `family/`) plus `index.json`,
+    `associations.json`, and other supporting files. Open a new session with your AI agent and
+    confirm it's active:
 
     ```
-    /brain:init
+    /brain:status
     ```
 
-    This creates the `~/.brain/` directory structure with default categories (`professional/`, `personal/`, `social/`, `family/`) and sets up `index.json`, `associations.json`, and other supporting files.
+    (If `~/.brain/` is ever missing, it's recreated automatically on your first
+    `/brain:memorize` or `/brain:sync`.)
   </Step>
 
   <Step title="Memorize something">

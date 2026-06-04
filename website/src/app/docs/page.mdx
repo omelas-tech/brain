@@ -82,7 +82,7 @@ Create → Store → Decay → Recall → Reinforce → Review → Sleep → Arc
 3. **Decay** — Memories naturally weaken over time via exponential decay
 4. **Recall** — `/brain:remember` searches, scores with spreading activation and context matching, and returns the best matches
 5. **Reinforce** — Each recall applies spaced reinforcement and improves decay resistance
-6. **Review** — `/brain:review` implements SM-2 spaced repetition for long-term retention
+6. **Review** — SM-2 spaced repetition reinforces due memories automatically during the sleep cycle
 7. **Sleep** — `/brain:sleep` performs a 9-phase maintenance cycle inspired by real neuroscience
 8. **Archive** — Fully decayed memories move to `_archived/` where they remain recoverable and searchable
 
@@ -96,16 +96,15 @@ Ready to give your AI agent a brain? Head to [Installation](/docs/getting-starte
 
 ## Commands at a Glance
 
+The everyday loop — `remember` and `memorize` — runs automatically; you rarely type a command.
+
 | Command | Description |
 |---------|-------------|
-| `/brain:init` | Initialize the `~/.brain/` directory structure |
-| `/brain:memorize` | Store memories from current session |
 | `/brain:remember` | Recall relevant memories |
-| `/brain:review` | Spaced repetition review session |
-| `/brain:explore` | Browse the brain hierarchy |
-| `/brain:consolidate` | Merge weak related memories |
-| `/brain:forget` | Decay, archive, or remove memories |
-| `/brain:sunshine` | Deep forensic erasure |
-| `/brain:sleep` | 9-phase maintenance cycle |
+| `/brain:memorize` | Store memories from current session |
 | `/brain:status` | Brain health dashboard |
-| `/brain:sync` | Sync across devices |
+| `/brain:pin` | Pin (or unpin) a memory in the always-present tier |
+| `/brain:forget` | Decay, archive, or forensically erase (`--deep`) memories |
+| `/brain:sync` | Sync across devices (auto-initializes on first run) |
+| `/brain:skills` | Manage procedural skills |
+| `/brain:sleep` | 9-phase maintenance cycle (usually automatic) |

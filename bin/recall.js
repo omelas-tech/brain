@@ -43,7 +43,7 @@ function main() {
   const brainDir = getBrainDir();
 
   if (!fs.existsSync(path.join(brainDir, 'index.json'))) {
-    console.error(JSON.stringify({ error: 'Brain not initialized. Run /brain:init first.' }));
+    console.error(JSON.stringify({ error: 'Brain not initialized. Reinstall with `npx brain-memory`, or run /brain:sync to create it.' }));
     process.exit(1);
   }
 

@@ -32,7 +32,7 @@ Read `.brain/review-queue.json` if it exists. If there are memories due for revi
 
 ```
 🧠 Brain active — <N> memories loaded (<M> in current project context)
-📋 <X> memories due for review — run /brain:review
+📋 <X> memories due for review — reinforced automatically during /brain:sleep
 ```
 
 Otherwise:

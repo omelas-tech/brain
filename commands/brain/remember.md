@@ -63,7 +63,7 @@ List the top 5-7 memories with titles, paths, types, and scores.
 Ask the user which ones they'd like to explore in detail.
 
 **Case D — No matches:**
-Search `~/.brain/_archived/` via the archive index. If archived matches found, present them and offer to restore. Otherwise suggest different keywords or `/brain:explore`.
+Search `~/.brain/_archived/` via the archive index. If archived matches found, present them and offer to restore. Otherwise suggest different keywords, or browsing the memory tree directly under `~/.brain/`.
 
 ### 5. Reinforce Retrieved Memories
 

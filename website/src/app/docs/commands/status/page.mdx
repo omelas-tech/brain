@@ -108,8 +108,8 @@ Agent: 🧠 Brain Status Dashboard
   PostgreSQL:          Awareness (0.28) ███░░░░░░░
 
 💡 Recommendations
-  • 5 memories are due for review — run /brain:review
-  • 6 weak memories could be consolidated — run /brain:consolidate
+  • 5 memories are due for review — reinforced on next /brain:sleep
+  • 6 weak memories could be consolidated — run /brain:sleep
   • 2 fading memories will be archived on next sleep
   • 2 orphaned memories have no associations — consider linking them
   • Last sleep: 8 days ago — consider running /brain:sleep
@@ -121,8 +121,8 @@ The status dashboard uses these indicators to flag concerns:
 
 | Indicator | Trigger | Recommendation |
 |---|---|---|
-| Memories due for review | Review queue has due items | Run `/brain:review` |
-| Weak memories accumulating | More than 5 memories below 0.3 | Run `/brain:consolidate` |
+| Memories due for review | Review queue has due items | Run `/brain:sleep` (reinforces due memories) |
+| Weak memories accumulating | More than 5 memories below 0.3 | Run `/brain:sleep` (consolidates them) |
 | Stale brain | Last sleep more than 7 days ago | Run `/brain:sleep` |
 | Orphaned memories | Memories with no association links | Recall related memories together to build links |
 | Low-confidence frequent memories | access_count >= 3 and confidence < 0.5 | Verify and update confidence |

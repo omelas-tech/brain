@@ -119,22 +119,18 @@ Then append the contents of the corresponding prompt file to your agent's instru
 
 ## Commands
 
+The everyday loop is **ambient** — `remember` and `memorize` run automatically at session start/end, so you rarely type a command. The surface is a small core plus a background maintenance job:
+
 | Command | Description |
 |---------|-------------|
-| `/brain:init` | Initialize `~/.brain/` directory structure with default categories |
-| `/brain:memorize [topic] [--sync]` | Store memories from current session context (add `--sync` to auto-push) |
 | `/brain:remember [query]` | Recall relevant memories with spreading activation and context matching |
-| `/brain:pin [id\|query]` | Pin a memory to the always-present tier — loads every session, never decays |
-| `/brain:unpin [id\|query]` | Remove a memory from the always-present tier |
-| `/brain:review [scope]` | Spaced repetition review session for due memories |
-| `/brain:explore [category]` | Browse the brain hierarchy with visual tree view |
-| `/brain:consolidate [scope]` | Merge related weak memories into stronger combined ones |
-| `/brain:forget [target]` | Decay, archive, or remove memories |
-| `/brain:sunshine [target]` | Deep forensic erasure — trace and remove all references |
-| `/brain:sleep [scope]` | Full maintenance cycle — 9 neuroscience-inspired phases |
+| `/brain:memorize [topic] [--sync]` | Store memories from current session context (add `--sync` to auto-push) |
 | `/brain:status` | Dashboard with brain health metrics and recommendations |
+| `/brain:pin [id\|query]` | Pin a memory to the always-present tier — loads every session, never decays. Toggles: also unpins (`--off`) |
+| `/brain:forget [target]` | Decay, archive, or remove memories. `--deep` performs forensic erasure — traces and removes every reference |
+| `/brain:sync [subcommand]` | Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run) |
 | `/brain:skills [list\|show\|add\|use\|remove\|export]` | Manage procedural skills — reusable how-to workflows with progressive disclosure |
-| `/brain:sync [subcommand]` | Sync memories via Git remote or export/import for portability |
+| `/brain:sleep [scope]` | Full maintenance cycle — 9 neuroscience-inspired phases (replay, consolidation, review reinforcement, pruning, dreaming, …). Usually runs automatically/in the background |
 
 ## Session Lifecycle
 
@@ -151,7 +147,7 @@ When a session begins and `~/.brain/` exists, the agent makes a single `brain se
 
 ```
 🧠 Brain active — 42 memories loaded (8 in current project context)
-📋 3 memories due for review — run /brain:review
+📋 3 memories due for review — reinforced automatically during /brain:sleep
 ```
 
 The agent treats pinned facts as active constraints, notes which skills exist, silently internalizes relevant memories, and references them naturally during the session — no information dump.
@@ -201,8 +197,8 @@ Create → Store → Decay → Recall → Reinforce → Review → Sleep → Arc
 3. **Decay** — Memories naturally weaken over time: `effective_strength = base_strength * (decay_rate ^ days_since_access)`
 4. **Recall** — `/brain:remember` searches, scores with spreading activation and context matching, and returns the best memories. Archived memories are searched as a fallback.
 5. **Reinforce** — Each recall applies spaced reinforcement (longer gaps = bigger boosts) and improves the memory's decay resistance
-6. **Review** — `/brain:review` implements SM-2 spaced repetition, surfacing memories at optimal intervals for long-term retention
-7. **Sleep** — `/brain:sleep` performs a 9-phase maintenance cycle inspired by real neuroscience
+6. **Review** — SM-2 spaced repetition surfaces memories at optimal intervals for long-term retention; reinforcement runs automatically during the sleep cycle
+7. **Sleep** — `/brain:sleep` performs a 9-phase maintenance cycle inspired by real neuroscience (replay, consolidation, review reinforcement, pruning, dreaming, …), usually run automatically/in the background
 8. **Archive** — Fully decayed memories move to `_archived/` (recoverable and searchable) or can be permanently deleted
 
 ### Neuroscience Foundations
@@ -440,7 +436,7 @@ Each expertise area gets an `_expertise.md` profile documenting what you know we
 
 ### Spaced Repetition Review
 
-`/brain:review` implements the SM-2 algorithm to surface memories at optimal intervals for long-term retention. The review queue is generated during sleep and tracks:
+Brain Memory implements the SM-2 algorithm to surface memories at optimal intervals for long-term retention. The review queue is generated and reinforced during `/brain:sleep`, and tracks:
 
 - **Interval** — Time until next review (grows exponentially with successful recalls)
 - **Ease factor** — How easily the memory is recalled (adjusts based on recall quality 1-5)

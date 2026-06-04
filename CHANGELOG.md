@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+
+- **Command surface collapsed to a six-verb core.** The everyday loop is ambient (recall + memorize), with a small manual surface and maintenance demoted to the background. Removed/merged six commands: `consolidate` and `review` are now handled by `/brain:sleep`; `unpin` is folded into `/brain:pin` (a toggle — `--off` unpins); `sunshine` (forensic erasure) is now `/brain:forget --deep`; `explore` is dropped (browse `~/.brain/` directly or use the web dashboard); and `init` is folded into install + first `/brain:sync` (which auto-creates the structure if missing). The surviving commands are `remember`, `memorize`, `status`, `pin`, `forget`, `sync`, `skills`, and `sleep`. This aligns the plugin with the forthcoming Claude connector, which exposes the same minimal tool set.
+
+### Fixed
+
+- **Install detection no longer depends on a specific command.** The Codex/OpenAI skills-style detector keyed off `brain-init/SKILL.md`; it now matches any `brain-*` skill directory, so detection survives command-set changes.
+
 ## [0.1.0-beta.21] - 2026-06-03
 
 ### Changed

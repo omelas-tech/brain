@@ -72,7 +72,7 @@ brain pin <id> --scope global --priority 1   # pin a memory
 brain unpin <id>                              # remove it from the tier
 ```
 
-Or use the slash commands [`/brain:pin`](/docs/commands/pin/) and [`/brain:unpin`](/docs/commands/unpin/), which resolve a memory by query and confirm before pinning. [`/brain:memorize`](/docs/commands/memorize/) also proactively proposes pinning when it stores a durable convention.
+Or use the slash command [`/brain:pin`](/docs/commands/pin/) — a toggle that resolves a memory by query and confirms before pinning, and unpins when run with `--off`. [`/brain:memorize`](/docs/commands/memorize/) also proactively proposes pinning when it stores a durable convention.
 
 <Callout type="tip">
   Unpinning returns a memory to normal recall + decay but leaves an independent `stable` flag untouched. If you want a fact to stop loading every session but still never fade, unpin it while keeping `stable: true`.

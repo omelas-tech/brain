@@ -82,17 +82,17 @@ from automatic pruning because it was marked as emotionally/motivationally
 significant. Are you sure you want to forget it?
 ```
 
-## Forgetting vs. Sunshine
+## Standard forget vs. `--deep` (forensic erasure)
 
-`/brain:forget` handles a single memory. If you need to erase all traces of a topic — including references in other memories, association links, and index entries — use [`/brain:sunshine`](/docs/commands/sunshine/) instead.
+By default `/brain:forget` handles a single memory. If you need to erase all traces of a topic — including references in other memories, association links, and index entries — add the `--deep` flag for **forensic erasure**.
 
-| Feature | `/brain:forget` | `/brain:sunshine` |
+| Feature | `/brain:forget` | `/brain:forget --deep` |
 |---|---|---|
 | Scope | Single memory | All traces of a topic |
 | Association cleanup | Deactivates links to target | Traces and removes all references |
 | Other memories | Unchanged | References in other memories are edited |
 | Index cleanup | Removes target entry | Removes all related entries |
-| Use case | Outdated single memory | Complete topic erasure |
+| Use case | Outdated single memory | Complete topic erasure (e.g. leaked secrets) |
 
 <Callout type="warning">
   The "Remove" option permanently deletes the memory file. If your `~/.brain/` is not tracked by Git, this cannot be undone. Consider using "Archive" instead — archived memories can always be recovered.

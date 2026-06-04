@@ -23,20 +23,14 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 
 ## Commands
 
-- [init](https://brainmemory.ai/docs/commands/init): Initialize the ~/.brain/ directory structure and default configuration.
-- [memorize](https://brainmemory.ai/docs/commands/memorize): Store new memories from the current session context with automatic categorization.
 - [remember](https://brainmemory.ai/docs/commands/remember): Recall relevant memories using spreading activation and context-dependent scoring.
-- [pin](https://brainmemory.ai/docs/commands/pin): Pin a memory to the always-present tier — loaded every session, never decaying.
-- [unpin](https://brainmemory.ai/docs/commands/unpin): Remove a memory from the always-present tier, returning it to normal recall and decay.
-- [review](https://brainmemory.ai/docs/commands/review): Spaced repetition review session for memories due for reinforcement.
-- [explore](https://brainmemory.ai/docs/commands/explore): Browse the brain hierarchy and discover memories by category.
-- [consolidate](https://brainmemory.ai/docs/commands/consolidate): Merge related weak memories into stronger combined memories.
-- [forget](https://brainmemory.ai/docs/commands/forget): Decay or archive memories that are no longer relevant.
-- [sunshine](https://brainmemory.ai/docs/commands/sunshine): Deep forensic erasure — trace and remove all references to a memory.
-- [sleep](https://brainmemory.ai/docs/commands/sleep): Full maintenance cycle: replay, synaptic homeostasis, consolidation, pruning, and REM dreaming.
+- [memorize](https://brainmemory.ai/docs/commands/memorize): Store new memories from the current session context with automatic categorization.
 - [status](https://brainmemory.ai/docs/commands/status): Dashboard with brain health overview, memory counts, and strength distribution.
+- [pin](https://brainmemory.ai/docs/commands/pin): Pin a memory to the always-present tier — loaded every session, never decaying. Toggles: also unpins.
+- [forget](https://brainmemory.ai/docs/commands/forget): Decay or archive memories. With --deep, performs forensic erasure — traces and removes every reference.
+- [sync](https://brainmemory.ai/docs/commands/sync): Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run).
 - [skill](https://brainmemory.ai/docs/commands/skill): Manage procedural skills — reusable how-to workflows with progressive disclosure.
-- [sync](https://brainmemory.ai/docs/commands/sync): Sync memories via Git remote or export/import for cross-device portability.
+- [sleep](https://brainmemory.ai/docs/commands/sleep): Full maintenance cycle: replay, homeostasis, consolidation, review reinforcement, pruning, and REM dreaming. Usually runs in the background.
 
 ## Advanced
 

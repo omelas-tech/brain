@@ -10,7 +10,7 @@ You are displaying a comprehensive overview of the Brain Memory system's current
 
 ### 1. Read Brain State
 
-Read `~/.brain/index.json` to get the full memory inventory. If `~/.brain/` doesn't exist, inform the user and suggest running `/brain:init`.
+Read `~/.brain/index.json` to get the full memory inventory. If `~/.brain/` doesn't exist, inform the user — it is created automatically by the installer, or on the first `/brain:memorize` or `/brain:sync`.
 
 Also read (if they exist):
 - `~/.brain/associations.json` — for association network stats
@@ -97,13 +97,13 @@ Calculate aggregate stats:
 
 ## Fading Memories (decayed strength < 0.3)
   ⚠ <count> memories below consolidation threshold
-  Run /brain:consolidate to preserve them
+  Run /brain:sleep to consolidate and preserve them
 
 ## Review Queue
   📋 Due now: <count> memories
   📋 Due this week: <count> memories
   📋 Total in queue: <count> memories
-  Run /brain:review to start a review session
+  Due memories are reinforced automatically during /brain:sleep
 
 ## Recent Memories (Last 7 days)
   + <title> (<path>) — <date>
@@ -124,13 +124,13 @@ Calculate aggregate stats:
 Analyze the brain's health and provide recommendations:
 
 - **"Healthy"** — Good distribution across categories, strong average strength
-- **"Needs consolidation"** — Many memories below threshold, suggest `/brain:consolidate`
+- **"Needs consolidation"** — Many memories below threshold, suggest `/brain:sleep`
 - **"Imbalanced"** — One category dominates, suggest diversifying
 - **"Stale"** — No new memories in 14+ days, suggest `/brain:memorize`
 - **"Overloaded"** — More than 200 active memories, suggest pruning with `/brain:forget --prune`
 - **"Needs propagation"** — Recent memories exist alongside older related memories that haven't been updated. Suggest `/brain:sleep`
 - **"Needs sleep"** — Multiple flat clusters detected, OR many memories in moderate/weak tiers, OR no `_expertise.md` profiles exist despite having 10+ memories. Suggest `/brain:sleep`
 - **"Low confidence"** — More than 30% of memories have confidence < 0.5. Suggest reviewing and validating uncertain memories.
-- **"Review overdue"** — More than 10 memories are past their review date. Suggest `/brain:review`
+- **"Review overdue"** — More than 10 memories are past their review date. Suggest `/brain:sleep` (its replay pass reinforces them)
 - **"Sync available"** — Git sync is not configured. Suggest `/brain:sync setup` for cross-device access.
 - **"Sync stale"** — Last push was more than 7 days ago. Suggest `/brain:sync push`.

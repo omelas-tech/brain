@@ -49,20 +49,21 @@ Memories store their encoding context (project, topics, task type). During recal
 ## Available Commands
 
 Brain skills are available via `/brain-` prefix:
-- `/brain-init` — Initialize the brain structure
-- `/brain-memorize [topic]` — Store memories from current context
+The everyday loop is **ambient** — `remember` and `memorize` run automatically at session start/end; you rarely type them.
+
+Core:
 - `/brain-remember [query]` — Recall relevant memories with spreading activation and context matching
-- `/brain-review [scope]` — Spaced repetition review session for due memories
-- `/brain-explore [category]` — Browse the brain hierarchy
-- `/brain-consolidate [scope]` — Merge related weak memories into stronger ones
-- `/brain-forget [target]` — Decay or archive memories
-- `/brain-sunshine [target]` — Deep forensic erasure — trace and remove all references to a memory
-- `/brain-sleep [scope]` — Full maintenance cycle: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, reorganize, consolidate, prune, REM dreaming, and expertise detection
+- `/brain-memorize [topic]` — Store memories from the current context
 - `/brain-status` — Dashboard with brain health overview
-- `/brain-sync [subcommand]` — Sync memories via Git remote or export/import for portability
-- `/brain-pin [id|query]` — Pin a memory to the always-present tier (CoALA Phase 1)
-- `/brain-unpin [id|query]` — Remove a memory from the always-present tier
-- `/brain-skill [list|show|add|use|remove|export]` — Manage procedural skills (CoALA Phase 2)
+- `/brain-pin [id|query]` — Pin a memory to the always-present tier (toggle — also unpins, e.g. `--off`)
+- `/brain-forget [target]` — Decay or archive memories (`--deep` = forensic erasure of every reference)
+
+Sync & skills:
+- `/brain-sync [subcommand]` — Sync via Brain Cloud, Git remote, or export/import (auto-initializes on first run)
+- `/brain-skill [list|show|add|use|remove|export]` — Manage procedural skills
+
+Maintenance (usually automatic — runs in the background):
+- `/brain-sleep [scope]` — Full maintenance cycle: replay, homeostasis, propagation, crystallization, reorganize, consolidate, prune, review reinforcement, REM dreaming, expertise detection
 
 ## Session Start Behavior
 

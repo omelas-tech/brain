@@ -555,7 +555,7 @@ After all phases complete, present a comprehensive sleep report:
 <creative associations from Phase 8>
 
 ### Memories Due for Review
-<count> memories due within the next 7 days — run /brain:review
+<count> memories due within the next 7 days — reinforced during this and future sleep cycles
 
 ### Recommendations
 - <actionable suggestions based on what sleep revealed>
