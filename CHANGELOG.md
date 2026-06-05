@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.23] - 2026-06-05
+
 ### Changed
 
 - **Command surface collapsed to a six-verb core.** The everyday loop is ambient (recall + memorize), with a small manual surface and maintenance demoted to the background. Removed/merged six commands: `consolidate` and `review` are now handled by `/brain:sleep`; `unpin` is folded into `/brain:pin` (a toggle — `--off` unpins); `sunshine` (forensic erasure) is now `/brain:forget --deep`; `explore` is dropped (browse `~/.brain/` directly or use the web dashboard); and `init` is folded into install + first `/brain:sync` (which auto-creates the structure if missing). The surviving commands are `remember`, `memorize`, `status`, `pin`, `forget`, `sync`, `skills`, and `sleep`. This aligns the plugin with the forthcoming Claude connector, which exposes the same minimal tool set.

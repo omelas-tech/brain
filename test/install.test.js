@@ -478,6 +478,21 @@ describe('detectInstallations', () => {
     assert.ok(openai.commandsFound);
   });
 
+  it('detects a skills install without depending on any specific command (no brain-init)', () => {
+    // Regression guard: detection once keyed off `brain-init/SKILL.md`, which
+    // silently broke when `init` was removed in the six-verb refactor. Detection
+    // must match ANY brain-* skill. Build a skills dir with no brain-init.
+    const skillsDir = path.join(tmpDir, '.codex', 'skills');
+    fs.mkdirSync(path.join(skillsDir, 'brain-memorize'), { recursive: true });
+    fs.writeFileSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md'), '# Memorize');
+    fs.mkdirSync(path.join(skillsDir, 'brain-status'), { recursive: true });
+    fs.writeFileSync(path.join(skillsDir, 'brain-status', 'SKILL.md'), '# Status');
+
+    const openai = detectInstallations().find((r) => r.runtime === 'openai' && r.scope === 'local');
+    assert.ok(openai, 'Should detect openai skills install with no brain-init present');
+    assert.ok(openai.commandsFound, 'commandsFound must not require a specific command');
+  });
+
   it('detects partial installation (commands only, no prompt in global)', () => {
     // Create commands in global dir but no prompt file
     const commandsDir = path.join(tmpDir, 'global', '.claude', 'commands', 'brain');

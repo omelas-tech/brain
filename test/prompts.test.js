@@ -146,6 +146,22 @@ describe('Prompt source files — session lifecycle sections', () => {
           `${file} missing recall engine reference`
         );
       });
+
+      it('lists the six-verb core and omits every removed command', () => {
+        // The refactor's intent, asserted directly: the survivors are advertised
+        // and the six removed/folded commands no longer appear AS COMMANDS.
+        // (Bare words like "consolidate"/"review" still appear in the sleep
+        // description; we only forbid the `${prefix}<cmd>` command form.)
+        for (const cmd of ['remember', 'memorize', 'status', 'pin', 'forget', 'sync', 'sleep']) {
+          assert.ok(content.includes(`${prefix}${cmd}`), `${file} should advertise ${prefix}${cmd}`);
+        }
+        for (const removed of ['init', 'explore', 'consolidate', 'review', 'sunshine', 'unpin']) {
+          assert.ok(
+            !content.includes(`${prefix}${removed}`),
+            `${file} must not reference removed command ${prefix}${removed}`
+          );
+        }
+      });
     });
   }
 });

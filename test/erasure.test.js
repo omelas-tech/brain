@@ -1,3 +1,7 @@
+// Coverage for the reference-erasure helpers in index-manager
+// (removeEdgesForMemory, removeFromReviewQueue, …). These power the deep
+// forensic-erasure path now exposed as `/brain:forget --deep` (formerly the
+// standalone `/brain:sunshine` command, removed in the six-verb refactor).
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
