@@ -16,6 +16,11 @@ import os from "node:os";
 import type { Express, Request, Response } from "express";
 
 import { issueToken } from "./auth.js";
+import {
+  isFirebaseConfigured,
+  verifyFirebaseIdToken,
+  loginPageHtml,
+} from "./firebase.js";
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest();
@@ -29,8 +34,29 @@ interface AuthCode {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; userId: string; scope: string; exp: number;
 }
+interface PendingLogin {
+  clientId: string; redirectUri: string; codeChallenge: string;
+  resource: string; scope: string; state?: string; exp: number;
+}
 const clients = new Map<string, Client>();
 const authCodes = new Map<string, AuthCode>();
+const pendingLogins = new Map<string, PendingLogin>(); // login_id → validated OAuth params
+const LOGIN_TTL_MS = 600_000;
+
+/** Build the OAuth callback URL back to the client (code + state + iss). */
+function callbackUrl(redirectUri: string, issuer: string, params: Record<string, string>, state?: string): string {
+  const u = new URL(redirectUri);
+  for (const [k, v] of Object.entries(params)) if (v != null) u.searchParams.set(k, v);
+  if (state) u.searchParams.set("state", state);
+  u.searchParams.set("iss", issuer); // RFC 9207
+  return u.toString();
+}
+
+function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge: string; resource: string; scope: string; userId: string }): string {
+  const code = "code_" + rand();
+  authCodes.set(code, { ...p, exp: Date.now() + CODE_TTL_MS });
+  return code;
+}
 
 const issuerOf = (req: Request) => `${req.protocol}://${req.get("host")}`;
 export const mcpResource = (issuer: string) => `${issuer}/mcp`;
@@ -93,27 +119,58 @@ export function registerOAuthRoutes(app: Express): void {
       res.status(400).json({ error: "invalid_request", error_description: "unknown client_id or redirect_uri" });
       return;
     }
-    const redirect = (params: Record<string, string>) => {
-      const u = new URL(q.redirect_uri);
-      for (const [k, v] of Object.entries(params)) if (v != null) u.searchParams.set(k, v);
-      if (q.state) u.searchParams.set("state", q.state);
-      u.searchParams.set("iss", issuer); // RFC 9207, even on errors
-      res.redirect(302, u.toString());
-    };
-    if (q.response_type !== "code") return redirect({ error: "unsupported_response_type" });
-    if (q.code_challenge_method !== "S256") return redirect({ error: "invalid_request", error_description: "PKCE S256 required" });
-    if (!q.code_challenge) return redirect({ error: "invalid_request", error_description: "code_challenge required" });
-    if (q.resource !== mcpResource(issuer)) return redirect({ error: "invalid_target", error_description: "resource must be this MCP server" });
+    const fail = (error: string, desc?: string) =>
+      res.redirect(302, callbackUrl(q.redirect_uri, issuer, { error, error_description: desc! }, q.state));
+    if (q.response_type !== "code") return fail("unsupported_response_type");
+    if (q.code_challenge_method !== "S256") return fail("invalid_request", "PKCE S256 required");
+    if (!q.code_challenge) return fail("invalid_request", "code_challenge required");
+    if (q.resource !== mcpResource(issuer)) return fail("invalid_target", "resource must be this MCP server");
 
-    // STUB:FIREBASE — auto-approve a fixed user instead of a login bounce.
-    const userId = resolveBrainUserId("firebase-uid-TEST");
-
-    const code = "code_" + rand();
-    authCodes.set(code, {
+    const params = {
       clientId: q.client_id, redirectUri: q.redirect_uri, codeChallenge: q.code_challenge,
-      resource: q.resource, userId, scope: q.scope || SCOPES.join(" "), exp: Date.now() + CODE_TTL_MS,
+      resource: q.resource, scope: q.scope || SCOPES.join(" "),
+    };
+
+    // Establish WHO the user is.
+    if (!isFirebaseConfigured()) {
+      // STUB:FIREBASE — no Firebase configured: auto-approve a fixed user so the
+      // handshake runs headlessly (dev/test). Set FIREBASE_* for real login.
+      const userId = resolveBrainUserId("firebase-uid-TEST");
+      const code = mintAuthCode({ ...params, userId });
+      return res.redirect(302, callbackUrl(q.redirect_uri, issuer, { code }, q.state));
+    }
+
+    // Real login: stash the validated OAuth params, render the Firebase sign-in
+    // page. /authorize/complete verifies the token and mints the code.
+    const loginId = "login_" + rand();
+    pendingLogins.set(loginId, { ...params, state: q.state, exp: Date.now() + LOGIN_TTL_MS });
+    res.type("html").send(loginPageHtml({ action: "/authorize/complete", loginId, title: "Connect your brain" }));
+  });
+
+  // Completes a Firebase login: verify the ID token, resolve the brain user,
+  // mint the auth code, and hand the client-callback URL back to the page.
+  app.post("/authorize/complete", async (req: Request, res: Response) => {
+    const issuer = issuerOf(req);
+    const { login_id, id_token } = req.body ?? {};
+    const login = pendingLogins.get(login_id);
+    pendingLogins.delete(login_id); // single-use
+    if (!login || login.exp < Date.now()) {
+      res.status(400).json({ error: "invalid_request", error_description: "unknown or expired login" });
+      return;
+    }
+    let identity;
+    try {
+      identity = await verifyFirebaseIdToken(id_token);
+    } catch (e: any) {
+      res.status(401).json({ error: "access_denied", error_description: `login failed: ${e.message}` });
+      return;
+    }
+    const userId = resolveBrainUserId(identity.uid);
+    const code = mintAuthCode({
+      clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
+      resource: login.resource, scope: login.scope, userId,
     });
-    redirect({ code });
+    res.json({ redirect: callbackUrl(login.redirectUri, issuer, { code }, login.state) });
   });
 
   // Token endpoint (authorization_code + PKCE verify + audience binding)

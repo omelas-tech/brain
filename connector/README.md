@@ -50,22 +50,40 @@ npm start         # serve MCP on http://localhost:8788
 
 Write tools (`brain_memorize`, `brain_pin`, `brain_forget`) come in Phase 2.
 
-## Auth (integrated)
+## Auth
 
-The full OAuth 2.1 AS now lives in `src/oauth.ts` (authorize / token / register / metadata,
-PKCE S256, RFC 8707 audience binding, RFC 9207 `iss`) and mints tokens into `src/auth.ts`'s
-store, which the `/mcp` guard validates (incl. audience). Two seams remain, clearly marked in
-`src/oauth.ts`:
+Two layers — both real now:
 
-- **`STUB:FIREBASE`** — `/authorize` auto-approves a fixed user instead of bouncing through
-  Firebase login. Real flow: verify Firebase, map uid → brain user.
-- **`STUB:STORE`** — `resolveBrainDir(userId)` returns `CONNECTOR_BRAIN_BASE/<userId>/.brain`.
-  Phase 2 populates that dir from the user's canonical store (brain-cloud bundle, or BYOS
-  git/Drive — see arch doc §11/§12).
+1. **OAuth 2.1 between Claude and the connector** (`src/oauth.ts`): authorize / token / register
+   / metadata, PKCE S256, RFC 8707 audience binding, RFC 9207 `iss`. Tokens mint into
+   `src/auth.ts`'s store; the `/mcp` guard validates them (incl. audience).
+2. **Who is the human** (`src/firebase.ts`): `/authorize` bounces the user through **Firebase
+   login** (the same project brain-cloud uses). The connector verifies the ID token
+   **server-side and secret-free** — RS256 against Google's public certs, checking `aud`/`iss`/
+   `exp` — so it needs only the public project config, no service-account key. The verified
+   `uid` maps to the brain user, then the OAuth code is minted.
+
+If `FIREBASE_*` env is **not** set, `/authorize` falls back to a fixed dev user
+(`STUB:FIREBASE`) so the headless test runs without a browser.
+
+### See the Firebase login work (demo)
+
+```bash
+cp .env.example .env      # fill in FIREBASE_API_KEY / AUTH_DOMAIN / PROJECT_ID
+npm start                 # http://localhost:8788
+# open http://localhost:8788/dev/whoami → "Sign in with Google"
+```
+
+`/dev/whoami` runs *only* the identity step in isolation: sign in, and the connector shows your
+verified `firebase_uid`, `email`, and the resolved `brain_user_id` + `brain_dir` — exactly what
+`/authorize` uses to pick whose brain to serve. (`localhost` is an authorized Firebase domain by
+default, so popup sign-in works locally.)
 
 ## Next
 
-- **Phase 2:** resolve/populate the per-user store (the `STUB:STORE` seam) + write tools
-  (`brain_memorize` / `brain_pin` / `brain_forget`) with sync-back.
-- **Deploy:** Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
+- **`STUB:STORE`** — `resolveBrainDir(userId)` returns `CONNECTOR_BRAIN_BASE/<userId>/.brain`,
+  but nothing populates it yet. Phase 2 syncs that dir from the user's canonical store
+  (brain-cloud bundle, or BYOS git/Drive — see arch doc §11/§12).
+- **Write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with sync-back.
+- **Deploy** — Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
   (no `fs`). Co-locate with brain-cloud per arch doc §3.

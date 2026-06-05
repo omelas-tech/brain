@@ -8,6 +8,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { recall, status } from "./engine.js";
 import {
@@ -16,7 +19,8 @@ import {
   wwwAuthenticate,
   type Session,
 } from "./auth.js";
-import { registerOAuthRoutes, mcpResource } from "./oauth.js";
+import { registerOAuthRoutes, mcpResource, resolveBrainUserId, resolveBrainDir } from "./oauth.js";
+import { isFirebaseConfigured, verifyFirebaseIdToken, loginPageHtml } from "./firebase.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
 export function buildServer(session: Session): McpServer {
@@ -89,6 +93,25 @@ export function createApp() {
 
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
+  // Demo: see the Firebase login resolve YOUR identity in isolation (no OAuth
+  // dance). Open /dev/whoami in a browser, sign in, watch it resolve.
+  app.get("/dev/whoami", (_req, res) => {
+    if (!isFirebaseConfigured()) {
+      res.type("html").send("<pre>Firebase not configured. Set FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID (and friends), then restart.</pre>");
+      return;
+    }
+    res.type("html").send(loginPageHtml({ action: "/dev/whoami", title: "Who am I? (Firebase demo)" }));
+  });
+  app.post("/dev/whoami", async (req, res) => {
+    try {
+      const id = await verifyFirebaseIdToken(req.body?.id_token);
+      const userId = resolveBrainUserId(id.uid);
+      res.json({ firebase_uid: id.uid, email: id.email, name: id.name, brain_user_id: userId, brain_dir: resolveBrainDir(userId) });
+    } catch (e: any) {
+      res.status(401).json({ error: e.message });
+    }
+  });
+
   // MCP endpoint — OAuth resource server. Bearer required on every request.
   app.post("/mcp", async (req: Request, res: Response) => {
     const session = authenticate(req.headers["authorization"]);
@@ -121,8 +144,21 @@ export function createApp() {
   return app;
 }
 
+/** Minimal .env loader (no dependency): set vars from connector/.env if present. */
+function loadDotEnv() {
+  try {
+    const envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", ".env");
+    if (!fs.existsSync(envPath)) return;
+    for (const line of fs.readFileSync(envPath, "utf-8").split("\n")) {
+      const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch { /* best-effort */ }
+}
+
 // Run directly: brain-connector listening for MCP over HTTP.
 if (import.meta.url === `file://${process.argv[1]}`) {
+  loadDotEnv();
   const port = Number(process.env.PORT) || 8788;
   createApp().listen(port, () => {
     console.log(`brain-connector (Phase 1) on http://localhost:${port}`);
