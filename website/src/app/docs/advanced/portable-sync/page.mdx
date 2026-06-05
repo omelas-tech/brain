@@ -12,7 +12,17 @@ export const metadata = docMeta("/docs/advanced/portable-sync", {
 
 # Portable Sync
 
-Brain Memory provides three ways to sync memories across devices. All are manual and privacy-respecting.
+Your brain is plain files in a folder, so you can sync it however you like — **no account or cloud provider is required.** Brain Cloud is one option, never a requirement.
+
+## Any Synced Folder (`BRAIN_DIR`)
+
+The simplest, zero-setup option: point `BRAIN_DIR` at a folder your existing tools already sync, and every device stays in sync automatically.
+
+```bash
+export BRAIN_DIR="$HOME/Google Drive/brain"   # or Dropbox, iCloud Drive, OneDrive, Syncthing…
+```
+
+That's it — no commands, no auth. `BRAIN_DIR` is the brain folder itself (a leading `~/` is expanded), and it's honored everywhere: recall, memorize, init, and Cloud sync.
 
 ## Brain Cloud
 

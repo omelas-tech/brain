@@ -13,6 +13,12 @@ export const metadata = docMeta("/docs/reference/configuration", {
 
 Brain configuration lives in `~/.brain/index.json` under the `config` key. All settings have sensible defaults set when the brain is created (at install, or on first sync).
 
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BRAIN_DIR` | `~/.brain` | Location of the brain folder. Point it at a synced folder (Google Drive, Dropbox, iCloud Drive, OneDrive, Syncthing) or a git working copy to sync across devices with no account. A leading `~/` is expanded; honored everywhere — recall, memorize, init, and Cloud sync. |
+
 ## Full Configuration
 
 ```json

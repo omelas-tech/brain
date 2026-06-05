@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **`BRAIN_DIR` environment variable** — point your brain at any folder instead of the default `~/.brain`. Set it to a folder your existing tools already sync (Google Drive, Dropbox, iCloud Drive, OneDrive, Syncthing, or a git working copy) to get cross-device sync with no account and no extra setup. A leading `~/` is expanded. Honored everywhere the brain is resolved — recall, memorize, init, and Cloud sync.
+
 ## [0.1.0-beta.23] - 2026-06-05
 
 ### Changed

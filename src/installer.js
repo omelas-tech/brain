@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const { getBrainDir } = require('./index-manager');
+
 const PACKAGE_ROOT = path.resolve(__dirname, '..');
 
 const RUNTIMES = {
@@ -254,7 +256,9 @@ function installForRuntime(runtime, scope) {
 }
 
 function initializeBrain(overrideBase) {
-  const brainDir = path.join(overrideBase || os.homedir(), '.brain');
+  // Honors $BRAIN_DIR (via getBrainDir) so a fresh brain is created wherever the
+  // user points it — e.g. inside a Google Drive / Dropbox / iCloud synced folder.
+  const brainDir = overrideBase ? path.join(overrideBase, '.brain') : getBrainDir();
 
   if (fs.existsSync(brainDir)) {
     return { alreadyExists: true };

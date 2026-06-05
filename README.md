@@ -452,13 +452,21 @@ Brain Memory is **model-agnostic** as well as agent-portable: because memory is 
 
 To share memories across different machines, use `/brain:sync` (see below).
 
-### Portable Sync
+### Portable Sync — your memory, no lock-in
 
-`/brain:sync` provides two ways to sync memories across devices — no OAuth apps, no cloud provider setup.
+**Your brain is plain files in a folder — sync it however you already sync files.** No account or cloud provider is required.
 
-**Git remote** — Push/pull `~/.brain/` to any private Git repository. Works with GitHub, GitLab, Codeberg, or any self-hosted Git server. Uses your existing Git/SSH authentication — no additional credentials needed.
+**Any synced folder** — Point `BRAIN_DIR` at a folder your existing tools already sync, and you're done:
 
-**Export/Import** — Pack the entire `~/.brain/` into a single encrypted file for manual transfer via USB, email, or any file-sharing service.
+```bash
+export BRAIN_DIR="$HOME/Google Drive/brain"   # or Dropbox, iCloud Drive, OneDrive, Syncthing…
+```
+
+**Git remote** — `/brain:sync` push/pull `~/.brain/` to any private Git repository (GitHub, GitLab, Codeberg, or self-hosted), using your existing Git/SSH auth.
+
+**Export/Import** — Pack the entire brain into a single encrypted file for manual transfer via USB, email, or any file-sharing service.
+
+**Brain Cloud** (optional) — A hosted, zero-config hub if you'd rather not run your own. Entirely optional — everything above works without it.
 
 **Key features:**
 - **Manual push/pull** — No background watchers, no auto-sync. You control when data moves.

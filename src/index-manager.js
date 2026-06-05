@@ -63,11 +63,25 @@ function validateBrainPath(targetPath, brainDir) {
 /**
  * Resolve the brain directory path.
  *
+ * Precedence: explicit `overrideBase` arg (tests / project-local brains) >
+ * the `BRAIN_DIR` environment variable (point your brain at any synced folder —
+ * Google Drive, Dropbox, iCloud, a git working copy, …) > the default `~/.brain`.
+ *
+ * `BRAIN_DIR` is the brain directory itself (the folder holding `index.json`),
+ * not a parent. A leading `~/` is expanded since env vars are not shell-expanded.
+ *
  * @param {string} [overrideBase] - Override base directory (for testing)
- * @returns {string} Absolute path to ~/.brain/ (or overrideBase/.brain/ if provided)
+ * @returns {string} Absolute path to the brain directory
  */
 function getBrainDir(overrideBase) {
   if (overrideBase) return path.join(overrideBase, '.brain');
+  const env = process.env.BRAIN_DIR && process.env.BRAIN_DIR.trim();
+  if (env) {
+    const expanded = env === '~' || env.startsWith('~/')
+      ? path.join(os.homedir(), env.slice(1))
+      : env;
+    return path.resolve(expanded);
+  }
   return DEFAULT_BRAIN_DIR;
 }
 

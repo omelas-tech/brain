@@ -58,14 +58,41 @@ function makeIndex(memories = {}) {
 // getBrainDir
 // ===========================================================================
 describe('getBrainDir', () => {
+  let savedEnv;
+  beforeEach(() => {
+    savedEnv = process.env.BRAIN_DIR;
+    delete process.env.BRAIN_DIR;
+  });
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env.BRAIN_DIR;
+    else process.env.BRAIN_DIR = savedEnv;
+  });
+
   it('returns <projectRoot>/.brain', () => {
     const input = path.join(path.sep, 'some', 'project');
     assert.equal(getBrainDir(input), path.join(input, '.brain'));
   });
 
-  it('defaults to ~/.brain when no arg', () => {
+  it('defaults to ~/.brain when no arg and no BRAIN_DIR', () => {
     const result = getBrainDir();
     assert.equal(result, path.join(os.homedir(), '.brain'));
+  });
+
+  it('honors the BRAIN_DIR env var (absolute path used as-is)', () => {
+    const dir = path.join(path.sep, 'mnt', 'drive', 'brain');
+    process.env.BRAIN_DIR = dir;
+    assert.equal(getBrainDir(), dir);
+  });
+
+  it('expands a leading ~/ in BRAIN_DIR (env vars are not shell-expanded)', () => {
+    process.env.BRAIN_DIR = '~/Google Drive/brain';
+    assert.equal(getBrainDir(), path.join(os.homedir(), 'Google Drive', 'brain'));
+  });
+
+  it('an explicit overrideBase arg beats BRAIN_DIR', () => {
+    process.env.BRAIN_DIR = path.join(path.sep, 'mnt', 'drive', 'brain');
+    const input = path.join(path.sep, 'some', 'project');
+    assert.equal(getBrainDir(input), path.join(input, '.brain'));
   });
 });
 

@@ -11,11 +11,12 @@
  *   brain cloud status                  Show connection and sync status
  */
 
-const path = require('path');
-const os = require('os');
 const cloud = require('../src/cloud-sync');
+const { getBrainDir } = require('../src/index-manager');
 
-const BRAIN_DIR = path.join(os.homedir(), '.brain');
+// Resolved via getBrainDir so Cloud sync targets the same brain as the rest of
+// the CLI, including a $BRAIN_DIR override (synced folder, git working copy, …).
+const BRAIN_DIR = getBrainDir();
 
 async function main() {
   const args = process.argv.slice(2);

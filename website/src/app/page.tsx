@@ -401,7 +401,7 @@ const features = [
   { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
   { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Gemini CLI, Codex CLI, and OpenCode share one store — and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
   { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
-  { title: "Portable sync", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Git remote or AES-256-GCM encrypted export. Self-host the whole brain on your own VPS." },
+  { title: "Sync your way — no lock-in", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Plain files in a folder. Point BRAIN_DIR at Google Drive, Dropbox, or iCloud — or sync via git or encrypted export. No account required." },
 ];
 
 const steps = [
