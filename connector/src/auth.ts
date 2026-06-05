@@ -1,9 +1,8 @@
-// Auth layer for the connector (OAuth 2.1 resource server).
+// Resource-server side of the connector's auth (OAuth 2.1).
 //
-// Phase 1 scope: the *guard* + session model + RFC 9728 metadata. Token
-// ISSUANCE (authorize/token/register/PKCE) is already proven in
-// brain-cloud/connector-spike — port it here as the AS. `issueToken` below is
-// the seam where that lands; for dogf/test it mints a session directly.
+// Holds the issued-token store + the Bearer guard + RFC 9728 metadata. The
+// authorization SERVER (authorize/token/register/PKCE/DCR) lives in oauth.ts and
+// mints tokens into this store via `issueToken`.
 
 import crypto from "node:crypto";
 
@@ -11,17 +10,27 @@ export interface Session {
   userId: string;
   brainDir: string; // the user's brain working copy (BRAIN_DIR for the engine)
   scope: string;
+  aud: string; // RFC 8707 audience — the MCP resource this token is bound to
   exp: number;
 }
 
 const tokens = new Map<string, Session>();
 const TOKEN_TTL_MS = 3600_000;
 
-/** Mint an access token bound to a user + their brain dir. (Stand-in for the
- *  OAuth token endpoint — see connector-spike for the full PKCE/DCR flow.) */
-export function issueToken(userId: string, brainDir: string, scope = "brain.read"): string {
+/** Mint an access token bound to a user, their brain dir, and an audience. */
+export function issueToken(
+  userId: string,
+  brainDir: string,
+  opts: { scope?: string; aud: string },
+): string {
   const token = "at_" + crypto.randomBytes(24).toString("base64url");
-  tokens.set(token, { userId, brainDir, scope, exp: Date.now() + TOKEN_TTL_MS });
+  tokens.set(token, {
+    userId,
+    brainDir,
+    scope: opts.scope ?? "brain.read",
+    aud: opts.aud,
+    exp: Date.now() + TOKEN_TTL_MS,
+  });
   return token;
 }
 

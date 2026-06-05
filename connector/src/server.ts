@@ -16,6 +16,7 @@ import {
   wwwAuthenticate,
   type Session,
 } from "./auth.js";
+import { registerOAuthRoutes, mcpResource } from "./oauth.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
 export function buildServer(session: Session): McpServer {
@@ -83,6 +84,9 @@ export function createApp() {
     res.json(protectedResourceMetadata(issuerOf(req)));
   });
 
+  // OAuth 2.1 Authorization Server (authorize / token / register / metadata).
+  registerOAuthRoutes(app);
+
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
   // MCP endpoint — OAuth resource server. Bearer required on every request.
@@ -92,6 +96,14 @@ export function createApp() {
       res
         .status(401)
         .set("WWW-Authenticate", wwwAuthenticate(issuerOf(req), "missing or invalid token"))
+        .json({ error: "unauthorized" });
+      return;
+    }
+    // RFC 8707 — only accept tokens minted for THIS resource (audience binding).
+    if (session.aud !== mcpResource(issuerOf(req))) {
+      res
+        .status(401)
+        .set("WWW-Authenticate", wwwAuthenticate(issuerOf(req), "token audience mismatch"))
         .json({ error: "unauthorized" });
       return;
     }

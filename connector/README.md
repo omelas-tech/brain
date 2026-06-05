@@ -10,16 +10,19 @@ It lives in this repo (not the npm package — excluded from `package.json` `fil
 `website/`) so it reuses the **real** recall engine in `../src` directly. One brain, one
 engine, two faces.
 
-## Status: Phase 1 — read-only MVP (proven)
+## Status: Phase 1 — read-only MVP with full OAuth (proven)
 
-`npm test` proves the full path end-to-end:
+`npm test` typechecks and proves the whole path end-to-end **in one server** — the
+complete OAuth 2.1 handshake through to real scored recall:
 
 ```
 ① unauthenticated MCP call → 401 + WWW-Authenticate (RFC 9728)
-② MCP initialize over the official SDK (client ↔ server)
-③ tools/list → [brain_recall, brain_status]
-④ brain_status → real memory_count from the user's brain
-⑤ brain_recall(query) → the brain's REAL scored results (relevance + decayed
+② discovery → AS metadata (RFC 8414), PKCE S256
+③ Dynamic Client Registration (RFC 7591)
+④ authorize → code (iss + state validated, RFC 9207)
+⑤ token → audience-bound Bearer (PKCE verified, RFC 8707)
+⑥ MCP initialize + tools/list → [brain_recall, brain_status]  (official SDK)
+⑦ brain_recall(query) → the brain's REAL scored results (relevance + decayed
    strength + spreading activation), identical to the CLI
 ```
 
@@ -47,12 +50,22 @@ npm start         # serve MCP on http://localhost:8788
 
 Write tools (`brain_memorize`, `brain_pin`, `brain_forget`) come in Phase 2.
 
-## What's stubbed (next steps)
+## Auth (integrated)
 
-- **OAuth issuance.** `src/auth.ts` is the resource-server *guard* + session model + RFC 9728
-  metadata; `issueToken` is the seam where the proven OAuth AS from
-  `brain-cloud/connector-spike` (authorize / token / register / PKCE / DCR) lands.
-- **Per-user store.** `session.brainDir` is set directly today; Phase 2 resolves it from the
-  user's canonical store (brain-cloud bundle, or BYOS git/Drive — see arch doc §11/§12).
-- **Deploy.** Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
+The full OAuth 2.1 AS now lives in `src/oauth.ts` (authorize / token / register / metadata,
+PKCE S256, RFC 8707 audience binding, RFC 9207 `iss`) and mints tokens into `src/auth.ts`'s
+store, which the `/mcp` guard validates (incl. audience). Two seams remain, clearly marked in
+`src/oauth.ts`:
+
+- **`STUB:FIREBASE`** — `/authorize` auto-approves a fixed user instead of bouncing through
+  Firebase login. Real flow: verify Firebase, map uid → brain user.
+- **`STUB:STORE`** — `resolveBrainDir(userId)` returns `CONNECTOR_BRAIN_BASE/<userId>/.brain`.
+  Phase 2 populates that dir from the user's canonical store (brain-cloud bundle, or BYOS
+  git/Drive — see arch doc §11/§12).
+
+## Next
+
+- **Phase 2:** resolve/populate the per-user store (the `STUB:STORE` seam) + write tools
+  (`brain_memorize` / `brain_pin` / `brain_forget`) with sync-back.
+- **Deploy:** Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
   (no `fs`). Co-locate with brain-cloud per arch doc §3.
