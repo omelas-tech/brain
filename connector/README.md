@@ -79,11 +79,26 @@ verified `firebase_uid`, `email`, and the resolved `brain_user_id` + `brain_dir`
 `/authorize` uses to pick whose brain to serve. (`localhost` is an authorized Firebase domain by
 default, so popup sign-in works locally.)
 
+## Per-user store (`src/store.ts`)
+
+`ensureUserBrain({ userId, brainDir, idToken })` populates the user's brain working copy from a
+pluggable provider, then the engine recalls over it. Providers (via `CONNECTOR_STORE`, else
+inferred):
+
+- **`brain-cloud`** (production) — pulls the user's `{brainID}.tar.gz` from
+  `BRAIN_CLOUD_API_URL` (default `https://api.brainmemory.ai`) using their **Firebase ID token**
+  (brain-cloud's middleware accepts it directly), then `tar xzf` into `brainDir`. Refreshed at
+  each login.
+- **`local`** (dev) — symlinks `brainDir` → `$DEV_LOCAL_BRAIN` (your live `~/.brain`), so your
+  machine serves your real brain through the connector.
+- **`none`** — assume pre-provisioned (tests).
+
+Always graceful: if the brain is still missing, it empty-inits a valid (recall-safe) brain.
+
 ## Next
 
-- **`STUB:STORE`** — `resolveBrainDir(userId)` returns `CONNECTOR_BRAIN_BASE/<userId>/.brain`,
-  but nothing populates it yet. Phase 2 syncs that dir from the user's canonical store
-  (brain-cloud bundle, or BYOS git/Drive — see arch doc §11/§12).
-- **Write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with sync-back.
+- **Write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with sync-back to the store.
+- **Identity ↔ account** — map the Firebase `uid` to the user's actual brain-cloud record (the
+  brain-cloud provider already resolves the brain by the same token; tighten the mapping).
 - **Deploy** — Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
-  (no `fs`). Co-locate with brain-cloud per arch doc §3.
+  (no `fs`). Co-locate with brain-cloud per arch doc §3. Then add it at claude.ai → try on iOS.

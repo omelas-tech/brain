@@ -21,6 +21,7 @@ import {
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, resolveBrainUserId, resolveBrainDir } from "./oauth.js";
 import { isFirebaseConfigured, verifyFirebaseIdToken, loginPageHtml } from "./firebase.js";
+import { ensureUserBrain } from "./store.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
 export function buildServer(session: Session): McpServer {
@@ -49,6 +50,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { readOnlyHint: true, title: "Recall memories" },
     },
     async ({ query, limit, project }) => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
       const hits = await recall(session.brainDir, query, { top: limit, project });
       return {
         content: [{ type: "text", text: JSON.stringify(hits, null, 2) }],
@@ -65,6 +67,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { readOnlyHint: true, title: "Brain status" },
     },
     async () => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
       const s = status(session.brainDir);
       return {
         content: [{ type: "text", text: JSON.stringify(s, null, 2) }],

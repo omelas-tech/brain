@@ -21,6 +21,7 @@ import {
   verifyFirebaseIdToken,
   loginPageHtml,
 } from "./firebase.js";
+import { ensureUserBrain } from "./store.js";
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest();
@@ -166,6 +167,12 @@ export function registerOAuthRoutes(app: Express): void {
       return;
     }
     const userId = resolveBrainUserId(identity.uid);
+
+    // STUB:STORE (now real) — populate this user's brain from their canonical
+    // store (brain-cloud, via their Firebase token) before issuing the code.
+    const store = await ensureUserBrain({ userId, brainDir: resolveBrainDir(userId), idToken: id_token, refresh: true });
+    console.log(`[connector] login ${identity.email} → ${userId} — brain via ${store.source} (${store.memoryCount} memories)`);
+
     const code = mintAuthCode({
       clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
       resource: login.resource, scope: login.scope, userId,
