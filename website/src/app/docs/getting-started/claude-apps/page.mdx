@@ -17,9 +17,10 @@ and your **phone** — through the **Brain connector**, a remote [MCP](https://m
 server hosted by Brain Cloud. Add it once on the web and it syncs to every Claude client on your account.
 
 <Callout type="info">
-  **Beta — read-only for now.** The connector exposes two tools today: **Recall memories** and
-  **Brain status**. Adding memories from the apps (write) is coming next; for now you *create*
-  memories with the CLI plugin and they appear in the apps after a sync.
+  **Read _and_ write (beta).** The connector exposes five tools: **Recall memories** and **Brain
+  status** (read), plus **Memorize**, **Pin**, and **Unpin** (write). Writes prompt you for
+  confirmation and sync back to Brain Cloud, so a memory you capture on your phone shows up on your
+  laptop. (Deleting memories from the apps is not exposed yet — use the CLI's `/brain:forget`.)
 </Callout>
 
 ## Before you start
@@ -55,24 +56,30 @@ brain cloud push      # upload ~/.brain to the cloud
   </Step>
   <Step title="Sign in">
     Claude opens a sign-in page → **Sign in with Google** with the account that holds your brain →
-    approve. The connector now shows two tools: **Recall memories** and **Brain status**.
+    approve. The connector now shows its tools: **Recall memories**, **Brain status**, **Memorize**,
+    **Pin**, and **Unpin**.
   </Step>
   <Step title="Use it (incl. your phone)">
     Connectors sync to all your Claude clients — open Claude on your **iPhone/Android** and it's
-    already there. Ask, for example:
+    already there. Recall:
 
     > *"Use Brain to recall what I decided about X."*
 
-    Claude calls the tool and surfaces your real memories. If it answers from general knowledge
-    instead, nudge it: *"use the Brain connector to recall…"*.
+    Or capture something — Claude will ask you to confirm the write:
+
+    > *"Use Brain to remember: we picked Postgres over DynamoDB for the billing service."*
+
+    Then recall it later from any device. If Claude answers from general knowledge instead of
+    recalling, nudge it: *"use the Brain connector…"*.
   </Step>
 </Steps>
 
 ## Keeping it current
 
-The connector pulls your brain when you sign in and caches it. When you add new memories locally,
-run `brain cloud push` (or `/brain:memorize --sync`) so the apps see them. Write-from-anywhere
-(Phase 2) will close this loop automatically.
+Memories you **write from the apps sync back to Brain Cloud automatically** — capture on your phone,
+recall on your laptop. The connector also pulls a fresh copy of your brain each time you sign in.
+The one gap: memories you create **locally** (CLI `/brain:memorize`) reach the apps after a
+`brain cloud push` (or `/brain:memorize --sync`).
 
 ## Troubleshooting
 

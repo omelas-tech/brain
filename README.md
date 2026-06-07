@@ -485,11 +485,12 @@ Sync state is stored locally in `~/.brain/.sync/` and is never pushed to the rem
 
 ### Brain in Claude apps (web & mobile) — beta
 
-Beyond the CLI, you can recall your brain from the **Claude apps** (web, desktop, and your
+Beyond the CLI, you can use your brain from the **Claude apps** (web, desktop, and your
 **phone**) via the **Brain connector** — a remote MCP server hosted by [Brain Cloud](https://app.brainmemory.ai).
 Add it once on claude.ai (**Settings → Connectors → Add custom connector → `https://mcp.brainmemory.ai/mcp`**),
 sign in with the Google account holding your cloud brain, and it syncs to every Claude client on
-your account. Read-only today (`Recall memories`, `Brain status`); writes are coming.
+your account. Read **and write**: recall + status, plus memorize / pin / unpin (writes prompt for
+confirmation) — so you can capture a memory on your phone and recall it on your laptop.
 
 → Full guide: **[Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps)**
 

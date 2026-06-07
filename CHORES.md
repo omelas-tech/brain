@@ -5,14 +5,16 @@ they're done; add new ones at the bottom of the relevant section.
 
 ## Claude connector (Brain in Claude apps)
 
-The connector is **live** at `https://mcp.brainmemory.ai/mcp` (read-only — `brain_recall`,
-`brain_status`). Deployed on the VPS beside brain-cloud; code in `brain/connector/`, design in
-`brain-cloud/docs/connector-architecture.md`. Follow-ups:
+The connector is **live** at `https://mcp.brainmemory.ai/mcp` (read + write — `brain_recall`,
+`brain_status`, `brain_memorize`, `brain_pin`, `brain_unpin`). Deployed on the VPS beside
+brain-cloud; code in `brain/connector/`, design in `brain-cloud/docs/connector-architecture.md`.
+Follow-ups:
 
-- [ ] **Phase 2 — write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with
-      repack-and-push, so memories can be added from the apps (closes the create loop).
-- [ ] **Auto-refresh the cached brain** — re-pull on a TTL (or per-recall if stale) so a
-      `brain cloud push` shows up without re-auth (current staleness gap).
+- [x] **Phase 2 — write tools** — `brain_memorize` / `brain_pin` / `brain_unpin` with sync-back. LIVE.
+- [ ] **`brain_forget` tool** — expose delete/archive (destructiveHint) from the apps.
+- [ ] **Sync-back hardening / auto-refresh** — writes sync via the ~1 h Firebase token; a write after
+      expiry persists locally but the login re-pull could overwrite it. Add push-before-pull (or a
+      dirty flag) + a TTL re-pull so local `brain cloud push`es also appear without re-auth.
 - [ ] **Update stale `STUB:` header comments** in `connector/src/oauth.ts` — Firebase login and
       the per-user store are both wired now; the top comment still describes them as stubs.
 - [ ] **Identity hygiene** — document/enforce the one-canonical-account rule (the connector serves

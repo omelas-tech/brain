@@ -10,18 +10,20 @@ It lives in this repo (not the npm package — excluded from `package.json` `fil
 `website/`) so it reuses the **real** recall engine in `../src` directly. One brain, one
 engine, two faces.
 
-## Status: 🟢 LIVE IN PRODUCTION — Phase 1 (read-only)
+## Status: 🟢 LIVE IN PRODUCTION — Phase 1 + 2 (read + write)
 
 Deployed at **`https://mcp.brainmemory.ai/mcp`** (Node service on the VPS beside brain-cloud;
-systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified recalling a real
-brain on **Claude web + iPhone**. Read-only tools (`brain_recall`, `brain_status`); writes are
-Phase 2.
+systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified on **Claude web +
+iPhone**. Tools: `brain_recall`, `brain_status` (read) + `brain_memorize`, `brain_pin`,
+`brain_unpin` (write — writes sync back to brain-cloud; hosts gate them behind confirmation).
+`brain_forget` is not exposed yet.
 
 Two things to know in production:
 - **Identity must be unified** — the connector serves the brain of whatever **Firebase (Google)**
   identity signs in, so the user's brain must be pushed to *that* brain-cloud account.
-- **Staleness** — the brain is pulled at login and cached; new local memories need a
-  `brain cloud push` (+ re-auth) to appear until Phase 2 / auto-refresh.
+- **Sync-back token window** — writes sync back using the Firebase token from login (~1 h); a write
+  after it expires persists locally but syncs on next login. Local CLI memories reach the connector
+  after a `brain cloud push`. (Auto-refresh / push-before-pull is a tracked follow-up.)
 
 `npm test` typechecks and proves the whole path end-to-end **in one server** — the
 complete OAuth 2.1 handshake through to real scored recall (token request is **form-urlencoded**,
@@ -53,14 +55,17 @@ npm test          # end-to-end Phase 1 proof
 npm start         # serve MCP on http://localhost:8788
 ```
 
-## Tools (Phase 1)
+## Tools
 
 | Tool | Kind | Description |
 |------|------|-------------|
 | `brain_recall` | read (`readOnlyHint`) | Ranked recall for a query, scored by the brain engine. |
 | `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain. |
+| `brain_memorize` | write | Store the **explicit content** provided (never the conversation); immediately recallable. |
+| `brain_pin` / `brain_unpin` | write | Toggle the always-present tier. |
 
-Write tools (`brain_memorize`, `brain_pin`, `brain_forget`) come in Phase 2.
+Writes reuse the deterministic CLIs (`memorize.js` / `pin.js` / `unpin.js`) and then `syncBack()`
+to brain-cloud. `brain_forget` (delete/archive) is not exposed yet.
 
 ## Auth
 
@@ -109,8 +114,7 @@ Always graceful: if the brain is still missing, it empty-inits a valid (recall-s
 
 ## Next
 
-- **Write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with sync-back to the store.
-- **Identity ↔ account** — map the Firebase `uid` to the user's actual brain-cloud record (the
-  brain-cloud provider already resolves the brain by the same token; tighten the mapping).
-- **Deploy** — Node host (reuses `scorer.js` + a brain working copy); not Cloudflare Workers
-  (no `fs`). Co-locate with brain-cloud per arch doc §3. Then add it at claude.ai → try on iOS.
+- **`brain_forget`** — expose delete/archive (destructiveHint) so memories can be removed from the apps.
+- **Sync-back hardening** — auto-refresh / push-before-pull so writes never risk being overwritten by
+  the login re-pull, and local CLI memories appear without a manual push.
+- **Identity ↔ account** — tighten the Firebase `uid` → brain-cloud record mapping.
