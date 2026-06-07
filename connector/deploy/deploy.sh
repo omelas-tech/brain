@@ -25,8 +25,10 @@ if ! id brainconn >/dev/null 2>&1; then
   useradd -r -s /usr/sbin/nologin -d /opt/brain-connector brainconn
 fi
 
-# The ONLY directory the service may write: per-user brain working copies.
-install -d -o brainconn -g brainconn -m 0700 /opt/brain-connector/users
+# Per-user brain working copies live on a RAM tmpfs (/run/brain-connector), created
+# by the systemd RuntimeDirectory — nothing to provision on disk. Remove any stale
+# plaintext cache from the pre-tmpfs layout.
+rm -rf /opt/brain-connector/users 2>/dev/null || true
 
 # The code tree is read-only to the service; .env holds config (public Firebase
 # web values today, but lock it down regardless) and must be readable by it only.

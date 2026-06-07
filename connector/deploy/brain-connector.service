@@ -15,8 +15,14 @@ ExecStart=/usr/bin/node --import tsx src/server.ts
 Restart=on-failure
 RestartSec=3
 Environment=NODE_ENV=production
-# Per-user brain working copies live here (the ONLY path the service may write).
-Environment=CONNECTOR_BRAIN_BASE=/opt/brain-connector/users
+# Per-user brain working copies are a disposable cache (re-pulled from brain-cloud
+# at login). Keep them in RAM via a /run tmpfs so plaintext memories NEVER touch
+# this box's disk — encryption-at-rest by not-at-rest. RuntimeDirectory is a tmpfs
+# owned by this service user and wiped when the service stops.
+# See brain-cloud/docs/security/encryption-at-rest.md.
+RuntimeDirectory=brain-connector
+RuntimeDirectoryMode=0700
+Environment=CONNECTOR_BRAIN_BASE=/run/brain-connector
 
 # --- Sandbox hardening -----------------------------------------------------
 # The service handles user-supplied brain bundles (tar). Even with the in-app
@@ -26,8 +32,8 @@ PrivateTmp=yes
 PrivateDevices=yes
 ProtectSystem=strict
 ProtectHome=yes
-# Only the per-user brain store is writable; everything else is read-only.
-ReadWritePaths=/opt/brain-connector/users
+# The only writable path is the RuntimeDirectory tmpfs (/run/brain-connector),
+# which systemd grants automatically; everything else is read-only.
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectKernelLogs=yes
