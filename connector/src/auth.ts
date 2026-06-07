@@ -12,6 +12,8 @@ export interface Session {
   scope: string;
   aud: string; // RFC 8707 audience — the MCP resource this token is bound to
   exp: number;
+  brainId?: string; // brain-cloud brain id — for sync-back after writes (Phase 2)
+  idToken?: string; // Firebase ID token from login — auths the sync-back push
 }
 
 const tokens = new Map<string, Session>();
@@ -21,7 +23,7 @@ const TOKEN_TTL_MS = 3600_000;
 export function issueToken(
   userId: string,
   brainDir: string,
-  opts: { scope?: string; aud: string },
+  opts: { scope?: string; aud: string; brainId?: string; idToken?: string },
 ): string {
   const token = "at_" + crypto.randomBytes(24).toString("base64url");
   tokens.set(token, {
@@ -30,6 +32,8 @@ export function issueToken(
     scope: opts.scope ?? "brain.read",
     aud: opts.aud,
     exp: Date.now() + TOKEN_TTL_MS,
+    brainId: opts.brainId,
+    idToken: opts.idToken,
   });
   return token;
 }

@@ -128,7 +128,7 @@ async function main() {
     await client.connect(transport);
 
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ["brain_recall", "brain_status"]);
+    assert.ok(tools.includes("brain_recall") && tools.includes("brain_status"), `read tools present (got: ${tools.join(", ")})`);
     log(`⑥ MCP initialize + tools/list → [${tools.join(", ")}]`);
 
     const statusRes: any = await client.callTool({ name: "brain_status", arguments: {} });

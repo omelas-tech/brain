@@ -32,17 +32,18 @@ function provider(opts: EnsureOpts): "brain-cloud" | "local" | "none" {
   return "none";
 }
 
-export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: string; memoryCount: number }> {
+export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: string; memoryCount: number; brainId?: string }> {
   const { brainDir } = opts;
   const kind = provider(opts);
   const hasBrain = () => fs.existsSync(path.join(brainDir, "index.json"));
   let source: string = kind;
+  let brainId: string | undefined;
 
   try {
     if (kind === "local") {
       ensureLocalLink(brainDir, process.env.DEV_LOCAL_BRAIN!);
     } else if (kind === "brain-cloud" && opts.idToken && (opts.refresh || !hasBrain())) {
-      await pullFromBrainCloud(brainDir, opts.idToken);
+      brainId = await pullFromBrainCloud(brainDir, opts.idToken);
     }
   } catch (e) {
     source = `${kind} (failed: ${(e as Error).message})`;
@@ -52,7 +53,36 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
     initEmptyBrain(brainDir);
     if (source === "none" || source === "brain-cloud") source += " → empty-init";
   }
-  return { source, memoryCount: readMemoryCount(brainDir) };
+  return { source, memoryCount: readMemoryCount(brainDir), brainId };
+}
+
+/**
+ * Sync a user's brain back to brain-cloud after a write (Phase 2). Repacks the
+ * working copy and PUTs it to `/api/brains/{brainId}/sync` with the user's
+ * Firebase token — mirrors the CLI's `brain cloud push`. No-op (returns pushed:
+ * false) for the local/none providers or when we lack a brainId/token; the local
+ * write already persisted in those cases.
+ */
+export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string }> {
+  if (!opts.brainId || !opts.idToken) return { pushed: false };
+  const tmp = path.join(os.tmpdir(), `brain-push-${opts.brainId}-${Date.now()}.tar.gz`);
+  try {
+    // Pack the brain (exclude any local-only sync/cloud state, like the CLI does).
+    execFileSync("tar", ["czf", tmp, "--exclude=./.sync", "--exclude=./.cloud", "-C", opts.brainDir, "."]);
+    const form = new FormData();
+    form.append("brain", new Blob([fs.readFileSync(tmp)], { type: "application/gzip" }), "brain.tar.gz");
+    const res = await fetch(`${cloudApi()}/api/brains/${opts.brainId}/sync`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${opts.idToken}` },
+      body: form,
+    });
+    if (!res.ok) return { pushed: false, error: `sync upload ${res.status}` };
+    return { pushed: true };
+  } catch (e) {
+    return { pushed: false, error: (e as Error).message };
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
 }
 
 function ensureLocalLink(brainDir: string, src: string) {
@@ -62,7 +92,7 @@ function ensureLocalLink(brainDir: string, src: string) {
   fs.symlinkSync(path.resolve(src.replace(/^~(?=\/|$)/, os.homedir())), brainDir);
 }
 
-async function pullFromBrainCloud(brainDir: string, idToken: string) {
+async function pullFromBrainCloud(brainDir: string, idToken: string): Promise<string> {
   const headers = { Authorization: `Bearer ${idToken}` };
   const listRes = await fetch(`${cloudApi()}/api/brains`, { headers });
   if (!listRes.ok) throw new Error(`brains list ${listRes.status}`);
@@ -77,6 +107,7 @@ async function pullFromBrainCloud(brainDir: string, idToken: string) {
   fs.mkdirSync(brainDir, { recursive: true });
   execFileSync("tar", ["xzf", tmp, "-C", brainDir]);
   fs.rmSync(tmp, { force: true });
+  return brainId;
 }
 
 function initEmptyBrain(brainDir: string) {

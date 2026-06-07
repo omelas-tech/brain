@@ -21,7 +21,8 @@ import {
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, resolveBrainUserId, resolveBrainDir } from "./oauth.js";
 import { isFirebaseConfigured, verifyFirebaseIdToken, loginPageHtml } from "./firebase.js";
-import { ensureUserBrain } from "./store.js";
+import { ensureUserBrain, syncBack } from "./store.js";
+import { memorize, pin, unpin } from "./write.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
 export function buildServer(session: Session): McpServer {
@@ -31,7 +32,9 @@ export function buildServer(session: Session): McpServer {
       instructions:
         "Recall the user's stored memories before tasks where prior decisions, " +
         "preferences, or learnings may help. brain_recall ranks by the brain's own " +
-        "scoring (relevance + decayed strength + spreading activation), not keyword match.",
+        "scoring (relevance + decayed strength + spreading activation), not keyword match. " +
+        "Use brain_memorize to store a specific fact the user asks to remember — pass only the " +
+        "distilled content, never the whole conversation.",
     },
   );
 
@@ -73,6 +76,70 @@ export function buildServer(session: Session): McpServer {
         content: [{ type: "text", text: JSON.stringify(s, null, 2) }],
         structuredContent: s,
       };
+    },
+  );
+
+  // ---- Write tools (Phase 2) ----------------------------------------------
+  // Each mutates the user's brain working copy via the deterministic engine, then
+  // syncs the brain back to brain-cloud so it reaches the CLI and other devices.
+  const writeBack = async () =>
+    syncBack({ brainDir: session.brainDir, brainId: session.brainId, idToken: session.idToken });
+
+  server.registerTool(
+    "brain_memorize",
+    {
+      description:
+        "Store a new memory from the SPECIFIC content provided in `content` — a distilled fact, " +
+        "decision, preference, or note the user wants remembered. Pass only that content, not the " +
+        "whole conversation. Returns the stored memory's id and path.",
+      inputSchema: {
+        content: z.string().min(1).describe("The exact memory content to store (Markdown ok). Distilled, not the raw chat."),
+        title: z.string().optional().describe("Short title; derived from content if omitted"),
+        type: z.enum(["decision", "insight", "goal", "experience", "learning", "relationship", "preference", "observation"]).optional().describe("Memory type (default: learning)"),
+        tags: z.array(z.string()).optional().describe("Topic tags"),
+      },
+      annotations: { title: "Memorize", readOnlyHint: false },
+    },
+    async ({ content, title, type, tags }) => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      const stored = await memorize(session.brainDir, { content, title, type, tags });
+      const sync = await writeBack();
+      return {
+        content: [{ type: "text", text: `Stored "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${sync.pushed ? " — synced" : sync.error ? ` — local only (${sync.error})` : ""}` }],
+        structuredContent: { stored, synced: sync.pushed },
+      };
+    },
+  );
+
+  server.registerTool(
+    "brain_pin",
+    {
+      description:
+        "Pin a memory to the always-present tier so it loads every session and never decays. " +
+        "Provide the memory `id` (e.g. from brain_recall results).",
+      inputSchema: { id: z.string().describe("Memory id, e.g. mem_20260101_abc123") },
+      annotations: { title: "Pin memory", readOnlyHint: false },
+    },
+    async ({ id }) => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      const res = await pin(session.brainDir, id);
+      const sync = await writeBack();
+      return { content: [{ type: "text", text: `Pinned ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
+    },
+  );
+
+  server.registerTool(
+    "brain_unpin",
+    {
+      description: "Remove a memory from the always-present tier (returns it to normal recall + decay). Provide the memory `id`.",
+      inputSchema: { id: z.string().describe("Memory id to unpin") },
+      annotations: { title: "Unpin memory", readOnlyHint: false },
+    },
+    async ({ id }) => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      const res = await unpin(session.brainDir, id);
+      const sync = await writeBack();
+      return { content: [{ type: "text", text: `Unpinned ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
     },
   );
 
