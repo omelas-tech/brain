@@ -30,7 +30,7 @@ const rand = () => b64url(crypto.randomBytes(32));
 const SCOPES = ["brain.read", "brain.write"];
 const CODE_TTL_MS = 60_000;
 
-interface Client { redirectUris: string[]; }
+interface Client { redirectUris: string[]; name?: string; }
 interface AuthCode {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; userId: string; scope: string; exp: number;
@@ -100,7 +100,8 @@ export function registerOAuthRoutes(app: Express): void {
       return;
     }
     const clientId = "client_" + rand();
-    clients.set(clientId, { redirectUris });
+    const name = typeof req.body?.client_name === "string" ? req.body.client_name : undefined;
+    clients.set(clientId, { redirectUris, name });
     res.status(201).json({
       client_id: clientId,
       client_id_issued_at: Math.floor(Date.now() / 1000),
@@ -145,7 +146,14 @@ export function registerOAuthRoutes(app: Express): void {
     // page. /authorize/complete verifies the token and mints the code.
     const loginId = "login_" + rand();
     pendingLogins.set(loginId, { ...params, state: q.state, exp: Date.now() + LOGIN_TTL_MS });
-    res.type("html").send(loginPageHtml({ action: "/authorize/complete", loginId, title: "Connect your brain" }));
+    res.type("html").send(loginPageHtml({
+      action: "/authorize/complete",
+      loginId,
+      title: "Connect your brain",
+      clientName: client.name,
+      scope: params.scope,
+      origin: req.get("host"),
+    }));
   });
 
   // Completes a Firebase login: verify the ID token, resolve the brain user,
