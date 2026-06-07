@@ -9,6 +9,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Overview](https://brainmemory.ai/docs): Introduction to Brain Memory — a neuroscience-inspired memory system for AI coding agents.
 - [Installation](https://brainmemory.ai/docs/getting-started/installation): Install the Brain Memory plugin for Claude Code, Gemini CLI, or OpenAI Codex.
 - [Quick Start](https://brainmemory.ai/docs/getting-started/quick-start): Get up and running with Brain Memory in under 5 minutes.
+- [Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps): Recall your brain from Claude on the web, desktop, and your phone via the Brain connector (remote MCP).
 
 ## Concepts
 

@@ -39,6 +39,13 @@ export const docPages = [
     category: "Getting Started",
     order: 2,
   },
+  {
+    title: "Use Brain in Claude apps",
+    description: "Recall your brain from Claude on the web, desktop, and your phone via the Brain connector (remote MCP).",
+    href: "/docs/getting-started/claude-apps",
+    category: "Getting Started",
+    order: 3,
+  },
 
   // Concepts
   {

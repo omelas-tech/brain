@@ -10,10 +10,22 @@ It lives in this repo (not the npm package — excluded from `package.json` `fil
 `website/`) so it reuses the **real** recall engine in `../src` directly. One brain, one
 engine, two faces.
 
-## Status: Phase 1 — read-only MVP with full OAuth (proven)
+## Status: 🟢 LIVE IN PRODUCTION — Phase 1 (read-only)
+
+Deployed at **`https://mcp.brainmemory.ai/mcp`** (Node service on the VPS beside brain-cloud;
+systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified recalling a real
+brain on **Claude web + iPhone**. Read-only tools (`brain_recall`, `brain_status`); writes are
+Phase 2.
+
+Two things to know in production:
+- **Identity must be unified** — the connector serves the brain of whatever **Firebase (Google)**
+  identity signs in, so the user's brain must be pushed to *that* brain-cloud account.
+- **Staleness** — the brain is pulled at login and cached; new local memories need a
+  `brain cloud push` (+ re-auth) to appear until Phase 2 / auto-refresh.
 
 `npm test` typechecks and proves the whole path end-to-end **in one server** — the
-complete OAuth 2.1 handshake through to real scored recall:
+complete OAuth 2.1 handshake through to real scored recall (token request is **form-urlencoded**,
+matching real clients):
 
 ```
 ① unauthenticated MCP call → 401 + WWW-Authenticate (RFC 9728)

@@ -3,6 +3,27 @@
 Running list of non-urgent maintenance tasks and follow-ups. Check items off as
 they're done; add new ones at the bottom of the relevant section.
 
+## Claude connector (Brain in Claude apps)
+
+The connector is **live** at `https://mcp.brainmemory.ai/mcp` (read-only — `brain_recall`,
+`brain_status`). Deployed on the VPS beside brain-cloud; code in `brain/connector/`, design in
+`brain-cloud/docs/connector-architecture.md`. Follow-ups:
+
+- [ ] **Phase 2 — write tools** — `brain_memorize` / `brain_pin` / `brain_forget` with
+      repack-and-push, so memories can be added from the apps (closes the create loop).
+- [ ] **Auto-refresh the cached brain** — re-pull on a TTL (or per-recall if stale) so a
+      `brain cloud push` shows up without re-auth (current staleness gap).
+- [ ] **Update stale `STUB:` header comments** in `connector/src/oauth.ts` — Firebase login and
+      the per-user store are both wired now; the top comment still describes them as stubs.
+- [ ] **Identity hygiene** — document/enforce the one-canonical-account rule (the connector serves
+      the brain of whichever Google account signs in). Consider account-linking later.
+- [ ] **Mobile login robustness** — if the Google popup ever fails inside an in-app webview, add a
+      `signInWithRedirect` fallback in the connector sign-in page.
+- [ ] **(Optional) prettier URL** — serve MCP at the subdomain root so `https://mcp.brainmemory.ai`
+      works (drop the `/mcp` path); needs a resource/audience change + re-add.
+- [ ] **Phase 3 — directory submission** — privacy page, public test account, review-criteria pass,
+      then submit to the Anthropic connector directory.
+
 ## SEO & discovery submissions
 
 Follow-ups after the SEO / LLM-search optimization of `brainmemory.ai`
