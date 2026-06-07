@@ -1,0 +1,16 @@
+[Unit]
+Description=Brain Memory Connector (remote MCP server)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/brain-connector/connector
+# Config (PORT, FIREBASE_*, CONNECTOR_STORE, BRAIN_CLOUD_API_URL) loads from
+# /opt/brain-connector/connector/.env via the app's built-in loader.
+ExecStart=/usr/bin/node --import tsx src/server.ts
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
