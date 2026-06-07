@@ -79,7 +79,7 @@ If `~/.brain/index.json` exists:
 3. **Output a single status line:**
 
 ```
-🧠 Brain active — <N> memories (<M> in project context)
+◉ Brain active — <N> memories (<M> in project context)
 ```
 
 Only add extra lines if actionable:
@@ -108,7 +108,7 @@ Track these categories as they happen:
 If notable items have accumulated, append a **brief one-liner** at the end of your next natural response:
 
 ```
-🧠 Notable <type(s)> this session — /brain:memorize when ready
+◉ Notable <type(s)> this session — /brain:memorize when ready
 ```
 
 **Rules:**

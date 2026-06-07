@@ -146,7 +146,7 @@ When a session begins and `~/.brain/` exists, the agent makes a single `brain se
 4. **Review queue + low-confidence alerts**, then a brief status line:
 
 ```
-🧠 Brain active — 42 memories loaded (8 in current project context)
+◉ Brain active — 42 memories loaded (8 in current project context)
 📋 3 memories due for review — reinforced automatically during /brain:sleep
 ```
 
@@ -161,7 +161,7 @@ Throughout the session, the agent maintains a running mental log of notable even
 Every ~10 substantive interactions (file edits, architecture decisions, debugging breakthroughs), the agent evaluates whether memorizable content has accumulated. If so, it appends a brief reminder to its next response:
 
 ```
-🧠 Notable decisions and learnings this session — /brain:memorize when ready
+◉ Notable decisions and learnings this session — /brain:memorize when ready
 ```
 
 This never interrupts your flow — it's a one-liner appended to an existing response, at most once per ~10 interactions. The counter resets after you run `/brain:memorize`.
@@ -482,6 +482,16 @@ export BRAIN_DIR="$HOME/Google Drive/brain"   # or Dropbox, iCloud Drive, OneDri
 For one-off transfers, use `/brain:sync export` and `/brain:sync import <path>`.
 
 Sync state is stored locally in `~/.brain/.sync/` and is never pushed to the remote.
+
+### Brain in Claude apps (web & mobile) — beta
+
+Beyond the CLI, you can recall your brain from the **Claude apps** (web, desktop, and your
+**phone**) via the **Brain connector** — a remote MCP server hosted by [Brain Cloud](https://app.brainmemory.ai).
+Add it once on claude.ai (**Settings → Connectors → Add custom connector → `https://mcp.brainmemory.ai/mcp`**),
+sign in with the Google account holding your cloud brain, and it syncs to every Claude client on
+your account. Read-only today (`Recall memories`, `Brain status`); writes are coming.
+
+→ Full guide: **[Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps)**
 
 ## File Structure
 

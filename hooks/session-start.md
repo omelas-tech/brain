@@ -31,14 +31,14 @@ This context is used by `/brain:remember` to boost memories that were encoded in
 Read `.brain/review-queue.json` if it exists. If there are memories due for review:
 
 ```
-🧠 Brain active — <N> memories loaded (<M> in current project context)
+◉ Brain active — <N> memories loaded (<M> in current project context)
 📋 <X> memories due for review — reinforced automatically during /brain:sleep
 ```
 
 Otherwise:
 
 ```
-🧠 Brain active — <N> memories loaded (<M> in current project context)
+◉ Brain active — <N> memories loaded (<M> in current project context)
 ```
 
 ### Low-Confidence Alert

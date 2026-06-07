@@ -40,7 +40,7 @@ const DELEGATED = {
 // `npx brain-memory` via npm's single-bin fallback.
 const INSTALLER = new Set(['install', 'update', 'uninstall']);
 
-const HELP = `🧠 brain — Brain Memory CLI
+const HELP = `◉ brain — Brain Memory CLI
 
 Usage: brain <command> [options]
 

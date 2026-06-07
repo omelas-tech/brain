@@ -306,7 +306,7 @@ async function main() {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║                                                      ║
-║   🧠  Brain Memory — Installer                      ║
+║   ◉  Brain Memory — Installer                        ║
 ║                                                      ║
 ║   Hierarchical memory system for AI coding agents    ║
 ║                                                      ║

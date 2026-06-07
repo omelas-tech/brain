@@ -41,7 +41,7 @@ Calculate aggregate stats:
 
 ```
 ╔══════════════════════════════════════════╗
-║          🧠 BRAIN STATUS                ║
+║          ◉ BRAIN STATUS                  ║
 ╠══════════════════════════════════════════╣
 ║ Total Memories:     <count>             ║
 ║ Archived:           <count>             ║
