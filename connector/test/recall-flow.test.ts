@@ -108,12 +108,13 @@ async function main() {
     const code = cb.searchParams.get("code")!;
     log(`④ authorize → code (iss + state validated)`);
 
+    // Real OAuth clients (incl. Claude) send the token request form-urlencoded.
     const tok: any = await (await fetch(asm.token_endpoint, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
         grant_type: "authorization_code", code, redirect_uri: redirectUri,
         client_id: reg.client_id, code_verifier: verifier, resource,
-      }),
+      }).toString(),
     })).json();
     assert.equal(tok.token_type, "Bearer");
     assert.ok(tok.access_token);

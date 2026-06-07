@@ -81,7 +81,12 @@ export function buildServer(session: Session): McpServer {
 
 export function createApp() {
   const app = express();
+  // Behind a TLS-terminating proxy (nginx / Cloudflare tunnel), trust
+  // X-Forwarded-Proto so issuer/resource URLs are https (Claude requires it).
+  app.set("trust proxy", true);
   app.use(express.json());
+  // OAuth token requests are application/x-www-form-urlencoded (RFC 6749 §4.1.3).
+  app.use(express.urlencoded({ extended: true }));
 
   const issuerOf = (req: Request) =>
     `${req.protocol}://${req.get("host")}`;
