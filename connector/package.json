@@ -8,7 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit && tsx test/recall-flow.test.ts && tsx test/store.test.ts && tsx test/write.test.ts && tsx test/extract-safety.test.ts && tsx test/fail-closed-auth.test.ts"
+    "test": "tsc --noEmit && tsx test/recall-flow.test.ts && tsx test/store.test.ts && tsx test/write.test.ts && tsx test/extract-safety.test.ts && tsx test/fail-closed-auth.test.ts && tsx test/ratelimit.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

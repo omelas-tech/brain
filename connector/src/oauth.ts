@@ -44,6 +44,13 @@ const clients = new Map<string, Client>();
 const authCodes = new Map<string, AuthCode>();
 const pendingLogins = new Map<string, PendingLogin>(); // login_id → validated OAuth params
 const LOGIN_TTL_MS = 600_000;
+const MAX_CLIENTS = 50_000; // bound the open-DCR registry against memory exhaustion
+
+/** Drop expired auth codes and pending logins (they were only deleted on use). */
+export function sweepExpired(now = Date.now()): void {
+  for (const [k, v] of authCodes) if (v.exp < now) authCodes.delete(k);
+  for (const [k, v] of pendingLogins) if (v.exp < now) pendingLogins.delete(k);
+}
 
 /** Build the OAuth callback URL back to the client (code + state + iss). */
 function callbackUrl(redirectUri: string, issuer: string, params: Record<string, string>, state?: string): string {
@@ -107,6 +114,10 @@ export function registerOAuthRoutes(app: Express): void {
     const redirectUris = req.body?.redirect_uris;
     if (!Array.isArray(redirectUris) || redirectUris.length === 0) {
       res.status(400).json({ error: "invalid_redirect_uri", error_description: "redirect_uris required" });
+      return;
+    }
+    if (clients.size >= MAX_CLIENTS) {
+      res.status(503).json({ error: "temporarily_unavailable", error_description: "client registry full" });
       return;
     }
     const clientId = "client_" + rand();
@@ -197,7 +208,8 @@ export function registerOAuthRoutes(app: Express): void {
     // STUB:STORE (now real) — populate this user's brain from their canonical
     // store (brain-cloud, via their Firebase token) before issuing the code.
     const store = await ensureUserBrain({ userId, brainDir: resolveBrainDir(userId), idToken: id_token, refresh: true });
-    console.log(`[connector] login ${identity.email} → ${userId} — brain via ${store.source} (${store.memoryCount} memories)`);
+    // Log the opaque user id only — never the email (PII) — for ops correlation.
+    console.log(`[connector] login ${userId} — brain via ${store.source} (${store.memoryCount} memories)`);
 
     const code = mintAuthCode({
       clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,

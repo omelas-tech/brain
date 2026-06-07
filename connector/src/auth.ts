@@ -38,6 +38,11 @@ export function issueToken(
   return token;
 }
 
+/** Drop expired tokens (they were otherwise only checked lazily on use). */
+export function sweepExpiredTokens(now = Date.now()): void {
+  for (const [k, v] of tokens) if (v.exp < now) tokens.delete(k);
+}
+
 /** Resolve a Bearer token to a live session, or null. */
 export function authenticate(authHeader: string | undefined): Session | null {
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;

@@ -17,12 +17,14 @@ import {
   authenticate,
   protectedResourceMetadata,
   wwwAuthenticate,
+  sweepExpiredTokens,
   type Session,
 } from "./auth.js";
-import { registerOAuthRoutes, mcpResource, resolveBrainUserId, resolveBrainDir } from "./oauth.js";
-import { isFirebaseConfigured, verifyFirebaseIdToken, loginPageHtml } from "./firebase.js";
+import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
+import { isFirebaseConfigured } from "./firebase.js";
 import { ensureUserBrain, syncBack } from "./store.js";
 import { memorize, pin, unpin } from "./write.js";
+import { rateLimit } from "./ratelimit.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
 export function buildServer(session: Session): McpServer {
@@ -161,6 +163,13 @@ export function createApp() {
   const issuerOf = (req: Request) =>
     `${req.protocol}://${req.get("host")}`;
 
+  // Per-IP rate limits (in-memory). Tightest on open DCR; generous on /mcp tool
+  // traffic, which is Bearer-authenticated. Must precede the route registrations.
+  app.use("/register", rateLimit({ windowMs: 60_000, max: 10 }));
+  app.use(["/authorize", "/authorize/complete"], rateLimit({ windowMs: 60_000, max: 30 }));
+  app.use("/token", rateLimit({ windowMs: 60_000, max: 60 }));
+  app.use("/mcp", rateLimit({ windowMs: 60_000, max: 300 }));
+
   // RFC 9728 — Protected Resource Metadata (how clients discover the AS).
   app.get("/.well-known/oauth-protected-resource", (req, res) => {
     res.json(protectedResourceMetadata(issuerOf(req)));
@@ -170,25 +179,6 @@ export function createApp() {
   registerOAuthRoutes(app);
 
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
-
-  // Demo: see the Firebase login resolve YOUR identity in isolation (no OAuth
-  // dance). Open /dev/whoami in a browser, sign in, watch it resolve.
-  app.get("/dev/whoami", (_req, res) => {
-    if (!isFirebaseConfigured()) {
-      res.type("html").send("<pre>Firebase not configured. Set FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID (and friends), then restart.</pre>");
-      return;
-    }
-    res.type("html").send(loginPageHtml({ action: "/dev/whoami", title: "Who am I? (Firebase demo)" }));
-  });
-  app.post("/dev/whoami", async (req, res) => {
-    try {
-      const id = await verifyFirebaseIdToken(req.body?.id_token);
-      const userId = resolveBrainUserId(id.uid);
-      res.json({ firebase_uid: id.uid, email: id.email, name: id.name, brain_user_id: userId, brain_dir: resolveBrainDir(userId) });
-    } catch (e: any) {
-      res.status(401).json({ error: e.message });
-    }
-  });
 
   // MCP endpoint — OAuth resource server. Bearer required on every request.
   app.post("/mcp", async (req: Request, res: Response) => {
@@ -248,6 +238,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const port = Number(process.env.PORT) || 8788;
+  // Garbage-collect expired auth codes / pending logins / tokens (they are only
+  // pruned lazily on use otherwise). Unref'd so it never holds the process open.
+  setInterval(() => { sweepExpired(); sweepExpiredTokens(); }, 60_000).unref();
   // Bind to loopback only: the connector is reached via the local reverse proxy,
   // never directly from the network (defense in depth alongside the host firewall).
   const host = process.env.CONNECTOR_BIND_HOST || "127.0.0.1";
