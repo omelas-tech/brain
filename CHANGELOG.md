@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.25] - 2026-06-07
+
+### Changed
+
+- **Brand refresh.** Adopted the firing-neuron "activation" glyph in place of the brain emoji across the prompts, command output, CLI help text, and the README, and refreshed the icon set (`assets/`). No behavior change.
+
+## [0.1.0-beta.24] - 2026-06-05
+
 ### Added
 
 - **`BRAIN_DIR` environment variable** — point your brain at any folder instead of the default `~/.brain`. Set it to a folder your existing tools already sync (Google Drive, Dropbox, iCloud Drive, OneDrive, Syncthing, or a git working copy) to get cross-device sync with no account and no extra setup. A leading `~/` is expanded. Honored everywhere the brain is resolved — recall, memorize, init, and Cloud sync.
