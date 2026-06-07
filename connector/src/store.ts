@@ -14,6 +14,7 @@ import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import * as tar from "tar";
 
 const RECALL_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "bin", "recall.js");
 const cloudApi = () => (process.env.BRAIN_CLOUD_API_URL || "https://api.brainmemory.ai").replace(/\/$/, "");
@@ -65,10 +66,16 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
  */
 export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string }> {
   if (!opts.brainId || !opts.idToken) return { pushed: false };
-  const tmp = path.join(os.tmpdir(), `brain-push-${opts.brainId}-${Date.now()}.tar.gz`);
+  // Pack into a private random temp dir (not a predictable /tmp name — defeats a
+  // pre-planted-symlink swap on a shared host).
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "brain-push-"));
+  const tmp = path.join(work, "brain.tar.gz");
   try {
     // Pack the brain (exclude any local-only sync/cloud state, like the CLI does).
-    execFileSync("tar", ["czf", tmp, "--exclude=./.sync", "--exclude=./.cloud", "-C", opts.brainDir, "."]);
+    await tar.c(
+      { gzip: true, file: tmp, cwd: opts.brainDir, portable: true, filter: notLocalState },
+      ["."],
+    );
     const form = new FormData();
     form.append("brain", new Blob([fs.readFileSync(tmp)], { type: "application/gzip" }), "brain.tar.gz");
     const res = await fetch(`${cloudApi()}/api/brains/${opts.brainId}/sync`, {
@@ -81,8 +88,38 @@ export async function syncBack(opts: { brainDir: string; brainId?: string; idTok
   } catch (e) {
     return { pushed: false, error: (e as Error).message };
   } finally {
-    fs.rmSync(tmp, { force: true });
+    fs.rmSync(work, { recursive: true, force: true });
   }
+}
+
+/** tar create filter: drop local-only sync/cloud state from the pushed bundle. */
+function notLocalState(p: string): boolean {
+  const top = p.replace(/^\.\//, "").split("/")[0];
+  return top !== ".sync" && top !== ".cloud";
+}
+
+/**
+ * Extract a brain bundle SAFELY. The bundle is user-supplied — it round-trips
+ * through brain-cloud as an opaque blob — so a malicious archive could try to
+ * escape `dest` via absolute paths, `..` traversal, or symlink members whose
+ * target points outside the tree (the connector runs co-located with brain-cloud,
+ * so an escape = cross-user tampering or reading the cloud's secrets). Defense in
+ * depth:
+ *   • node-tar sanitizes paths (strips leading "/", refuses ".." segments) and
+ *     refuses to write THROUGH a symlink (post-CVE-2021-32803/4 hardening);
+ *   • we additionally DROP every entry that isn't a plain file or directory —
+ *     a brain is only Markdown + JSON, so symlinks/hardlinks/devices are never
+ *     legitimate and dropping them removes the symlink-traversal class entirely;
+ *   • archived mode bits are ignored, so no setuid/setgid is ever restored.
+ */
+export async function extractBrainTar(file: string, dest: string): Promise<void> {
+  await tar.x({
+    file,
+    cwd: dest,
+    preservePaths: false, // sanitize: no absolute paths, no ".."
+    noChmod: true,        // ignore archived permission bits (drops setuid/setgid)
+    filter: (_p, entry) => "type" in entry && (entry.type === "File" || entry.type === "Directory"),
+  });
 }
 
 function ensureLocalLink(brainDir: string, src: string) {
@@ -102,11 +139,17 @@ async function pullFromBrainCloud(brainDir: string, idToken: string): Promise<st
 
   const dl = await fetch(`${cloudApi()}/api/brains/${brainId}/sync`, { headers });
   if (!dl.ok) throw new Error(`sync download ${dl.status}`);
-  const tmp = path.join(os.tmpdir(), `brain-pull-${brainId}-${Date.now()}.tar.gz`);
-  fs.writeFileSync(tmp, Buffer.from(await dl.arrayBuffer()));
-  fs.mkdirSync(brainDir, { recursive: true });
-  execFileSync("tar", ["xzf", tmp, "-C", brainDir]);
-  fs.rmSync(tmp, { force: true });
+  // Stage the download in a private random temp dir, then extract through the
+  // hardened extractor (see extractBrainTar) into the user's brain dir.
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "brain-pull-"));
+  const tmp = path.join(work, "brain.tar.gz");
+  try {
+    fs.writeFileSync(tmp, Buffer.from(await dl.arrayBuffer()));
+    fs.mkdirSync(brainDir, { recursive: true });
+    await extractBrainTar(tmp, brainDir);
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
   return brainId;
 }
 

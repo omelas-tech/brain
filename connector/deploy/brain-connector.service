@@ -4,6 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
+# Run unprivileged — a connector bug must never be a root bug (the box also runs
+# brain-cloud). The user/dir are created by deploy.sh.
+User=brainconn
+Group=brainconn
 WorkingDirectory=/opt/brain-connector/connector
 # Config (PORT, FIREBASE_*, CONNECTOR_STORE, BRAIN_CLOUD_API_URL) loads from
 # /opt/brain-connector/connector/.env via the app's built-in loader.
@@ -11,6 +15,38 @@ ExecStart=/usr/bin/node --import tsx src/server.ts
 Restart=on-failure
 RestartSec=3
 Environment=NODE_ENV=production
+# Per-user brain working copies live here (the ONLY path the service may write).
+Environment=CONNECTOR_BRAIN_BASE=/opt/brain-connector/users
+
+# --- Sandbox hardening -----------------------------------------------------
+# The service handles user-supplied brain bundles (tar). Even with the in-app
+# safe extractor, confine the blast radius at the OS level.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+# Only the per-user brain store is writable; everything else is read-only.
+ReadWritePaths=/opt/brain-connector/users
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=yes
+RemoveIPC=yes
+UMask=0077
+# Note: MemoryDenyWriteExecute is intentionally NOT set — it breaks Node's JIT.
+# SystemCallFilter to a service baseline; drop this line if the service fails to
+# start on an older kernel/seccomp setup.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 
 [Install]
 WantedBy=multi-user.target

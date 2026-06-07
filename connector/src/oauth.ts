@@ -63,6 +63,15 @@ function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge:
 const issuerOf = (req: Request) => `${req.protocol}://${req.get("host")}`;
 export const mcpResource = (issuer: string) => `${issuer}/mcp`;
 
+/**
+ * Is the no-Firebase dev auto-approve stub permitted? Only when explicitly opted
+ * in (CONNECTOR_DEV_AUTH=1) AND not running in production. Production NEVER allows
+ * it, regardless of the flag — see also the boot guard in server.ts.
+ */
+export function devAuthAllowed(): boolean {
+  return process.env.CONNECTOR_DEV_AUTH === "1" && process.env.NODE_ENV !== "production";
+}
+
 // STUB:FIREBASE — real flow verifies a Firebase login and maps uid → brain user.
 export function resolveBrainUserId(firebaseUid: string): string {
   return "brain_" + b64url(sha256(firebaseUid)).slice(0, 12);
@@ -136,8 +145,16 @@ export function registerOAuthRoutes(app: Express): void {
 
     // Establish WHO the user is.
     if (!isFirebaseConfigured()) {
-      // STUB:FIREBASE — no Firebase configured: auto-approve a fixed user so the
-      // handshake runs headlessly (dev/test). Set FIREBASE_* for real login.
+      // FAIL CLOSED: with no identity provider, the only way to "log in" is the
+      // dev stub below, which auto-approves a FIXED shared user. That must NEVER
+      // happen in production (it would hand anyone a token for a shared brain), so
+      // it is gated behind an explicit opt-in AND refused under NODE_ENV=production.
+      // The server also refuses to BOOT in production without Firebase (server.ts);
+      // this is the defense-in-depth layer for a misconfigured non-prod box.
+      if (!devAuthAllowed()) {
+        return fail("server_error", "login unavailable: identity provider not configured");
+      }
+      // STUB:FIREBASE (dev/test only) — headless auto-approve of a fixed user.
       const userId = resolveBrainUserId("firebase-uid-TEST");
       const code = mintAuthCode({ ...params, userId });
       return res.redirect(302, callbackUrl(q.redirect_uri, issuer, { code }, q.state));

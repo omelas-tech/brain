@@ -54,6 +54,9 @@ async function main() {
   // the exact dir the OAuth flow will resolve to (firebase test uid → userId → dir).
   const baseTmp = fs.mkdtempSync(path.join(os.tmpdir(), "bc-store-"));
   process.env.CONNECTOR_BRAIN_BASE = baseTmp;
+  // This test drives the full OAuth handshake headlessly (no Firebase), which now
+  // requires explicit opt-in to the dev auto-approve stub (fail-closed by default).
+  process.env.CONNECTOR_DEV_AUTH = "1";
   const userId = resolveBrainUserId("firebase-uid-TEST");
   const brainDir = resolveBrainDir(userId);
   seedBrainAt(brainDir);

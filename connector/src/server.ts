@@ -150,7 +150,10 @@ export function createApp() {
   const app = express();
   // Behind a TLS-terminating proxy (nginx / Cloudflare tunnel), trust
   // X-Forwarded-Proto so issuer/resource URLs are https (Claude requires it).
-  app.set("trust proxy", true);
+  // Trust ONLY the loopback proxy — NOT `true`, which would let a direct client
+  // spoof X-Forwarded-* (and thus forge the issuer used in audience binding and
+  // OAuth callback URLs). The connector also binds to 127.0.0.1 (see listen).
+  app.set("trust proxy", "loopback");
   app.use(express.json());
   // OAuth token requests are application/x-www-form-urlencoded (RFC 6749 §4.1.3).
   app.use(express.urlencoded({ extended: true }));
@@ -234,10 +237,23 @@ function loadDotEnv() {
 // Run directly: brain-connector listening for MCP over HTTP.
 if (import.meta.url === `file://${process.argv[1]}`) {
   loadDotEnv();
+  // FAIL CLOSED: never run in production without an identity provider — otherwise
+  // /authorize would have to fall back to the shared dev stub (auth bypass).
+  if (process.env.NODE_ENV === "production" && !isFirebaseConfigured()) {
+    console.error(
+      "[connector] FATAL: NODE_ENV=production but Firebase is not configured " +
+        "(set FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID). " +
+        "Refusing to start with authentication disabled.",
+    );
+    process.exit(1);
+  }
   const port = Number(process.env.PORT) || 8788;
-  createApp().listen(port, () => {
-    console.log(`brain-connector (Phase 1) on http://localhost:${port}`);
-    console.log(`  PRM:  http://localhost:${port}/.well-known/oauth-protected-resource`);
-    console.log(`  MCP:  http://localhost:${port}/mcp`);
+  // Bind to loopback only: the connector is reached via the local reverse proxy,
+  // never directly from the network (defense in depth alongside the host firewall).
+  const host = process.env.CONNECTOR_BIND_HOST || "127.0.0.1";
+  createApp().listen(port, host, () => {
+    console.log(`brain-connector on http://${host}:${port}`);
+    console.log(`  PRM:  http://${host}:${port}/.well-known/oauth-protected-resource`);
+    console.log(`  MCP:  http://${host}:${port}/mcp`);
   });
 }
