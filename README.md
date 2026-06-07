@@ -494,6 +494,13 @@ confirmation) — so you can capture a memory on your phone and recall it on you
 
 → Full guide: **[Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps)**
 
+**Your data, protected.** Brains synced to Brain Cloud are **encrypted at rest**
+(AES-256-GCM, per-user key); the connector holds working copies in **RAM only**
+(never on disk); all traffic is **TLS**; sessions use **rotating, revocable tokens
+with reuse detection** (log out one device or all); and every request is isolated
+to your account. Prefer the server never sees plaintext? Stay **local-only** (the
+default) or use Git/export sync with a passphrase. See **[SECURITY.md](SECURITY.md)**.
+
 ## File Structure
 
 ```
