@@ -11,12 +11,14 @@ brain-cloud; code in `brain/connector/`, design in `brain-cloud/docs/connector-a
 Follow-ups:
 
 - [x] **Phase 2 — write tools** — `brain_memorize` / `brain_pin` / `brain_unpin` with sync-back. LIVE.
-- [ ] **`brain_forget` tool** — expose delete/archive (destructiveHint) from the apps.
-- [ ] **Sync-back hardening / auto-refresh** — writes sync via the ~1 h Firebase token; a write after
-      expiry persists locally but the login re-pull could overwrite it. Add push-before-pull (or a
-      dirty flag) + a TTL re-pull so local `brain cloud push`es also appear without re-auth.
-- [ ] **Update stale `STUB:` header comments** in `connector/src/oauth.ts` — Firebase login and
-      the per-user store are both wired now; the top comment still describes them as stubs.
+- [x] **`brain_forget` tool** — recoverable archive (destructiveHint) via `bin/forget.js`. LIVE.
+- [x] **Brand-icon sync** — `brain-cloud/web` + `omelas` already on the new glyph.
+- [x] **Update stale `STUB:` header comments** in `connector/src/oauth.ts`. Done.
+- [ ] **(Low priority) sync-back freshness** — writes sync via the Firebase token, which **co-expires
+      with the connector's own access token**, so in practice an authenticated write always syncs (and
+      the tool surfaces "local only" on the rare failure). Remaining gap is only *freshness*: a CLI
+      `brain cloud push` during an active connector session isn't seen until re-auth. A TTL re-pull
+      would close it — deferred until real usage shows it matters.
 - [ ] **Identity hygiene** — document/enforce the one-canonical-account rule (the connector serves
       the brain of whichever Google account signs in). Consider account-linking later.
 - [ ] **Mobile login robustness** — if the Google popup ever fails inside an in-app webview, add a
