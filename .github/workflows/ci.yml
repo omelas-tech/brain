@@ -20,8 +20,8 @@ jobs:
         node-version: [18, 20, 22, 24]
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm test
@@ -36,7 +36,7 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 2
 
@@ -50,7 +50,7 @@ jobs:
             echo "No website changes — skipping deploy"
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.changes.outputs.changed == 'true'
         with:
           node-version: 20
