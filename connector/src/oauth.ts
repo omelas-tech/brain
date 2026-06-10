@@ -4,11 +4,12 @@
 // RFC 8414 (AS metadata) + 7591 (DCR) + PKCE S256 + 8707 (resource/audience) +
 // 9207 (iss). Mints tokens into auth.ts's store so the resource guard accepts them.
 //
-// Two seams remain stubbed for Phase 2 (clearly marked):
-//   STUB:FIREBASE   — /authorize auto-approves a fixed user instead of bouncing
-//                     through Firebase login.
-//   STUB:STORE      — resolveBrainDir maps a user to a local dir; Phase 2 syncs
-//                     that dir from the user's canonical store (brain-cloud / BYOS).
+// Both former stubs are now fully wired:
+//   • Identity — /authorize bounces the user through real Firebase Google login,
+//     verified server-side and secret-free in firebase.ts.
+//   • Store — the user's brain is pulled from brain-cloud (store.ts) keyed on the
+//     verified Firebase uid; writes sync back. When FIREBASE_* is unset, /authorize
+//     falls back to a fixed dev user so the headless tests run without a browser.
 
 import crypto from "node:crypto";
 import path from "node:path";

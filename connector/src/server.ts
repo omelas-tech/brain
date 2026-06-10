@@ -23,7 +23,7 @@ import {
 import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
 import { isFirebaseConfigured } from "./firebase.js";
 import { ensureUserBrain, syncBack } from "./store.js";
-import { memorize, pin, unpin } from "./write.js";
+import { memorize, pin, unpin, forget } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
 
 /** A fresh server per request, with tools bound to this user's brain dir. */
@@ -142,6 +142,23 @@ export function buildServer(session: Session): McpServer {
       const res = await unpin(session.brainDir, id);
       const sync = await writeBack();
       return { content: [{ type: "text", text: `Unpinned ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
+    },
+  );
+
+  server.registerTool(
+    "brain_forget",
+    {
+      description:
+        "Archive a memory so it stops surfacing in recall (recoverable — moved to _archived/, not " +
+        "permanently deleted). Provide the memory `id` (e.g. from brain_recall results).",
+      inputSchema: { id: z.string().describe("Memory id to archive") },
+      annotations: { title: "Forget memory", readOnlyHint: false, destructiveHint: true },
+    },
+    async ({ id }) => {
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      const res = await forget(session.brainDir, id);
+      const sync = await writeBack();
+      return { content: [{ type: "text", text: `Archived ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
     },
   );
 

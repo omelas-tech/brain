@@ -76,3 +76,8 @@ export async function pin(brainDir: string, id: string, opts: { scope?: string; 
 export async function unpin(brainDir: string, id: string): Promise<any> {
   return run("unpin.js", [id], brainDir);
 }
+
+/** Archive a memory (recoverable): removes it from recall but keeps it in _archived/. */
+export async function forget(brainDir: string, id: string): Promise<any> {
+  return run("forget.js", [id], brainDir);
+}

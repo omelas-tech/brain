@@ -62,7 +62,7 @@ async function main() {
     await client.connect(transport);
 
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ["brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin"]);
+    assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin"]);
     log(`① tools/list → [${tools.join(", ")}]`);
 
     // Write a memory from explicit content
@@ -90,8 +90,18 @@ async function main() {
     assert.ok(!JSON.stringify(after).includes(id), "memory is unpinned");
     log(`⑤ brain_unpin → ${id} removed from pinned.json`);
 
+    // Forget (archive) it — gone from recall, recoverable in _archived/
+    await client.callTool({ name: "brain_forget", arguments: { id } });
+    const recAfter: any = await client.callTool({ name: "brain_recall", arguments: { query: "deploy runbook sidecar", limit: 3 } });
+    assert.ok(!recAfter.structuredContent.results.some((h: any) => h.id === id), "archived memory no longer recalled");
+    const arch = JSON.parse(fs.readFileSync(path.join(brainDir, "_archived", "index.json"), "utf-8"));
+    assert.ok(arch.memories[id], "archived memory is recorded in _archived/index.json (recoverable)");
+    const st: any = await client.callTool({ name: "brain_status", arguments: {} });
+    assert.equal(st.structuredContent.memory_count, 0, "live memory count is back to 0 after archive");
+    log(`⑥ brain_forget → ${id} archived (gone from recall, in _archived, count=0)`);
+
     await client.close();
-    console.log("\n✅ PHASE 2 (writes): memorize → instant recall → pin/unpin, all through the connector.");
+    console.log("\n✅ PHASE 2 (writes): memorize → recall → pin/unpin → forget(archive), all through the connector.");
   } finally {
     srv.close();
   }
