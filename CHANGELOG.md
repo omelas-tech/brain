@@ -6,18 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.27] - 2026-06-10
+
 ### Security
 
 - **Hosted-service hardening (Brain Cloud + connector).** Memories synced to Brain
-  Cloud are now **encrypted at rest** (AES-256-GCM, per-user key); the connector
-  keeps per-user working copies in **RAM only** (tmpfs), never on disk. CLI
-  sessions use **rotating refresh tokens with automatic reuse detection** and real
-  **logout** (one device or all). The connector now fails closed without an
-  identity provider, runs as an unprivileged sandboxed service, safely handles
-  untrusted brain bundles, and rate-limits its endpoints; OAuth account-linking
-  requires a **verified** email. None of this changes local-only or Git/export
-  use, which stay passphrase-encrypted and never touch the cloud. See
-  [SECURITY.md](SECURITY.md).
+  Cloud are now **encrypted at rest** (AES-256-GCM, per-user key, with keys managed
+  in a cloud KMS — the key never sits on the server); the connector keeps per-user
+  working copies in **RAM only** (tmpfs), never on disk. CLI sessions use
+  **rotating refresh tokens with automatic reuse detection** and real **logout**
+  (one device or all). The connector now fails closed without an identity provider,
+  runs as an unprivileged sandboxed service, safely handles untrusted brain
+  bundles, and rate-limits its endpoints; OAuth account-linking requires a
+  **verified** email. None of this changes local-only or Git/export use, which stay
+  passphrase-encrypted and never touch the cloud. See [SECURITY.md](SECURITY.md).
+- The published package now also ships `SECURITY.md` and `CHANGELOG.md`.
 
 ## [0.1.0-beta.25] - 2026-06-07
 

@@ -35,6 +35,8 @@
     "templates/",
     "src/",
     "README.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "repository": {
