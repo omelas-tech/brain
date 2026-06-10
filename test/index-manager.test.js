@@ -79,7 +79,9 @@ describe('getBrainDir', () => {
   });
 
   it('honors the BRAIN_DIR env var (absolute path used as-is)', () => {
-    const dir = path.join(path.sep, 'mnt', 'drive', 'brain');
+    // path.resolve includes the drive letter on Windows, where a bare
+    // "\mnt\drive\brain" would only be drive-relative, not absolute
+    const dir = path.resolve(path.sep, 'mnt', 'drive', 'brain');
     process.env.BRAIN_DIR = dir;
     assert.equal(getBrainDir(), dir);
   });
