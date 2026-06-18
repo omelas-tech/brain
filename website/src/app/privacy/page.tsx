@@ -133,6 +133,56 @@ export default function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="font-semibold text-[var(--text-primary)] mb-2">
+              Who&apos;s responsible &amp; your rights (GDPR)
+            </h2>
+            <p>
+              Omelas is a sole proprietorship (eenmanszaak) based in the Netherlands (KvK 98455303)
+              and is the <strong className="text-[var(--text-primary)]">data controller</strong> for
+              the personal data processed by Brain Cloud and the connector. We process that data to
+              provide the Service you asked for (to perform our contract with you), and on the basis
+              of your consent where that applies. We do not sell your data and do not use it to train
+              models.
+            </p>
+            <p className="mt-3">
+              If you are in the EU/EEA, the GDPR gives you the right to:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 mt-2">
+              <li>access the personal data we hold about you and receive a copy;</li>
+              <li>have inaccurate data corrected;</li>
+              <li>have your data erased (the &ldquo;right to be forgotten&rdquo;);</li>
+              <li>restrict or object to certain processing;</li>
+              <li>
+                receive your data in a portable format — the{" "}
+                <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">/brain:sync export</code>{" "}
+                command does exactly this on demand; and
+              </li>
+              <li>withdraw consent at any time, without affecting processing already carried out.</li>
+            </ul>
+            <p className="mt-3">
+              You can exercise most of these yourself at any time — export your brain,{" "}
+              <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">/brain:forget</code>{" "}
+              a memory, or delete your brain or whole account from the Brain Cloud dashboard — or email
+              us at{" "}
+              <a
+                href="mailto:support@omelas.tech"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                support@omelas.tech
+              </a>{" "}
+              and we will respond within 30 days. If you believe we have mishandled your data, you may
+              also lodge a complaint with the Dutch data protection authority, the{" "}
+              <a
+                href="https://www.autoriteitpersoonsgegevens.nl/en"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                Autoriteit Persoonsgegevens
+              </a>
+              .
+            </p>
+          </section>
+
+          <section>
             <h2 className="font-semibold text-[var(--text-primary)] mb-2">Contact</h2>
             <p>
               <a
