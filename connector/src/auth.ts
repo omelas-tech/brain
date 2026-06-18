@@ -14,6 +14,7 @@ export interface Session {
   exp: number;
   brainId?: string; // brain-cloud brain id — for sync-back after writes (Phase 2)
   idToken?: string; // Firebase ID token from login — auths the sync-back push
+  identityNote?: string; // hygiene hint computed at login (e.g. wrong/empty account)
 }
 
 const tokens = new Map<string, Session>();
@@ -23,7 +24,7 @@ const TOKEN_TTL_MS = 3600_000;
 export function issueToken(
   userId: string,
   brainDir: string,
-  opts: { scope?: string; aud: string; brainId?: string; idToken?: string },
+  opts: { scope?: string; aud: string; brainId?: string; idToken?: string; identityNote?: string },
 ): string {
   const token = "at_" + crypto.randomBytes(24).toString("base64url");
   tokens.set(token, {
@@ -34,6 +35,7 @@ export function issueToken(
     exp: Date.now() + TOKEN_TTL_MS,
     brainId: opts.brainId,
     idToken: opts.idToken,
+    identityNote: opts.identityNote,
   });
   return token;
 }

@@ -247,6 +247,7 @@ svg { display: block; }
 .lede h1 { margin: 0; font-size: 1.42rem; font-weight: 600; letter-spacing: -0.02em; }
 .lede p { margin: 10px auto 0; max-width: 320px; color: var(--fg-2); font-size: 0.94rem; }
 .lede p b { color: var(--fg); font-weight: 500; }
+.lede .hint { margin-top: 12px; font-family: var(--mono); font-size: 0.72rem; line-height: 1.5; color: var(--fg-3); }
 
 .scopes { margin: 28px 0 26px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
 .scopes .sc-head {
@@ -325,6 +326,7 @@ svg { display: block; }
     <div class="eyebrow">Authorize connection</div>
     <h1>${opts.title}</h1>
     <p><b>${clientLabel}</b> wants to ${verb} memories in your Brain Memory store.</p>
+    <p class="hint">Sign in with the Google account your brain is synced to.</p>
   </div>
 
   <div class="scopes">
@@ -347,7 +349,7 @@ svg { display: block; }
       <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       <b>${origin}</b> · OAuth 2.0
     </span>
-    <p class="terms">By connecting you agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+    <p class="terms">By connecting you agree to the <a href="https://brainmemory.ai/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="https://brainmemory.ai/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</p>
   </div>
 </main>
 

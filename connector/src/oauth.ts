@@ -36,6 +36,7 @@ interface AuthCode {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; userId: string; scope: string; exp: number;
   brainId?: string; idToken?: string; // carried to the session for sync-back (Phase 2)
+  identityNote?: string; // carried to the session: login-time identity-hygiene hint
 }
 interface PendingLogin {
   clientId: string; redirectUri: string; codeChallenge: string;
@@ -62,7 +63,7 @@ function callbackUrl(redirectUri: string, issuer: string, params: Record<string,
   return u.toString();
 }
 
-function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge: string; resource: string; scope: string; userId: string; brainId?: string; idToken?: string }): string {
+function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge: string; resource: string; scope: string; userId: string; brainId?: string; idToken?: string; identityNote?: string }): string {
   const code = "code_" + rand();
   authCodes.set(code, { ...p, exp: Date.now() + CODE_TTL_MS });
   return code;
@@ -210,12 +211,15 @@ export function registerOAuthRoutes(app: Express): void {
     // store (brain-cloud, via their Firebase token) before issuing the code.
     const store = await ensureUserBrain({ userId, brainDir: resolveBrainDir(userId), idToken: id_token, refresh: true });
     // Log the opaque user id only — never the email (PII) — for ops correlation.
-    console.log(`[connector] login ${userId} — brain via ${store.source} (${store.memoryCount} memories)`);
+    // The identity status (ok / no-cloud-brain / multiple-brains) is non-PII and
+    // useful for spotting wrong-account sign-ins in the field.
+    console.log(`[connector] login ${userId} — brain via ${store.source} (${store.memoryCount} memories, identity: ${store.identity?.status ?? "n/a"})`);
 
     const code = mintAuthCode({
       clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
       resource: login.resource, scope: login.scope, userId,
       brainId: store.brainId, idToken: id_token, // carry to session for write sync-back
+      identityNote: store.identity?.note, // surfaced to the user by the MCP tools
     });
     res.json({ redirect: callbackUrl(login.redirectUri, issuer, { code }, login.state) });
   });
@@ -249,6 +253,7 @@ export function registerOAuthRoutes(app: Express): void {
       scope: entry.scope,
       aud: entry.resource, // RFC 8707 audience binding
       brainId: entry.brainId, idToken: entry.idToken, // for write sync-back
+      identityNote: entry.identityNote, // login-time identity-hygiene hint
     });
     res.json({ access_token, token_type: "Bearer", expires_in: 3600, scope: entry.scope });
   });

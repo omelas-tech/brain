@@ -15,15 +15,18 @@ engine, two faces.
 Deployed at **`https://mcp.brainmemory.ai/mcp`** (Node service on the VPS beside brain-cloud;
 systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified on **Claude web +
 iPhone**. Tools: `brain_recall`, `brain_status` (read) + `brain_memorize`, `brain_pin`,
-`brain_unpin` (write — writes sync back to brain-cloud; hosts gate them behind confirmation).
-`brain_forget` is not exposed yet.
+`brain_unpin`, `brain_forget` (write — writes sync back to brain-cloud; hosts gate them behind
+confirmation).
 
 Two things to know in production:
-- **Identity must be unified** — the connector serves the brain of whatever **Firebase (Google)**
-  identity signs in, so the user's brain must be pushed to *that* brain-cloud account.
+- **One brain ↔ one Google account** — the connector serves the brain of whatever **Firebase
+  (Google)** identity signs in, so the brain must be pushed to *that* brain-cloud account. See
+  [Identity & accounts](#identity--accounts) below for how the connector now surfaces a wrong /
+  empty / multi-brain account instead of silently serving a phantom brain.
 - **Sync-back token window** — writes sync back using the Firebase token from login (~1 h); a write
-  after it expires persists locally but syncs on next login. Local CLI memories reach the connector
-  after a `brain cloud push`. (Auto-refresh / push-before-pull is a tracked follow-up.)
+  after it expires persists locally but syncs on next login. Local CLI memories (`brain cloud push`)
+  now reach an active session automatically via a **TTL re-pull** (`CONNECTOR_REPULL_TTL_MS`, default
+  120s) — it re-pulls only when the cloud checksum changed and never over an unsynced local write.
 
 `npm test` typechecks and proves the whole path end-to-end **in one server** — the
 complete OAuth 2.1 handshake through to real scored recall (token request is **form-urlencoded**,
@@ -35,7 +38,7 @@ matching real clients):
 ③ Dynamic Client Registration (RFC 7591)
 ④ authorize → code (iss + state validated, RFC 9207)
 ⑤ token → audience-bound Bearer (PKCE verified, RFC 8707)
-⑥ MCP initialize + tools/list → [brain_recall, brain_status]  (official SDK)
+⑥ MCP initialize + tools/list → [brain_recall, brain_status, brain_memorize, brain_pin, brain_unpin, brain_forget]  (official SDK)
 ⑦ brain_recall(query) → the brain's REAL scored results (relevance + decayed
    strength + spreading activation), identical to the CLI
 ```
@@ -63,9 +66,31 @@ npm start         # serve MCP on http://localhost:8788
 | `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain. |
 | `brain_memorize` | write | Store the **explicit content** provided (never the conversation); immediately recallable. |
 | `brain_pin` / `brain_unpin` | write | Toggle the always-present tier. |
+| `brain_forget` | write (`destructiveHint`) | Archive a memory (recoverable — moved to `_archived/`, not hard-deleted). |
 
-Writes reuse the deterministic CLIs (`memorize.js` / `pin.js` / `unpin.js`) and then `syncBack()`
-to brain-cloud. `brain_forget` (delete/archive) is not exposed yet.
+Writes reuse the deterministic CLIs (`memorize.js` / `pin.js` / `unpin.js` / `forget.js`) and then
+`syncBack()` to brain-cloud.
+
+## Identity & accounts
+
+**One brain ↔ one Google account.** The connector has no idea which laptop you're on — it serves the
+brain belonging to whatever Firebase (Google) identity completes the sign-in. The verified `uid` maps
+deterministically to a brain user (`resolveBrainUserId`), and that user's canonical brain is pulled
+from brain-cloud. So the rule is simple: **connect with the same Google account your CLI's
+`brain cloud` syncs to.**
+
+To keep that rule from failing silently, `ensureUserBrain` returns an `identity` signal that the
+tools surface to you:
+
+| Situation | `identity.status` | What you see |
+|-----------|-------------------|--------------|
+| Account has **no** brain in Brain Cloud | `no-cloud-brain` | A note (in `brain_status`, and in `brain_recall` when it finds nothing) telling you this account is empty — most likely you signed in with the wrong Google account, or you're brand new. |
+| Account has exactly **one** brain | `ok` | Nothing — the common, unambiguous case. |
+| (Pro) account has **several** brains | `multiple-brains` | A note that the connector is serving your **oldest** brain (the deterministic canonical pick). |
+
+This is *guidance, not enforcement* — a genuinely new user with no brain yet still gets a usable
+empty brain. **Account-linking** (letting one Google identity span several brains, or choosing which
+brain a multi-brain account exposes) is deliberately deferred; see the design doc and `CHORES.md`.
 
 ## Auth
 
@@ -114,7 +139,7 @@ Always graceful: if the brain is still missing, it empty-inits a valid (recall-s
 
 ## Next
 
-- **`brain_forget`** — expose delete/archive (destructiveHint) so memories can be removed from the apps.
-- **Sync-back hardening** — auto-refresh / push-before-pull so writes never risk being overwritten by
-  the login re-pull, and local CLI memories appear without a manual push.
-- **Identity ↔ account** — tighten the Firebase `uid` → brain-cloud record mapping.
+- **Account-linking** — let one user span several brains (or pick which brain a multi-brain account
+  exposes), superseding today's "serve the oldest brain" canonical rule. See [Identity & accounts](#identity--accounts).
+- **Directory submission** — remaining manual steps (test account, MCPB packaging, launch post); see
+  the submission checklist in `brain-cloud/docs/connector-architecture.md` §7.

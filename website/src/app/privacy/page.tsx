@@ -3,7 +3,8 @@ import Footer from "../components/Footer";
 
 export const metadata = {
   title: "Privacy Policy — Brain Memory",
-  description: "Privacy policy for the Brain Memory website.",
+  description:
+    "Privacy policy for Brain Memory — the local-first plugin, the optional Brain Cloud sync hub, and the Claude connector.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -23,7 +24,7 @@ export default function PrivacyPage() {
           </h1>
         </div>
         <p className="font-mono text-xs uppercase tracking-wider text-[var(--text-tertiary)] mb-10">
-          last updated · march 2026
+          last updated · june 2026
         </p>
 
         <div className="space-y-8 text-[var(--text-secondary)] leading-relaxed text-[0.9375rem]">
@@ -36,13 +37,88 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="font-semibold text-[var(--text-primary)] mb-2">Local-first data</h2>
+            <h2 className="font-semibold text-[var(--text-primary)] mb-2">Local-first by default</h2>
             <p>
-              All memory data is stored locally in{" "}
+              By default, all memory data is stored locally in{" "}
               <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">~/.brain/</code>{" "}
-              on your machine. Nothing is sent to external servers. The optional{" "}
+              on your machine and never leaves it. Syncing is always opt-in: the{" "}
               <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">/brain:sync</code>{" "}
-              feature pushes data to a Git remote of your choosing.
+              feature can push your memories to a Git remote of your choosing, to a single
+              encrypted export file, or to the optional hosted Brain Cloud (below). If you never
+              enable a sync provider, nothing is ever sent to external servers.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-semibold text-[var(--text-primary)] mb-2">
+              Brain Cloud &amp; the Claude connector
+            </h2>
+            <p>
+              <a
+                href="https://app.brainmemory.ai"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                Brain Cloud
+              </a>{" "}
+              (the optional hosted sync hub) and the{" "}
+              <strong className="text-[var(--text-primary)]">Claude connector</strong> (a remote
+              MCP server that lets Claude apps recall and write your memories) are entirely
+              optional. When you choose to use them:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 mt-3">
+              <li>
+                <strong className="text-[var(--text-primary)]">What we store:</strong> only the
+                brain you sync (your Markdown memory files and their index) and the minimum
+                account identity needed to sign you in — your Google account, via Firebase
+                authentication. We do <strong>not</strong> collect your Claude conversations,
+                chat history, prompts, or other files. The{" "}
+                <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">brain_memorize</code>{" "}
+                tool stores only the specific content you ask to remember — never the whole
+                conversation.
+              </li>
+              <li>
+                <strong className="text-[var(--text-primary)]">Encrypted at rest.</strong> Brains
+                in Brain Cloud are encrypted on disk with AES-256-GCM using a per-user key. The
+                connector keeps your working copy in memory (RAM) only — it is never written to
+                the connector&apos;s disk.
+              </li>
+              <li>
+                <strong className="text-[var(--text-primary)]">Encrypted in transit.</strong> All
+                traffic to Brain Cloud and the connector is HTTPS/TLS.
+              </li>
+              <li>
+                <strong className="text-[var(--text-primary)]">Strict isolation.</strong> Every
+                request is authorized against the signed-in account; one account can never read
+                or write another&apos;s brain.
+              </li>
+              <li>
+                <strong className="text-[var(--text-primary)]">Revocable access.</strong> Sessions
+                use rotating tokens with reuse detection; you can log out one device or all
+                devices, and revoke the connector&apos;s access from your Claude account, at any
+                time.
+              </li>
+            </ul>
+            <p className="mt-3">
+              Because recall runs server-side, this is server-side encryption at rest, not
+              end-to-end encryption — the service necessarily processes your memories in memory to
+              score them. If you require that no server ever sees your memories in plaintext, keep
+              your brain local-only (the default) or use Git/export sync with a passphrase.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-semibold text-[var(--text-primary)] mb-2">
+              Retention, export &amp; deletion
+            </h2>
+            <p>
+              Your memories are yours. You can export your entire brain to a single (optionally
+              encrypted) file at any time with{" "}
+              <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">/brain:sync export</code>
+              , archive or forensically erase individual memories with{" "}
+              <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">/brain:forget</code>
+              , and delete a synced brain or your whole account from the Brain Cloud dashboard —
+              which removes the stored brain from our systems. Deleting locally never requires the
+              cloud, and deleting from the cloud never touches your local copy.
             </p>
           </section>
 

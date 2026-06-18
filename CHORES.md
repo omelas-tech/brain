@@ -14,19 +14,30 @@ Follow-ups:
 - [x] **`brain_forget` tool** — recoverable archive (destructiveHint) via `bin/forget.js`. LIVE.
 - [x] **Brand-icon sync** — `brain-cloud/web` + `omelas` already on the new glyph.
 - [x] **Update stale `STUB:` header comments** in `connector/src/oauth.ts`. Done.
-- [ ] **(Low priority) sync-back freshness** — writes sync via the Firebase token, which **co-expires
-      with the connector's own access token**, so in practice an authenticated write always syncs (and
-      the tool surfaces "local only" on the rare failure). Remaining gap is only *freshness*: a CLI
-      `brain cloud push` during an active connector session isn't seen until re-auth. A TTL re-pull
-      would close it — deferred until real usage shows it matters.
-- [ ] **Identity hygiene** — document/enforce the one-canonical-account rule (the connector serves
-      the brain of whichever Google account signs in). Consider account-linking later.
+- [x] **Sync-back freshness** — TTL re-pull implemented. A read/write tool call older than
+      `CONNECTOR_REPULL_TTL_MS` (default 120s; 0 disables) re-pulls the brain from brain-cloud, but
+      **only downloads when the cloud `checksum` actually changed** (cheap: one list call otherwise),
+      and **never over an unsynced local write** (a failed sync-back marks the brain dirty and the
+      re-pull is skipped until it syncs) — so a CLI `brain cloud push` shows up mid-session without a
+      re-auth, with no risk to in-flight writes. `connector/src/store.ts`; covered by `test/freshness.test.ts`.
+- [x] **Identity hygiene** — one-canonical-account rule documented + enforced. `ensureUserBrain`
+      surfaces an `identity` signal (`no-cloud-brain` / `multiple-brains` / `ok`); multi-brain accounts
+      get the deterministic **oldest** brain; `brain_status` always reports the hint and `brain_recall`
+      reports it when empty; the sign-in page tells users to use the account their brain syncs to.
+      Documented in `connector/README.md` + `brain-cloud/docs/connector-architecture.md`.
+      **Account-linking** (one identity spanning/choosing among several brains) deliberately deferred.
 - [ ] **Mobile login robustness** — if the Google popup ever fails inside an in-app webview, add a
       `signInWithRedirect` fallback in the connector sign-in page.
 - [ ] **(Optional) prettier URL** — serve MCP at the subdomain root so `https://mcp.brainmemory.ai`
       works (drop the `/mcp` path); needs a resource/audience change + re-add.
-- [ ] **Phase 3 — directory submission** — privacy page, public test account, review-criteria pass,
-      then submit to the Anthropic connector directory.
+- [ ] **Phase 3 — directory submission** — prep mostly done; remaining steps are manual/ops.
+      Done: privacy page now covers Brain Cloud + connector (`website/src/app/privacy`); full Terms of
+      Service page (`website/src/app/terms`) + consent-page links wired (were `#`); review-criteria
+      self-assessment in `brain-cloud/docs/connector-architecture.md` §7; test-account runbook
+      (`brain-cloud/docs/connector-test-account.md`); identity hygiene (above).
+      Remaining: ⏳ fill the ToS governing-law jurisdiction placeholder · ⏳ create the reviewer test
+      account + seed a demo brain (per runbook) · ⏳ MCPB packaging · ⏳ user-facing connector docs /
+      launch post · ⏳ submit to the Anthropic connector directory.
 
 ## SEO & discovery submissions
 

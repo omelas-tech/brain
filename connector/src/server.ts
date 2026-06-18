@@ -40,6 +40,20 @@ export function buildServer(session: Session): McpServer {
     },
   );
 
+  // Freshness: re-pull the user's brain from brain-cloud when the cached working copy
+  // is older than CONNECTOR_REPULL_TTL_MS (default 120s; 0 disables). The re-pull is
+  // cheap — it skips the download unless the cloud checksum changed — and never
+  // overwrites an unsynced local write, so a CLI `brain cloud push` mid-session shows
+  // up without forcing a re-auth.
+  const FRESH_TTL_MS = Number(process.env.CONNECTOR_REPULL_TTL_MS ?? 120_000);
+  const ensureFresh = () =>
+    ensureUserBrain({
+      userId: session.userId,
+      brainDir: session.brainDir,
+      idToken: session.idToken,
+      ttlMs: FRESH_TTL_MS > 0 ? FRESH_TTL_MS : undefined,
+    });
+
   server.registerTool(
     "brain_recall",
     {
@@ -55,11 +69,16 @@ export function buildServer(session: Session): McpServer {
       annotations: { readOnlyHint: true, title: "Recall memories" },
     },
     async ({ query, limit, project }) => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const hits = await recall(session.brainDir, query, { top: limit, project });
+      // Surface the login-time identity hint ONLY when recall is empty — that's the
+      // case where a wrong-account sign-in looks like "no memories" and the user
+      // needs to know why. Non-empty results stay clutter-free.
+      const note = hits.length === 0 ? session.identityNote : undefined;
+      const text = JSON.stringify(hits, null, 2) + (note ? `\n\nNote: ${note}` : "");
       return {
-        content: [{ type: "text", text: JSON.stringify(hits, null, 2) }],
-        structuredContent: { count: hits.length, results: hits },
+        content: [{ type: "text", text }],
+        structuredContent: { count: hits.length, results: hits, ...(note ? { note } : {}) },
       };
     },
   );
@@ -72,11 +91,16 @@ export function buildServer(session: Session): McpServer {
       annotations: { readOnlyHint: true, title: "Brain status" },
     },
     async () => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const s = status(session.brainDir);
+      // brain_status is the diagnostic tool — always report the identity hint here
+      // (e.g. "this account has no brain in Brain Cloud") so a wrong-account
+      // sign-in is visible even when the brain isn't empty for other reasons.
+      const note = session.identityNote;
+      const out = note ? { ...s, note } : s;
       return {
-        content: [{ type: "text", text: JSON.stringify(s, null, 2) }],
-        structuredContent: s,
+        content: [{ type: "text", text: JSON.stringify(out, null, 2) }],
+        structuredContent: out,
       };
     },
   );
@@ -103,7 +127,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { title: "Memorize", readOnlyHint: false },
     },
     async ({ content, title, type, tags }) => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const stored = await memorize(session.brainDir, { content, title, type, tags });
       const sync = await writeBack();
       return {
@@ -123,7 +147,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { title: "Pin memory", readOnlyHint: false },
     },
     async ({ id }) => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const res = await pin(session.brainDir, id);
       const sync = await writeBack();
       return { content: [{ type: "text", text: `Pinned ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
@@ -138,7 +162,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { title: "Unpin memory", readOnlyHint: false },
     },
     async ({ id }) => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const res = await unpin(session.brainDir, id);
       const sync = await writeBack();
       return { content: [{ type: "text", text: `Unpinned ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
@@ -155,7 +179,7 @@ export function buildServer(session: Session): McpServer {
       annotations: { title: "Forget memory", readOnlyHint: false, destructiveHint: true },
     },
     async ({ id }) => {
-      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir });
+      await ensureFresh();
       const res = await forget(session.brainDir, id);
       const sync = await writeBack();
       return { content: [{ type: "text", text: `Archived ${id}${sync.pushed ? " — synced" : ""}` }], structuredContent: { ...res, synced: sync.pushed } };
