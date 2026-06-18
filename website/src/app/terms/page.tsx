@@ -43,9 +43,10 @@ export default function TermsPage() {
               <strong className="text-[var(--text-primary)]">Brain Cloud</strong> sync service, and
               the <strong className="text-[var(--text-primary)]">Claude connector</strong>{" "}
               (collectively, the &ldquo;Service&rdquo;), operated by{" "}
-              <strong className="text-[var(--text-primary)]">Omelas</strong> (&ldquo;we&rdquo;,
-              &ldquo;us&rdquo;). By installing, accessing, or using the Service you agree to these
-              Terms. If you do not agree, do not use the Service.
+              <strong className="text-[var(--text-primary)]">Omelas</strong>, a sole proprietorship
+              (eenmanszaak) registered in the Netherlands (KvK 98455303, VAT NL005331814B35)
+              (&ldquo;we&rdquo;, &ldquo;us&rdquo;). By installing, accessing, or using the Service you
+              agree to these Terms. If you do not agree, do not use the Service.
             </p>
           </section>
 
@@ -234,10 +235,11 @@ export default function TermsPage() {
             </h2>
             <p>
               These Terms are governed by the laws of{" "}
-              <span className="text-[var(--text-primary)]">[Omelas&apos;s governing jurisdiction]</span>,
-              without regard to its conflict-of-laws rules, and you agree to the exclusive jurisdiction
-              of its courts, except where mandatory consumer-protection law provides otherwise.
-              Questions about these Terms? Contact us at{" "}
+              <span className="text-[var(--text-primary)]">the Netherlands</span>, without regard to
+              its conflict-of-laws rules, and you agree to the exclusive jurisdiction of the competent
+              courts of the Netherlands, except where mandatory consumer-protection law (including
+              applicable EU consumer rules) provides otherwise. Questions about these Terms? Contact
+              us at{" "}
               <a
                 href="mailto:support@omelas.tech"
                 className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"

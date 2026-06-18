@@ -17,10 +17,11 @@ and your **phone** — through the **Brain connector**, a remote [MCP](https://m
 server hosted by Brain Cloud. Add it once on the web and it syncs to every Claude client on your account.
 
 <Callout type="info">
-  **Read _and_ write (beta).** The connector exposes five tools: **Recall memories** and **Brain
-  status** (read), plus **Memorize**, **Pin**, and **Unpin** (write). Writes prompt you for
-  confirmation and sync back to Brain Cloud, so a memory you capture on your phone shows up on your
-  laptop. (Deleting memories from the apps is not exposed yet — use the CLI's `/brain:forget`.)
+  **Read _and_ write (beta).** The connector exposes six tools: **Recall memories** and **Brain
+  status** (read), plus **Memorize**, **Pin**, **Unpin**, and **Forget** (write). Writes prompt you
+  for confirmation and sync back to Brain Cloud, so a memory you capture on your phone shows up on
+  your laptop. **Forget** archives a memory (recoverable — it moves to your archive, it isn't
+  permanently deleted).
 </Callout>
 
 ## Before you start
@@ -57,7 +58,7 @@ brain cloud push      # upload ~/.brain to the cloud
   <Step title="Sign in">
     Claude opens a sign-in page → **Sign in with Google** with the account that holds your brain →
     approve. The connector now shows its tools: **Recall memories**, **Brain status**, **Memorize**,
-    **Pin**, and **Unpin**.
+    **Pin**, **Unpin**, and **Forget**.
   </Step>
   <Step title="Use it (incl. your phone)">
     Connectors sync to all your Claude clients — open Claude on your **iPhone/Android** and it's
@@ -77,9 +78,11 @@ brain cloud push      # upload ~/.brain to the cloud
 ## Keeping it current
 
 Memories you **write from the apps sync back to Brain Cloud automatically** — capture on your phone,
-recall on your laptop. The connector also pulls a fresh copy of your brain each time you sign in.
-The one gap: memories you create **locally** (CLI `/brain:memorize`) reach the apps after a
-`brain cloud push` (or `/brain:memorize --sync`).
+recall on your laptop. For memories you create **locally** (CLI `/brain:memorize`), run a
+`brain cloud push` (or `/brain:memorize --sync`); they then appear in an **active Claude session
+within a couple of minutes**, automatically — the connector re-pulls your brain when the cloud copy
+changes, so you don't need to re-add or re-authorize the connector. It also pulls a fresh copy each
+time you sign in.
 
 ## Troubleshooting
 
