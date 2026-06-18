@@ -56,7 +56,7 @@ function markSynced(brainDir: string, checksum: string | null, now = Date.now())
 //                       account and would otherwise silently start a phantom brain).
 //   • multiple-brains — a pro account holds several brains; we serve the canonical
 //                       (oldest) one. Letting the user choose is account-linking,
-//                       deferred (see CHORES.md / connector-architecture.md).
+//                       deferred (account-linking is future work).
 //   • ok              — exactly one brain; unambiguous.
 export type IdentityStatus = "ok" | "no-cloud-brain" | "multiple-brains";
 export interface IdentityInfo {

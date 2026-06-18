@@ -90,7 +90,7 @@ tools surface to you:
 
 This is *guidance, not enforcement* — a genuinely new user with no brain yet still gets a usable
 empty brain. **Account-linking** (letting one Google identity span several brains, or choosing which
-brain a multi-brain account exposes) is deliberately deferred; see the design doc and `CHORES.md`.
+brain a multi-brain account exposes) is deliberately deferred.
 
 ## Auth
 
