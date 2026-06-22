@@ -27,6 +27,7 @@ const {
   readSearchIndex,
   writeSearchIndex,
   search,
+  bm25Search,
   rebuildIndex,
 } = require('../src/tfidf');
 
@@ -136,7 +137,7 @@ function computeSessionStart(projectRoot, args = {}) {
     writeSearchIndex(brainDir, searchIndex);
   }
 
-  const tfidfScores = search(searchIndex, buildContextQuery(args));
+  const tfidfScores = bm25Search(searchIndex, buildContextQuery(args));
   const memories = Object.entries(index.memories).map(([id, entry]) => ({ id, ...entry }));
 
   let associations = null;

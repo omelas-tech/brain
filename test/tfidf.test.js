@@ -15,6 +15,7 @@ const {
   addDocument,
   removeDocument,
   search,
+  bm25Search,
   rebuildIndex,
   readSearchIndex,
   writeSearchIndex,
@@ -279,6 +280,71 @@ describe('search', () => {
     const scores = search(idx, 'connection pool');
     assert.ok(scores['mem_pool'] > scores['mem_mention'],
       `Pool memory (${scores['mem_pool']}) should score higher than mention (${scores['mem_mention']})`);
+  });
+});
+
+// ===========================================================================
+// bm25Search
+// ===========================================================================
+describe('bm25Search', () => {
+  function corpus() {
+    const idx = createSearchIndex();
+    addDocument(idx, 'mem_db', {
+      title: 'Database Connection Pooling',
+      body: 'Use pg pool. Connection pooling with release.',
+      tags: ['database', 'postgres', 'pooling'],
+    });
+    addDocument(idx, 'mem_auth', {
+      title: 'Authentication Strategy',
+      body: 'JWT tokens with refresh rotation.',
+      tags: ['auth', 'jwt', 'security'],
+    });
+    addDocument(idx, 'mem_route', {
+      title: 'Express Router Pattern',
+      body: 'Modular routes with async handlers.',
+      tags: ['express', 'router'],
+    });
+    return idx;
+  }
+
+  it('ranks matching docs above non-matching and normalizes top score to 1.0', () => {
+    const scores = bm25Search(corpus(), 'database connection pooling');
+    assert.ok(scores['mem_db'] > 0, 'should match database memory');
+    assert.ok((scores['mem_auth'] || 0) < scores['mem_db'], 'db should outrank auth');
+    const max = Math.max(...Object.values(scores));
+    assert.ok(Math.abs(max - 1) < 1e-9, `top score should be 1.0, got ${max}`);
+    for (const s of Object.values(scores)) assert.ok(s <= 1);
+  });
+
+  it('returns empty for empty index, empty query, and no match', () => {
+    assert.deepEqual(bm25Search(createSearchIndex(), 'anything'), {});
+    assert.deepEqual(bm25Search(corpus(), ''), {});
+    assert.equal(Object.keys(bm25Search(corpus(), 'quantum physics')).length, 0);
+  });
+
+  it('does not penalize a long, detailed on-topic doc below a short one (the TF-IDF-cosine failure)', () => {
+    const idx = createSearchIndex();
+    addDocument(idx, 'short', { title: 'cursor', body: 'cursor pagination', tags: ['cursor'] });
+    addDocument(idx, 'long', {
+      title: 'Cursor pagination convention for the aurora project',
+      body: 'We use opaque base64 cursor pagination across all list endpoints. ' +
+        'Never offset based because it breaks under concurrent writes and is slow on large tables. ' +
+        'The cursor encodes created_at and id; responses include data, next_cursor and has_more.',
+      tags: ['cursor', 'pagination', 'aurora'],
+    });
+    for (let i = 0; i < 10; i++) {
+      addDocument(idx, `noise_${i}`, { title: `note ${i}`, body: 'unrelated logging metrics', tags: ['ops'] });
+    }
+    const scores = bm25Search(idx, 'aurora cursor pagination convention');
+    assert.ok(scores['long'] > 0, 'long on-topic doc should score');
+    // It matches MORE query terms (aurora, convention) than the short doc, so it
+    // must not be buried by its length — the exact case raw TF-IDF cosine got wrong.
+    assert.ok(scores['long'] >= (scores['short'] || 0),
+      `long doc (${scores['long']}) should rank >= short doc (${scores['short']})`);
+  });
+
+  it('is deterministic', () => {
+    assert.deepEqual(bm25Search(corpus(), 'database pooling'), bm25Search(corpus(), 'database pooling'));
   });
 });
 

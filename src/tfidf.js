@@ -349,6 +349,74 @@ function search(searchIndex, query) {
 }
 
 /**
+ * BM25 relevance scoring for a query against all indexed memories.
+ *
+ * Fixes two TF-IDF-cosine weaknesses that buried long, detailed memories under
+ * short distractors: BM25 SATURATES term frequency (k1) and normalizes document
+ * length GENTLY (b), instead of dividing TF by full length and cosine by full
+ * magnitude (which penalized the richer oracle memories for being longer). The
+ * field weighting baked into the index (title 3x, tags 2x via buildMemoryText)
+ * is preserved. Scores are normalized to 0..1 by the top score so they blend
+ * cleanly into the scorer's recall formula (which expects relevance in [0,1]).
+ *
+ * @param {Object} searchIndex - The search index
+ * @param {string} query - The search query
+ * @param {Object} [opts] - { k1 = 1.5, b = 0.75 }
+ * @returns {Object} Map of memoryId → normalized relevance score (0.0-1.0)
+ */
+function bm25Search(searchIndex, query, opts = {}) {
+  if (!searchIndex || searchIndex.doc_count === 0) return {};
+
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return {};
+
+  const k1 = opts.k1 != null ? opts.k1 : 1.5;
+  const b = opts.b != null ? opts.b : 0.75;
+  const N = searchIndex.doc_count;
+
+  // Average document length (for length normalization).
+  let totalLen = 0;
+  for (const d of Object.values(searchIndex.documents)) totalLen += d.length || 0;
+  const avgdl = N > 0 ? totalLen / N : 0;
+
+  // BM25 IDF per (deduped) query term, floored at 0 so a term present in nearly
+  // every document can't contribute a negative score.
+  const qTerms = [...new Set(queryTokens)];
+  const idf = {};
+  for (const t of qTerms) {
+    const df = searchIndex.df[t] || 0;
+    idf[t] = Math.max(0, Math.log(1 + (N - df + 0.5) / (df + 0.5)));
+  }
+
+  const raw = {};
+  let maxScore = 0;
+  for (const [memoryId, doc] of Object.entries(searchIndex.documents)) {
+    const dl = doc.length || 0;
+    let score = 0;
+    for (const t of qTerms) {
+      const f = doc.tf[t] || 0;
+      if (f === 0) continue;
+      const denom = f + k1 * (1 - b + b * (avgdl > 0 ? dl / avgdl : 0));
+      score += idf[t] * (f * (k1 + 1)) / denom;
+    }
+    if (score > 0) {
+      raw[memoryId] = score;
+      if (score > maxScore) maxScore = score;
+    }
+  }
+
+  // Normalize to 0..1 by the top score — preserves ranking and keeps the [0,1]
+  // contract the recall scorer's relevance blend expects.
+  const scores = {};
+  if (maxScore > 0) {
+    for (const [id, s] of Object.entries(raw)) {
+      scores[id] = Math.round((s / maxScore) * 1000) / 1000;
+    }
+  }
+  return scores;
+}
+
+/**
  * Rebuild the entire search index from memory files on disk.
  *
  * @param {string} brainDir - Absolute path to ~/.brain/
@@ -401,6 +469,7 @@ module.exports = {
   removeDocument,
   computeIdf,
   search,
+  bm25Search,
   rebuildIndex,
   // Constants
   SEARCH_INDEX_FILE,

@@ -23,6 +23,7 @@ const {
   readSearchIndex,
   writeSearchIndex,
   search,
+  bm25Search,
   rebuildIndex,
   createSearchIndex,
 } = require('../src/tfidf');
@@ -94,8 +95,9 @@ function main() {
     ? buildContextQuery(args)
     : args.query;
 
-  // Compute TF-IDF relevance scores
-  const tfidfScores = search(searchIndex, query);
+  // Compute relevance scores (BM25 — length-normalized, TF-saturated; better
+  // than raw TF-IDF cosine at surfacing long, detailed memories under noise).
+  const tfidfScores = bm25Search(searchIndex, query);
 
   // Build memory list from index
   const memories = Object.entries(index.memories).map(([id, entry]) => ({
