@@ -365,16 +365,21 @@ function computeSpreadingActivationBatch(scoredMemories, associations, maxDepth 
  * @returns {Object[]} Scored and sorted memories (highest first)
  */
 function rankMemories(memories, relevanceFn, options = {}) {
+  // Guard every term against NaN (e.g. a missing/invalid last_accessed or
+  // strength) — a single NaN score sorts non-deterministically and can outrank
+  // valid results.
+  const fin = (x) => (Number.isFinite(x) ? x : 0);
+
   // First pass: compute base scores
   const scored = memories.map((mem) => {
-    const decayedStrength = computeDecayedStrength(
+    const decayedStrength = fin(computeDecayedStrength(
       mem.strength,
       mem.decay_rate,
       mem.last_accessed,
       !!(mem.stable || mem.pinned) // pinned ⇒ implicitly stable (decay-exempt)
-    );
-    const recencyBonus = computeRecencyBonus(mem.last_accessed);
-    const relevance = relevanceFn(mem);
+    ));
+    const recencyBonus = fin(computeRecencyBonus(mem.last_accessed));
+    const relevance = fin(relevanceFn(mem));
 
     return {
       ...mem,
@@ -420,12 +425,12 @@ function rankMemories(memories, relevanceFn, options = {}) {
       if (mem.context_match > 0) extras.contextMatch = mem.context_match;
       if (mem.salience != null) extras.salience = mem.salience;
 
-      const score = computeRecallScore(
+      const score = fin(computeRecallScore(
         mem.relevance,
         mem.decayed_strength,
         mem.recency_bonus,
         extras
-      );
+      ));
 
       return {
         ...mem,
@@ -437,7 +442,9 @@ function rankMemories(memories, relevanceFn, options = {}) {
         score: Math.round(score * 1000) / 1000,
       };
     })
-    .sort((a, b) => b.score - a.score);
+    // Deterministic order: score desc, then id asc to break ties (scores are
+    // rounded to 3dp, which manufactures ties at scale).
+    .sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 module.exports = {

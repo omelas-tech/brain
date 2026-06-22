@@ -28,6 +28,11 @@ GEMINI.md
 benchmark/results/benchmark_*.json
 benchmark/results/benchmark_*.md
 benchmark/results/scenario-*.json
+benchmark/results/cand-*.json
+benchmark/results/cand-meta.json
+benchmark/results/pending-judgments.jsonl
+benchmark/results/xmodel-*.jsonl
+benchmark/results/*_stats.md
 
 # Cloudflare Wrangler cache
 .wrangler/

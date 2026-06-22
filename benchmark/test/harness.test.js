@@ -17,6 +17,9 @@ const {
   aggregateRuns,
   computeSummary,
   median,
+  OUTCOME,
+  classifyRun,
+  summarizeOutcomes,
 } = require('../harness/metrics');
 
 const {
@@ -143,6 +146,53 @@ describe('Metrics', () => {
     assert.equal(summary.success_improvement_pct, 40);
     assert.equal(summary.consistency_improvement_pct, 45);
     assert.equal(summary.time_reduction_pct, 40);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Outcome taxonomy (3-state: PASS / FAIL / NO_COMPLETION)
+// ─────────────────────────────────────────────────────────
+
+describe('Outcome taxonomy', () => {
+  it('classifyRun honors an explicit outcome', () => {
+    assert.equal(classifyRun({ outcome: OUTCOME.PASS }), OUTCOME.PASS);
+    assert.equal(classifyRun({ outcome: OUTCOME.NONE }), OUTCOME.NONE);
+  });
+
+  it('classifyRun infers from legacy fields when outcome is absent', () => {
+    assert.equal(classifyRun({ success: true }), OUTCOME.PASS);
+    assert.equal(classifyRun({ success: false }), OUTCOME.FAIL);
+    // an errored run is NO_COMPLETION, never a "fail"
+    assert.equal(classifyRun({ success: false, error: 'timed out' }), OUTCOME.NONE);
+  });
+
+  it('summarizeOutcomes separates completion from success', () => {
+    const runs = [
+      { outcome: OUTCOME.PASS },
+      { outcome: OUTCOME.FAIL },
+      { outcome: OUTCOME.NONE, error: 'timeout' },
+      { outcome: OUTCOME.PASS },
+    ];
+    const s = summarizeOutcomes(runs);
+    assert.equal(s.total, 4);
+    assert.equal(s.passes, 2);
+    assert.equal(s.completed, 3);          // 2 PASS + 1 FAIL
+    assert.equal(s.no_completion, 1);
+    assert.equal(s.success_rate, 0.5);     // 2/4
+    assert.equal(s.completion_rate, 0.75); // 3/4
+    assert.equal(s.no_completion_rate, 0.25);
+  });
+
+  it('a timeout dents completion, not the token economy', () => {
+    // All NO_COMPLETION → success and completion both 0, but no crash / no ∞.
+    const runs = [
+      { outcome: OUTCOME.NONE, error: 'timed out' },
+      { outcome: OUTCOME.NONE, error: 'timed out' },
+    ];
+    const s = summarizeOutcomes(runs);
+    assert.equal(s.success_rate, 0);
+    assert.equal(s.completion_rate, 0);
+    assert.equal(s.no_completion_rate, 1);
   });
 });
 
@@ -431,6 +481,39 @@ describe('Formatter', () => {
     assert.equal(formatDelta(0), '0');
     assert.equal(formatDelta(null), 'N/A');
   });
+
+  it('arm-shape table shows completion/success split and a single null symbol', () => {
+    const armResult = {
+      scenario: 'scenario-A',
+      model: 'cloud',
+      results: {
+        gemini: {
+          'brain-full': {
+            tokens: { input: 18000, output: 1800 }, time_ms: 40000,
+            completion_rate: 1, success_rate: 0.7, no_completion_rate: 0,
+            tokens_per_success: 27900, retrieval: { recall: { '5': 0.92 } },
+          },
+          'context-dump-unbounded': {
+            tokens: { input: 0, output: 0 }, time_ms: 600000,
+            completion_rate: 0, success_rate: 0, no_completion_rate: 1,
+            tokens_per_success: null, retrieval: null,
+          },
+        },
+      },
+    };
+    const table = renderConsoleTable(armResult);
+    assert.ok(table.includes('brain-full'));
+    assert.ok(table.includes('compl%'));
+    assert.ok(table.includes('70%'));    // success rate split out
+    assert.ok(table.includes('0.92'));   // recall rendered
+    assert.ok(table.includes('—'));      // single null symbol for the timed-out arm
+    assert.ok(!table.includes('∞'));     // never the infinity glyph
+
+    const md = renderMarkdownReport([{ ...armResult, summary: null }]);
+    assert.ok(md.includes('| Completion | Success |'));
+    assert.ok(md.includes('brain-full'));
+    assert.ok(!md.includes('∞'));
+  });
 });
 
 // ─────────────────────────────────────────────────────────
@@ -440,6 +523,6 @@ describe('Formatter', () => {
 describe('Agent Registry', () => {
   it('getAllNames returns expected agent names', () => {
     const names = getAllNames();
-    assert.deepEqual(names, ['claude', 'gemini', 'codex']);
+    assert.deepEqual(names, ['claude', 'gemini', 'codex', 'opencode', 'ollama']);
   });
 });

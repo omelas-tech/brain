@@ -4,6 +4,9 @@
   "tests": "Retrieval under realistic load (TF-IDF + context-match + spreading activation). Mirrors LongMemEval-S/M distractor methodology.",
   "key_metrics": ["recall_at_5", "tokens_per_success", "judge_pass_rate"],
 
+  "recall_query": "aurora-cms conventions for adding a paginated comments feature: caching, pagination, and Vue data-fetching",
+  "hard_negatives": 6,
+
   "context": {
     "project": "aurora-cms",
     "topics": ["caching", "pagination", "vue"],
@@ -81,13 +84,17 @@
   ],
 
   "arms": [
-    { "name": "bare",             "label": "No memory, no fixtures",   "seed": "none",                 "memory_injection": "none" },
-    { "name": "fixture-only",     "label": "Fixtures only",            "seed": "none",                 "memory_injection": "none" },
-    { "name": "brain-real",       "label": "Brain (production)",       "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "session-start", "pin": true, "skills": true },
-    { "name": "brain-no-recall",  "label": "Dump oracle bodies",       "seed": "scenario",             "memory_injection": "dump-bodies" },
-    { "name": "brain-no-pin",     "label": "Brain w/ pinning off",     "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "session-start", "pin": false, "skills": true },
-    { "name": "context-dump",     "label": "Upper bound: dump all",    "seed": "scenario+distractors", "distractor_size": 200, "memory_injection": "dump-contents" }
+    { "name": "no-memory",              "label": "Stock agent (floor)",            "seed": "none",                 "memory_injection": "none" },
+    { "name": "oracle-ceiling",         "label": "Inject exact oracle (ceiling)",  "seed": "scenario",             "memory_injection": "oracle" },
+    { "name": "keyword",                "label": "Lexical retriever",              "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "keyword",       "recall_top": 5 },
+    { "name": "vector-baseline",        "label": "Vector store (local embed)",     "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "vector",        "recall_top": 5 },
+    { "name": "context-dump-bounded",   "label": "Dump <=8k tokens (fair)",        "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents", "dump_budget_tokens": 8000 },
+    { "name": "context-dump-unbounded", "label": "Dump everything (scaling wall)", "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents" },
+    { "name": "brain-full",             "label": "Brain (production)",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": true,  "skills": true },
+    { "name": "brain-no-recall",        "label": "Brain, recall off",              "seed": "scenario",             "memory_injection": "dump-bodies" },
+    { "name": "brain-no-pin",           "label": "Brain, pinning off",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": false, "skills": true }
   ],
+  "_arms_note": "mem0 arm (memory_injection: 'mem0') is available but omitted by default — it requires MEM0_API_KEY and would record NO_COMPLETION when unconfigured. Add it for a hosted vector-store comparison.",
 
   "test": [
     {

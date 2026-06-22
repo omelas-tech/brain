@@ -133,6 +133,54 @@ function computeSummary(withBrain, withoutBrain) {
   };
 }
 
+/**
+ * Run outcome taxonomy. Every run resolves to exactly one of these.
+ * Replaces the old binary success/fail that silently absorbed timeouts.
+ */
+const OUTCOME = {
+  PASS: 'COMPLETED_PASS', // agent finished AND judge rubric ≥ threshold
+  FAIL: 'COMPLETED_FAIL', // agent finished but failed the rubric
+  NONE: 'NO_COMPLETION',  // timeout / crash / overflow — no gradeable output
+};
+
+/**
+ * Classify a single run into the outcome taxonomy. Honors an explicit
+ * `run.outcome` if present; otherwise infers from legacy `error`/`success`
+ * fields so old result objects still classify correctly.
+ * @param {Object} run
+ * @returns {'COMPLETED_PASS'|'COMPLETED_FAIL'|'NO_COMPLETION'}
+ */
+function classifyRun(run) {
+  if (run.outcome && Object.values(OUTCOME).includes(run.outcome)) return run.outcome;
+  if (run.error) return OUTCOME.NONE;
+  return run.success ? OUTCOME.PASS : OUTCOME.FAIL;
+}
+
+/**
+ * Summarize outcomes across runs. Reports completion and success as SEPARATE
+ * rates — a timeout dents completion, never the token economy.
+ * @param {Object[]} runs
+ * @returns {{total:number, passes:number, completed:number, no_completion:number,
+ *           completion_rate:number, success_rate:number, no_completion_rate:number}}
+ */
+function summarizeOutcomes(runs) {
+  const total = runs.length;
+  let passes = 0, completed = 0, noCompletion = 0;
+  for (const r of runs) {
+    const o = classifyRun(r);
+    if (o === OUTCOME.PASS) { passes++; completed++; }
+    else if (o === OUTCOME.FAIL) { completed++; }
+    else noCompletion++;
+  }
+  const rate = (x) => (total ? Math.round((x / total) * 1000) / 1000 : 0);
+  return {
+    total, passes, completed, no_completion: noCompletion,
+    completion_rate: rate(completed),
+    success_rate: rate(passes),
+    no_completion_rate: rate(noCompletion),
+  };
+}
+
 module.exports = {
   createRunMetrics,
   recordPrompt,
@@ -140,4 +188,7 @@ module.exports = {
   aggregateRuns,
   computeSummary,
   median,
+  OUTCOME,
+  classifyRun,
+  summarizeOutcomes,
 };

@@ -36,9 +36,10 @@ const path = require('path');
 const { createWorkspace, buildAgentEnv, copyFixtures, cleanupWorkspace, installPromptsForAgent } = require('./brain-setup');
 const { seedMemories } = require('./seeder');
 const installer = require('../../src/installer');
-const { generateDistractors } = require('./distractors');
+const { pinMemory } = require('../../src/pinning');
+const { generateDistractors, generateHardNegatives } = require('./distractors');
 const { sessionStart, recall, scoreRetrieval, formatSessionStartForPrompt } = require('./recall-probe');
-const { createRunMetrics, recordPrompt, aggregateRuns } = require('./metrics');
+const { createRunMetrics, recordPrompt, aggregateRuns, summarizeOutcomes, classifyRun, OUTCOME } = require('./metrics');
 const { pickJudge, judgeOne } = require('./judge');
 
 const SEED_MODES = new Set([
@@ -52,8 +53,12 @@ const INJECTION_MODES = new Set([
   'none',                   // no memory text in prompt
   'session-start',          // run `brain session-start` and prepend its payload
   'recall',                 // run `brain recall <query>` per prompt, inline top-k
-  'dump-bodies',            // legacy: prepend every memory.body (today's behavior)
-  'dump-contents',          // upper-bound: prepend every memory.content (long-context baseline)
+  'dump-bodies',            // prepend memory.body for the seeded corpus
+  'dump-contents',          // prepend memory.content for the seeded corpus (long-context baseline)
+  'oracle',                 // upper bound: inject exactly the labeled oracle memories
+  'keyword',                // baseline retriever: lexical/BM25 over the corpus
+  'vector',                 // baseline retriever: local dense embeddings (vector-store stand-in)
+  'mem0',                   // baseline retriever: real hosted vector store (gated on keys)
 ]);
 
 /**
@@ -64,9 +69,16 @@ const INJECTION_MODES = new Set([
  */
 async function runArms(ctx) {
   const { scenarioName, agent, setup, runsPerArm } = ctx;
-  const arms = setup.arms;
-  if (!Array.isArray(arms) || arms.length === 0) {
+  if (!Array.isArray(setup.arms) || setup.arms.length === 0) {
     throw new Error(`${scenarioName}: setup.arms[] must declare at least one arm`);
+  }
+  let arms = setup.arms;
+  // Optional --arms subset filter and --distractor-size override (fast pilots).
+  if (Array.isArray(ctx.armsFilter) && ctx.armsFilter.length) {
+    arms = arms.filter((a) => ctx.armsFilter.includes(a.name));
+  }
+  if (ctx.distractorOverride != null && !Number.isNaN(ctx.distractorOverride)) {
+    arms = arms.map((a) => (a.distractor_size ? { ...a, distractor_size: ctx.distractorOverride } : a));
   }
 
   const armResults = {};
@@ -105,6 +117,7 @@ async function runArms(ctx) {
         runs.push({
           tokens: { input: 0, output: 0 }, time_ms: elapsed,
           success: false, consistency: 0, error: err.message,
+          outcome: OUTCOME.NONE, reason: classifyError(err),
           ...(continual ? { tasks: [] } : {}),
         });
       }
@@ -135,10 +148,13 @@ async function executeArmRun(ctx) {
     let retrieval = null;
     let memoryPrefix = '';
 
-    // Build memory context per arm.memory_injection mode
+    // Build memory context per arm.memory_injection mode. Every arm injects
+    // into ONE canonical wrapper (uniform header/delimiters/position) — only
+    // the CONTENT differs, never the structure. This removes the prompt-shape
+    // confound between session-start / dump / retriever arms.
     if (arm.memory_injection !== 'none' && arm.memory_injection !== undefined) {
       const ctxBlock = await buildMemoryBlock({ arm, homeDir, setup });
-      memoryPrefix = ctxBlock.text;
+      memoryPrefix = wrapContextBlock(ctxBlock.text);
       retrieval = ctxBlock.retrieval;
     }
 
@@ -154,7 +170,7 @@ async function executeArmRun(ctx) {
     const outputs = [];
     for (const prompt of setup.test || []) {
       const fullPrompt = memoryPrefix + prompt.text;
-      const result = await agent.run(fullPrompt, {
+      const result = await runAgentWithRetry(agent, fullPrompt, {
         cwd: workDir, timeout: config.timeouts.prompt_ms, env: runEnv,
       });
       recordPrompt(metrics, result, prompt.label || 'test');
@@ -165,19 +181,41 @@ async function executeArmRun(ctx) {
     const generatedFiles = readGeneratedFiles(workDir, fixturesDir);
     const candidate = [...outputs, ...generatedFiles.map((g) => `\n# ${g.path}\n${g.content}`)].join('\n\n');
 
-    // Judge via cross-family LLM with rubric
-    const judgeResult = setup.judge
-      ? await judgeViaLlm({ agent, setup, candidate })
-      : { passed: true, score: 1, criteria: [], rationale: 'no judge defined' };
+    // Judge via cross-family LLM with rubric — OR, in defer mode, export the
+    // candidate + rubric to a JSONL for an external judge (e.g. a Claude
+    // workflow grading a local-model agent) and mark the run as deferred.
+    let judgeResult;
+    if (process.env.BENCH_DEFER_JUDGE && setup.judge) {
+      exportCandidate({
+        scenario: scenarioName, agent: agent.name, model: process.env.OLLAMA_BENCH_MODEL || agent.name,
+        arm: arm.name, run: runIndex,
+        question: setup.judge.question || setup.test?.[0]?.text || '',
+        rubric: setup.judge.rubric || [],
+        candidate,
+        tokens: metrics.tokens,
+        retrieval,
+      });
+      judgeResult = { passed: false, score: 0, criteria: [], rationale: 'DEFERRED', deferred: true };
+    } else if (setup.judge) {
+      judgeResult = await judgeViaLlm({ agent, setup, candidate });
+    } else {
+      judgeResult = { passed: true, score: 1, criteria: [], rationale: 'no judge defined' };
+    }
 
     return {
       tokens: metrics.tokens,
       time_ms: metrics.time_ms,
+      outcome: judgeResult.passed ? OUTCOME.PASS : OUTCOME.FAIL,
       success: judgeResult.passed,
       score: judgeResult.score,
       consistency: judgeResult.score, // back-compat with old reporters
       retrieval,
-      judge: { score: judgeResult.score, rationale: judgeResult.rationale, family: judgeResult.judge },
+      judge: {
+        score: judgeResult.score,
+        rationale: judgeResult.rationale,
+        family: judgeResult.judge,
+        criteria: judgeResult.criteria || [],
+      },
       output_chars: candidate.length,
     };
   } finally {
@@ -221,7 +259,7 @@ async function executeContinualArm(ctx) {
       }
 
       const fullPrompt = memoryPrefix + task.text;
-      const result = await agent.run(fullPrompt, {
+      const result = await runAgentWithRetry(agent, fullPrompt, {
         cwd: workDir, timeout: config.timeouts.prompt_ms, env: runEnv,
       });
       recordPrompt(totalMetrics, result, task.label || `task-${t + 1}`);
@@ -258,11 +296,13 @@ async function executeContinualArm(ctx) {
       }
     }
 
+    const allPass = taskResults.length > 0 && taskResults.every((t) => t.success);
     return {
       tokens: totalMetrics.tokens,
       time_ms: totalMetrics.time_ms,
       tasks: taskResults,
-      success: taskResults.every((t) => t.success),
+      success: allPass,
+      outcome: allPass ? OUTCOME.PASS : OUTCOME.FAIL,
     };
   } finally {
     cleanupWorkspace(baseDir);
@@ -298,11 +338,17 @@ async function applySeeding({ arm, homeDir, setup, agentName }) {
   }
 
   const oracle = (mode === 'scenario' || mode === 'scenario+distractors') ? (setup.memories || []) : [];
-  const distractors = (mode === 'scenario+distractors' || mode === 'distractors-only')
+  const seedsDistractors = (mode === 'scenario+distractors' || mode === 'distractors-only');
+  const distractors = seedsDistractors
     ? generateDistractors(arm.distractor_size || 200, arm.distractor_seed || 42)
     : [];
+  // Hard negatives are seeded alongside distractors so the brain arms face the
+  // SAME haystack the retriever-baseline arms see (buildCorpus mirrors this).
+  const hardNegs = (setup.hard_negatives && seedsDistractors)
+    ? generateHardNegatives(setup.memories || [], setup.hard_negatives, (arm.distractor_seed || 42) + 1)
+    : [];
 
-  const all = [...oracle, ...distractors];
+  const all = [...oracle, ...distractors, ...hardNegs];
   if (all.length === 0) return;
 
   seedMemories(homeDir, all, {
@@ -315,8 +361,10 @@ async function applySeeding({ arm, homeDir, setup, agentName }) {
   if (arm.pin !== false) {
     const toPin = oracle.filter((m) => m.pin === true);
     for (const m of toPin) {
-      try { writePinned(homeDir, m); }
-      catch (e) { console.error(`pin failed for ${m.id}: ${e.message}`); }
+      // Use the real pin API: session-start reads `entry.pinned` from the INDEX
+      // as the source of truth, so writing pinned.json alone is a silent no-op.
+      const res = pinMemory(homeDir, m.id, { scope: m.pin_scope || 'global', priority: m.pin_priority || 5 });
+      if (res && res.error) console.error(`pin failed for ${m.id}: ${res.error}`);
     }
   }
 
@@ -324,20 +372,6 @@ async function applySeeding({ arm, homeDir, setup, agentName }) {
   if (arm.skills !== false && Array.isArray(setup.skills)) {
     installSkills(homeDir, setup.skills);
   }
-}
-
-function writePinned(homeDir, mem) {
-  const pinnedPath = path.join(homeDir, '.brain', 'pinned.json');
-  let pinned = { version: 1, entries: [] };
-  if (fs.existsSync(pinnedPath)) pinned = JSON.parse(fs.readFileSync(pinnedPath, 'utf-8'));
-  pinned.entries = pinned.entries.filter((e) => e.id !== mem.id);
-  pinned.entries.push({
-    id: mem.id,
-    scope: mem.pin_scope || 'global',
-    priority: mem.pin_priority || 5,
-    pinned_at: new Date().toISOString(),
-  });
-  fs.writeFileSync(pinnedPath, JSON.stringify(pinned, null, 2));
 }
 
 function installSkills(homeDir, skills) {
@@ -403,15 +437,112 @@ async function buildMemoryBlock({ arm, homeDir, setup }) {
     return { text, retrieval };
   }
 
-  if (mode === 'dump-bodies') {
-    return { text: dumpBodies(setup.memories || []), retrieval: null };
+  if (mode === 'dump-bodies' || mode === 'dump-contents') {
+    // "Dump everything" baselines. When the arm seeds distractors, dump the
+    // WHOLE haystack (oracle + distractors) — that's what makes the unbounded
+    // variant blow the context budget. A `dump_budget_tokens` cap turns this
+    // into the FAIR bounded baseline that stops at a realistic budget.
+    const corpus = (arm.seed && arm.seed.includes('distractors'))
+      ? buildCorpus(arm, setup)
+      : (setup.memories || []);
+    const budget = arm.dump_budget_tokens || null;
+    const text = mode === 'dump-bodies' ? dumpBodies(corpus, budget) : dumpContents(corpus, budget);
+    return { text, retrieval: null };
   }
 
-  if (mode === 'dump-contents') {
-    return { text: dumpContents(setup.memories || []), retrieval: null };
+  if (mode === 'oracle') {
+    // Upper bound: inject exactly the labeled oracle memories (perfect retrieval).
+    const ids = setup.oracle_memory_ids || (setup.memories || []).map((m) => m.id);
+    const oracleMems = (setup.memories || []).filter((m) => ids.includes(m.id));
+    const retrieval = setup.oracle_memory_ids
+      ? scoreRetrieval(oracleMems.map((m) => ({ id: m.id })), setup.oracle_memory_ids)
+      : null;
+    return { text: formatMemItemsForPrompt(oracleMems), retrieval };
+  }
+
+  if (mode === 'keyword' || mode === 'vector' || mode === 'mem0') {
+    // Baseline retrievers over the same corpus Brain sees. Only the retrieval
+    // METHOD differs from the brain-real arm — same wrapper, same budget.
+    const retriever = loadRetriever(mode);
+    const corpus = buildCorpus(arm, setup);
+    const query = setup.recall_query || setup.test?.[0]?.text || '';
+    const top = arm.recall_top || 5;
+    const ranked = await retriever.retrieve(corpus, query, { top: Math.max(top, 10) });
+    const text = formatMemItemsForPrompt(ranked.slice(0, top));
+    const retrieval = setup.oracle_memory_ids ? scoreRetrieval(ranked, setup.oracle_memory_ids) : null;
+    return { text, retrieval };
   }
 
   return { text: '', retrieval: null };
+}
+
+/* ─────────────── context-block wrapper & retriever plumbing ─────────────── */
+
+/**
+ * Wrap injected memory in ONE canonical envelope. All arms share this exact
+ * header/delimiters/position so the only thing varying across arms is the
+ * memory CONTENT, not the prompt structure (removes the framing confound).
+ */
+function wrapContextBlock(inner) {
+  if (!inner || !inner.trim()) return '';
+  return `=== BEGIN MEMORY CONTEXT ===\n` +
+    `The following is what you recall that may be relevant to the task. Use it where appropriate.\n\n` +
+    `${inner.trim()}\n` +
+    `=== END MEMORY CONTEXT ===\n\n`;
+}
+
+/** Uniform, header-less item list (the wrapper supplies the header). */
+function formatMemItemsForPrompt(mems) {
+  if (!mems || mems.length === 0) return '';
+  return mems.map((m) => `  • ${m.title || m.id}: ${m.body || ''}`.trim()).join('\n');
+}
+
+/** Lazily load a baseline retriever module by injection mode. */
+function loadRetriever(mode) {
+  if (mode === 'keyword') return require('./retrievers/keyword');
+  if (mode === 'vector') return require('./retrievers/vector-baseline');
+  if (mode === 'mem0') return require('./retrievers/mem0');
+  throw new Error(`no retriever for mode: ${mode}`);
+}
+
+/** Reconstruct the seeded corpus (oracle + distractors + hard negatives) for retrievers/dumps. */
+function buildCorpus(arm, setup) {
+  const oracle = setup.memories || [];
+  const distractors = (arm.distractor_size && arm.distractor_size > 0)
+    ? generateDistractors(arm.distractor_size, arm.distractor_seed || 42)
+    : [];
+  const hardNegs = setup.hard_negatives
+    ? generateHardNegatives(oracle, setup.hard_negatives, (arm.distractor_seed || 42) + 1)
+    : [];
+  return [...oracle, ...distractors, ...hardNegs];
+}
+
+/** Map a thrown agent error to a coarse reason code for NO_COMPLETION runs. */
+function classifyError(err) {
+  const m = (err && err.message || '').toLowerCase();
+  if (m.includes('timed out') || m.includes('timeout')) return 'timeout';
+  if (/econnreset|etimedout|enotfound|socket|network|exited with code|stream parse/.test(m)) return 'infra';
+  if (m.includes('parse')) return 'parse';
+  return 'other';
+}
+
+/**
+ * Run an agent prompt, retrying ONCE on transient infra errors. A genuine
+ * timeout (model couldn't finish in budget) is a real result and is NOT
+ * retried — we don't want to mask the scaling wall a dump baseline hits.
+ */
+async function runAgentWithRetry(agent, prompt, opts, retries = 1) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await agent.run(prompt, opts);
+    } catch (err) {
+      lastErr = err;
+      if (classifyError(err) !== 'infra' || attempt === retries) throw err;
+      process.stdout.write(`        infra error, retrying once: ${String(err.message).slice(0, 80)}\n`);
+    }
+  }
+  throw lastErr;
 }
 
 function scoreRetrievalFromSessionStart(payload, oracleIds) {
@@ -423,32 +554,42 @@ function scoreRetrievalFromSessionStart(payload, oracleIds) {
   return scoreRetrieval(surfaced, oracleIds);
 }
 
+// All three formatters below are HEADER-LESS — wrapContextBlock() supplies the
+// single canonical header so prompt structure is uniform across arms.
+
 function formatRecallForPrompt(ranked) {
   if (!ranked || ranked.length === 0) return '';
-  const lines = ['Relevant memories from your past sessions:\n'];
-  for (const m of ranked) {
-    lines.push(`  • ${m.title || m.id}: ${m.body || ''}`.trim());
-  }
-  lines.push('');
-  return lines.join('\n');
+  return ranked.map((m) => `  • ${m.title || m.id}: ${m.body || ''}`.trim()).join('\n');
 }
 
-function dumpBodies(memories) {
-  if (memories.length === 0) return '';
-  const lines = ['Based on your past experience with this project, you recall:\n'];
-  for (const m of memories) lines.push(`- ${m.body || m.title || m.id}`);
-  lines.push('');
-  return lines.join('\n');
-}
+// estimate tokens for a string (chars/4 heuristic, matching distractors.js)
+function estTokens(s) { return Math.ceil((s || '').length / 4); }
 
-function dumpContents(memories) {
-  if (memories.length === 0) return '';
-  const lines = ['Full memory contents from your past sessions:\n'];
+function dumpBodies(memories, budgetTokens = null) {
+  if (!memories || memories.length === 0) return '';
+  const lines = [];
+  let used = 0;
   for (const m of memories) {
-    lines.push(`\n## ${m.title || m.id}`);
-    lines.push(m.content || m.body || '');
+    const line = `- ${m.body || m.title || m.id}`;
+    const cost = estTokens(line);
+    if (budgetTokens && used + cost > budgetTokens) break;
+    used += cost;
+    lines.push(line);
   }
-  lines.push('');
+  return lines.join('\n');
+}
+
+function dumpContents(memories, budgetTokens = null) {
+  if (!memories || memories.length === 0) return '';
+  const lines = [];
+  let used = 0;
+  for (const m of memories) {
+    const block = `\n## ${m.title || m.id}\n${m.content || m.body || ''}`;
+    const cost = estTokens(block);
+    if (budgetTokens && used + cost > budgetTokens) break;
+    used += cost;
+    lines.push(block);
+  }
   return lines.join('\n');
 }
 
@@ -472,6 +613,13 @@ function buildSkillLoadBlock(mode, skills) {
     lines.push('');
   }
   return lines.join('\n');
+}
+
+/** Append a candidate + rubric record to the defer-judge JSONL (BENCH_DEFER_JUDGE=path). */
+function exportCandidate(rec) {
+  const file = process.env.BENCH_DEFER_JUDGE;
+  try { fs.appendFileSync(file, JSON.stringify(rec) + '\n'); }
+  catch (e) { console.error(`defer-judge export failed: ${e.message}`); }
 }
 
 async function judgeViaLlm({ agent, setup, candidate }) {
@@ -498,15 +646,29 @@ function validateArm(arm) {
 }
 
 function aggregateArm(runs) {
-  const base = aggregateRuns(runs);
-  if (!base) return null;
+  if (runs.length === 0) return null;
 
-  // tokens_per_success = total tokens / successes  (∞ → reported as null)
-  const successes = runs.filter((r) => r.success).length;
-  const totalTokens = runs.reduce((s, r) => s + r.tokens.input + r.tokens.output, 0);
-  const tokensPerSuccess = successes > 0 ? Math.round(totalTokens / successes) : null;
+  const outcomes = summarizeOutcomes(runs);
+  // Token/time medians come from COMPLETED runs only — a NO_COMPLETION run has
+  // zero tokens and must not deflate the economy. Fall back to all runs if none
+  // completed (so the row still renders, as `—`).
+  const completedRuns = runs.filter((r) => classifyRun(r) !== OUTCOME.NONE);
+  const metricsRuns = completedRuns.length > 0 ? completedRuns : runs;
+  const med = (vals) => {
+    const s = vals.slice().sort((a, b) => a - b);
+    return s.length ? s[Math.floor(s.length / 2)] : 0;
+  };
 
-  // Median Recall@k across runs (skip arms without retrieval)
+  const inputs = metricsRuns.map((r) => r.tokens.input || 0);
+  const outputs = metricsRuns.map((r) => r.tokens.output || 0);
+  const times = metricsRuns.map((r) => r.time_ms || 0);
+  const tokenTotals = metricsRuns.map((r) => (r.tokens.input || 0) + (r.tokens.output || 0));
+
+  // tokens-per-success = total tokens spent across ALL attempts / passes.
+  const totalTokensAll = runs.reduce((s, r) => s + (r.tokens.input || 0) + (r.tokens.output || 0), 0);
+  const tokensPerSuccess = outcomes.passes > 0 ? Math.round(totalTokensAll / outcomes.passes) : null;
+
+  // Median Recall@k across runs that scored retrieval (skip arms without it).
   const withRetrieval = runs.filter((r) => r.retrieval && r.retrieval.recall);
   const recallByK = {};
   if (withRetrieval.length > 0) {
@@ -518,11 +680,39 @@ function aggregateArm(runs) {
   }
 
   return {
-    ...base,
+    tokens: { input: med(inputs), output: med(outputs) },
+    time_ms: med(times),
+    runs: runs.length,
+    ...outcomes, // total, passes, completed, no_completion, completion_rate, success_rate, no_completion_rate
+    success: outcomes.passes > runs.length / 2,   // back-compat with old reporters
+    consistency: outcomes.success_rate,            // back-compat
+    judge_pass_rate: outcomes.success_rate,        // back-compat
+    median_tokens: med(tokenTotals),
+    token_samples: tokenTotals,                    // raw, for stats.js bootstrap CI
     tokens_per_success: tokensPerSuccess,
     retrieval: Object.keys(recallByK).length > 0 ? { recall: recallByK } : null,
-    judge_pass_rate: runs.filter((r) => r.success).length / runs.length,
+    criteria_pass_rate: computeCriteriaPassRate(runs),
   };
+}
+
+/** Per-criterion pass rate across runs (which rubric items Brain helps with). */
+function computeCriteriaPassRate(runs) {
+  const byN = new Map();
+  for (const r of runs) {
+    const crit = r.judge && r.judge.criteria;
+    if (!Array.isArray(crit)) continue;
+    for (const c of crit) {
+      if (typeof c.n !== 'number') continue;
+      if (!byN.has(c.n)) byN.set(c.n, { met: 0, total: 0 });
+      const e = byN.get(c.n);
+      e.total++;
+      if (c.met === true) e.met++;
+    }
+  }
+  if (byN.size === 0) return null;
+  return [...byN.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([n, e]) => ({ n, pass_rate: Math.round((e.met / e.total) * 1000) / 1000 }));
 }
 
 /**

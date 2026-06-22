@@ -72,22 +72,57 @@ function renderConsoleTable(results) {
   return lines.join('\n');
 }
 
+// Single canonical "no data" symbol across every table. No more ∞ / N/A / 0.
+const NULL_CELL = '—';
+
+function fmtPct(x) {
+  return (x == null || Number.isNaN(x)) ? NULL_CELL : `${Math.round(x * 100)}%`;
+}
+function armTotalTokens(d) {
+  return (d.tokens?.input || 0) + (d.tokens?.output || 0);
+}
+function fmtTokens(d) {
+  const t = armTotalTokens(d);
+  // All runs failed to complete → tokens are meaningless, show the null cell.
+  if (d.no_completion_rate === 1 || (t === 0 && (d.completion_rate === 0))) return NULL_CELL;
+  return String(t);
+}
+function fmtTps(d) {
+  return d.tokens_per_success == null ? NULL_CELL : String(d.tokens_per_success);
+}
+function fmtRecall(d, k = 5) {
+  const r = d.retrieval?.recall?.[String(k)];
+  return r == null ? NULL_CELL : Number(r).toFixed(2);
+}
+// Completion vs success reported separately. Old result objects lack
+// completion_rate; fall back so legacy JSON still renders.
+function completionRate(d) {
+  return d.completion_rate != null ? d.completion_rate : null;
+}
+function successRate(d) {
+  return d.success_rate != null ? d.success_rate
+    : (d.judge_pass_rate != null ? d.judge_pass_rate : null);
+}
+
 function renderArmConsoleTable(results) {
   const { scenario, model, results: agentResults } = results;
   const lines = ['', `  Scenario: ${scenario}`, `  Model:    ${model}`, ''];
-  const cols = ['arm', 'tokens', 'tok/success', 'R@5', 'time (ms)', 'pass'];
-  const w = 14;
+  const cols = ['arm', 'compl%', 'succ%', 'tokens', 'tok/succ', 'R@5'];
+  const w = 16;
   for (const [agent, arms] of Object.entries(agentResults)) {
     lines.push(`  ${agent}`);
     lines.push(`  ${cols.map((c) => c.padEnd(w)).join('')}`);
     lines.push(`  ${'─'.repeat(w * cols.length)}`);
     for (const [armName, data] of Object.entries(arms)) {
       if (!data) continue;
-      const tokens = (data.tokens.input + data.tokens.output);
-      const tps = data.tokens_per_success ?? '∞';
-      const r5 = data.retrieval?.recall?.['5'] ?? '—';
-      const passRate = ((data.success_rate || data.judge_pass_rate || 0) * 100).toFixed(0) + '%';
-      lines.push(`  ${armName.padEnd(w)}${String(tokens).padEnd(w)}${String(tps).padEnd(w)}${String(r5).padEnd(w)}${String(data.time_ms).padEnd(w)}${passRate}`);
+      lines.push(
+        `  ${armName.padEnd(w)}` +
+        `${fmtPct(completionRate(data)).padEnd(w)}` +
+        `${fmtPct(successRate(data)).padEnd(w)}` +
+        `${fmtTokens(data).padEnd(w)}` +
+        `${fmtTps(data).padEnd(w)}` +
+        `${fmtRecall(data, 5)}`
+      );
     }
     lines.push('');
   }
@@ -139,16 +174,15 @@ function renderMarkdownReport(allResults) {
     );
 
     if (isArmShape) {
-      lines.push('| Agent | Arm | Tokens | Tokens/success | Recall@5 | Time (ms) | Pass rate |');
-      lines.push('|-------|-----|-------:|---------------:|:--------:|----------:|:---------:|');
+      lines.push('| Agent | Arm | Completion | Success | Tokens | Tokens/success | Recall@5 |');
+      lines.push('|-------|-----|:----------:|:-------:|-------:|---------------:|:--------:|');
       for (const [agent, arms] of Object.entries(result.results)) {
         for (const [armName, v] of Object.entries(arms)) {
           if (!v) continue;
-          const tokens = v.tokens.input + v.tokens.output;
-          const tps = v.tokens_per_success ?? '∞';
-          const r5 = v.retrieval?.recall?.['5'] ?? '—';
-          const passRate = ((v.success_rate || v.judge_pass_rate || 0) * 100).toFixed(0) + '%';
-          lines.push(`| ${agent} | ${armName} | ${tokens} | ${tps} | ${r5} | ${v.time_ms} | ${passRate} |`);
+          lines.push(
+            `| ${agent} | ${armName} | ${fmtPct(completionRate(v))} | ${fmtPct(successRate(v))} ` +
+            `| ${fmtTokens(v)} | ${fmtTps(v)} | ${fmtRecall(v, 5)} |`
+          );
         }
       }
     } else {

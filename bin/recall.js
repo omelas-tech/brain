@@ -79,7 +79,12 @@ function main() {
   } catch (_) {
     searchIndex = null;
   }
-  if (!searchIndex) {
+  // Rebuild when ABSENT *or* STALE. The search index drifts out of sync with
+  // index.json whenever memories change outside memorize's addDocument path
+  // (forget, sleep/consolidate, sync pull, manual edit) — and a present-but-
+  // empty index silently makes every relevance score 0. Compare the doc set,
+  // not just presence.
+  if (isSearchIndexStale(searchIndex, index)) {
     searchIndex = rebuildIndex(brainDir, index);
     writeSearchIndex(brainDir, searchIndex);
   }
@@ -139,6 +144,23 @@ function main() {
   }));
 
   console.log(JSON.stringify(results, null, 2));
+}
+
+/**
+ * The TF-IDF search index is stale if it is missing, has a different document
+ * count than the live index, or is missing any indexed memory id. Catches the
+ * empty-index and add/remove/rename drift cases (in-place same-id body edits
+ * are not detected by count alone — acceptable until a version/mtime check).
+ */
+function isSearchIndexStale(searchIndex, index) {
+  if (!searchIndex || !searchIndex.documents) return true;
+  const memIds = Object.keys((index && index.memories) || {});
+  const docCount = searchIndex.doc_count != null
+    ? searchIndex.doc_count
+    : Object.keys(searchIndex.documents).length;
+  if (docCount !== memIds.length) return true;
+  for (const id of memIds) if (!(id in searchIndex.documents)) return true;
+  return false;
 }
 
 /**

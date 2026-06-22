@@ -84,7 +84,9 @@ async function main() {
     ? availableAgents.filter((a) => enabledList.includes(a.name))
     : availableAgents;
   if (args.agent) {
-    targetAgents = targetAgents.filter((a) => a.name === args.agent);
+    // Explicit --agent bypasses the enabled_agents filter (e.g. run the local
+    // `ollama` agent without adding it to the default cloud config).
+    targetAgents = availableAgents.filter((a) => a.name === args.agent);
   }
 
   if (targetAgents.length === 0) {
@@ -118,6 +120,7 @@ async function main() {
 
     const result = await runScenario(scenarioName, scenarioDir, targetAgents, {
       config, modeConfig, mode, runsPerScenario, dotEnv,
+      armsFilter: args.arms, distractorOverride: args.distractorSize,
     });
 
     if (result) {
@@ -139,7 +142,7 @@ async function main() {
 /**
  * Run a single scenario across all agents.
  */
-async function runScenario(scenarioName, scenarioDir, agents, { config, modeConfig, mode, runsPerScenario, dotEnv }) {
+async function runScenario(scenarioName, scenarioDir, agents, { config, modeConfig, mode, runsPerScenario, dotEnv, armsFilter, distractorOverride }) {
   console.log(`  ── ${scenarioName} ──`);
 
   // Load scenario setup
@@ -170,6 +173,7 @@ async function runScenario(scenarioName, scenarioDir, agents, { config, modeConf
       const armed = await runArms({
         scenarioName, agent, runsPerArm: runsPerScenario,
         setup, fixturesDir, scenarioDir, config, agentEnv, dotEnv,
+        armsFilter, distractorOverride,
       });
       agentResults[agent.name] = armed;
       continue;
@@ -418,7 +422,7 @@ function averageResults(results) {
  * Parse CLI arguments.
  */
 function parseArgs(argv) {
-  const args = { scenario: null, agent: null, runs: null, dryRun: false, ollama: false, opencodeModel: null };
+  const args = { scenario: null, agent: null, runs: null, dryRun: false, ollama: false, opencodeModel: null, arms: null, distractorSize: null };
 
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -440,6 +444,12 @@ function parseArgs(argv) {
       case '--opencode-model':
         args.opencodeModel = argv[++i];
         break;
+      case '--arms':
+        args.arms = argv[++i].split(',').map((s) => s.trim()).filter(Boolean);
+        break;
+      case '--distractor-size':
+        args.distractorSize = parseInt(argv[++i], 10);
+        break;
     }
   }
 
@@ -448,7 +458,11 @@ function parseArgs(argv) {
   return args;
 }
 
-main().catch((err) => {
-  console.error(`\n  Fatal: ${err.message}`);
-  process.exit(1);
-});
+// Guard: only run when executed directly, never on `require` (importing this
+// file for tests/tooling must not kick off a real benchmark run).
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`\n  Fatal: ${err.message}`);
+    process.exit(1);
+  });
+}

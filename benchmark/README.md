@@ -39,29 +39,36 @@ This is a redesign of the original benchmark (the legacy 5-scenario suite is arc
 
 | Arm | What it does | What it isolates |
 |---|---|---|
-| `bare` | No memory, no fixtures | Floor |
-| `fixture-only` | Realistic project files, no brain (= old "without_brain") | Honest baseline |
-| `brain-real` | Full brain via `brain session-start`, distractor haystack, pin+skills on | What we ship |
-| `brain-no-recall` | All oracle memories prepended verbatim (= old "with_brain") | Quantifies long-context vs retrieval value |
-| `brain-no-pin` | `brain-real` but pinned tier disabled | CoALA Phase-1 attribution |
-| `brain-no-skills` | `brain-real` but skills layer disabled | CoALA Phase-2 attribution |
-| `brain-skills-L0` / `brain-skills-loaded` / `brain-skills-all-loaded` | Scenario D's three-rung progressive-disclosure ablation | Per-tier skill cost |
-| `dump-all-chrono` / `context-dump` | Full memory CONTENTS (not bodies) concatenated | Upper bound — proves memory ≠ long-context |
+| `no-memory` | Stock agent, fixtures only, zero persistence | The floor (C2) |
+| `oracle-ceiling` | Inject exactly the labeled oracle memories | Upper bound — separates retrieval quality from application |
+| `keyword` | Lexical/BM25 retriever over the corpus, top-k injected | Corpus-hardness validator (if it finds the oracle, the haystack is too easy) |
+| `vector-baseline` | Local dense-embedding retriever (vector-store stand-in), top-k injected | "Architecture vs vector store" comparison (C1/C3) |
+| `mem0` | Real hosted vector store (gated on `MEM0_API_KEY`), top-k injected | Hosted vector-store comparison |
+| `context-dump-bounded` | Dump corpus up to a fixed token budget (`dump_budget_tokens`) | The FAIR "just stuff the prompt" baseline (C3) |
+| `context-dump-unbounded` | Dump the whole haystack, no cap | The scaling wall — expect high `NO_COMPLETION` |
+| `brain-full` | Full brain via `brain session-start`, distractor haystack, pin+skills on | What we ship |
+| `brain-no-recall` | Oracle bodies prepended verbatim, no retrieval | Long-context vs retrieval value |
+| `brain-no-pin` | `brain-full` with pinned tier disabled | CoALA Phase-1 attribution (C4) |
+| `brain-no-skills` | `brain-full` with skills layer disabled | CoALA Phase-2 attribution |
 
-Each scenario picks the 4-6 arms relevant to what it tests.
+All arms inject memory into ONE canonical context-block wrapper (`wrapContextBlock`) — identical header, delimiters, and position. Only the *content* varies, never the prompt structure, so a measured difference is attributable to memory, not framing. Each scenario picks the arms relevant to what it tests.
 
 ## Metrics
 
-Four headline axes, every scenario, every run:
+Every run resolves to exactly one **outcome** — no more timeouts hidden as a blank `0 | 0` cell:
 
-1. **Task pass rate** — rubric-graded by LLM judge (cross-family).
-2. **Tokens per successful task** — `(input+output) / passes`. The headline efficiency metric.
-3. **Retrieval Recall@k** — for arms that use `session-start` or `recall`, did the right memory IDs surface in the top-k against `setup.oracle_memory_ids`?
-4. **Judge rationale** — captured verbatim per run for spot-checking.
+- `COMPLETED_PASS` — agent finished AND judge rubric ≥ 0.7
+- `COMPLETED_FAIL` — agent finished, rubric < 0.7
+- `NO_COMPLETION` — timeout / crash / context-overflow (carries a reason code)
 
-Plus, where applicable: **per-task pass rate** (Scenario E), **forward-transfer Δ tokens** (E), **confabulation rate** (F).
+Reported per arm × scenario × agent:
 
-**Write-side cost** is co-reported on Scenario E (the only scenario that actually writes). No artificial "amortize-over-N-reads" ratio.
+1. **completion_rate** vs **success_rate** — kept SEPARATE. A timeout dents completion, never the token economy. `no_completion_rate` is shown explicitly, never as a blank. (This is the fix for the old "naive dump times out → blank cell" problem — it now reads as a *finding*: the baseline can't finish.)
+2. **Median tokens** (over completed runs) with a **90% bootstrap CI**, and **tokens-per-successful-task** = total tokens / passes (`—` when zero passes — never `∞`).
+3. **Retrieval Recall@k / NDCG@k** — for retriever arms, did the oracle IDs surface in the top-k against `setup.oracle_memory_ids`?
+4. **Per-criterion pass rate** and **judge rationale** — which rubric items passed, plus the judge's verbatim reasoning.
+
+Plus, where applicable: **per-task pass rate** (Scenario E), **forward-transfer Δ tokens** (E), **confabulation rate** (F). A single canonical null symbol (`—`) is used everywhere. See `PREREGISTRATION.md` for the committed metric definitions.
 
 ## Quick start
 
@@ -70,6 +77,7 @@ Plus, where applicable: **per-task pass rate** (Scenario E), **forward-transfer 
 - Node.js ≥ 18
 - `claude` and/or `gemini` CLIs installed
 - `.env` file at `benchmark/.env` with `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` (the judge needs at least one of each family)
+- (optional) `MEM0_API_KEY` (+ an embeddings key) to enable the `mem0` hosted-vector-store arm; without it that arm records `NO_COMPLETION`. The `vector-baseline` arm needs no keys (local deterministic embeddings).
 
 ### Run
 
@@ -107,15 +115,25 @@ The original 5 scenarios are still on disk under `scenarios/scenario-1-*` throug
 
 ### Cross-family LLM judge
 
-Defined in `harness/judge.js`. For every agent under test, the judge belongs to a different model family (Claude → judged by Gemini; Gemini → judged by Claude). Each judgment uses an explicit per-question rubric (binary criteria) plus the oracle answer. Pairwise judgments swap candidate positions and only keep verdicts that survive both orderings (mitigates position bias — arxiv 2509.20293).
+Defined in `harness/judge.js`. For every agent under test, the judge belongs to a different model family (Claude → judged by Gemini; Gemini → judged by Claude). Each judgment uses an explicit per-question rubric (binary criteria). Grading is **rubric-only by default** — the judge does NOT see the oracle answer at grade time (pass `includeOracle: true` to re-enable it), which stops the judge from keyword-matching the reference instead of reasoning about the rubric. The candidate output is graded up to 40K chars (not head-truncated to 12K, which used to hide proof of correctness). Pairwise judgments swap candidate positions and only keep verdicts that survive both orderings (mitigates position bias — arxiv 2509.20293). The oracle answer is reserved for **human validation** of the judge (Cohen's/Fleiss' κ on a sample), not for the judge itself.
 
 ### Distractor corpus
 
-Defined in `harness/distractors.js`. Deterministic seeded RNG produces N (default 200) plausible memories across 6 fake projects, 12 topic clusters, 8 memory types. Reused across scenarios. Estimated pool size: ~17K tokens for 200 distractors.
+Defined in `harness/distractors.js`. Deterministic seeded RNG produces N plausible memories (scenario-A uses 1,000) across 6 fake projects, 12 topic clusters, 8 memory types. `generateHardNegatives()` additionally seeds memories that share an oracle's project/tags/topic but describe a *superseded* convention — similarity-only retrievers (keyword/vector) rank these high and get confused, while decay/recency-aware recall should down-rank them (they are old and rarely accessed). Enable via `hard_negatives: <perAnchor>` in a scenario's setup.json. The `keyword` arm doubles as a corpus-hardness check: if a lexical retriever already finds the oracles, the haystack is too easy.
 
 ### Retrieval scoring
 
-`harness/recall-probe.js` shells out to `brain recall` (the real production CLI) and parses the JSON output. `Recall@k` and `NDCG@k` are computed against each scenario's `oracle_memory_ids[]`. This isolates *retrieval* failure from *application* failure — if Recall@5 = 1.0 but the judge fails, the agent had the memory and ignored it.
+`harness/recall-probe.js` shells out to `brain recall` (the real production CLI) and parses the JSON output. `Recall@k` and `NDCG@k` are computed against each scenario's `oracle_memory_ids[]`. This isolates *retrieval* failure from *application* failure — if Recall@5 = 1.0 but the judge fails, the agent had the memory and ignored it. The `keyword` / `vector-baseline` / `mem0` arms run their own retriever over the same corpus (`harness/retrievers/`) and are scored the same way — a like-for-like retrieval comparison.
+
+### Statistical analysis & reproducibility
+
+The full analysis plan is pre-committed in `PREREGISTRATION.md` (hypotheses C1–C4, arms, metrics, stopping rule). After a run, `harness/analyze.js` turns the raw per-arm `token_samples` into publishable statistics:
+
+```bash
+node harness/analyze.js results/benchmark_<ts>.json --reference brain-full
+```
+
+It writes a `*_stats.md` with, per scenario × agent: a **90% bootstrap CI** on each arm's median tokens, **Mann–Whitney U** (reference vs each baseline), **Cliff's delta** effect size, and a **Holm–Bonferroni** correction across the contrast family. The primitives live in `harness/stats.js` (dependency-free, deterministic, unit-tested). A claim counts as supported only if the effect is in the predicted direction, its CI excludes the null, the Holm-corrected p < 0.05, and Cliff's delta is at least "small". A number whose fair baseline beats Brain is reported as not supported.
 
 ### Continual mode (Scenario E)
 
@@ -175,5 +193,5 @@ Brain Memory is a direct implementation of the **CoALA** agent-memory model. The
 
 - **Preference Leakage in LLM-as-judge** ([arxiv 2502.01534](https://arxiv.org/abs/2502.01534)) — why same-family judging fails. Drives the cross-family judge map.
 - **When Judgment Becomes Noise — position bias** ([arxiv 2509.20293](https://arxiv.org/abs/2509.20293)) — empirical position-bias study. Drives position-swap mitigation.
-- **Silent Judge — shortcut bias** ([arxiv 2509.26072](https://arxiv.org/abs/2509.26072)) — drives rubric-based judging with explicit oracle answers.
+- **Silent Judge — shortcut bias** ([arxiv 2509.26072](https://arxiv.org/abs/2509.26072)) — drives rubric-only judging (oracle answer withheld from the judge at grade time).
 - **LastingBench** ([arxiv 2506.21614](https://arxiv.org/abs/2506.21614)) — benchmark-leakage defense. Why the distractor pool is deterministic synthetic data.

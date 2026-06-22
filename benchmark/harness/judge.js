@@ -31,6 +31,10 @@ const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const JUDGE_TIMEOUT_MS = 90_000;
 const JUDGE_MAX_TOKENS = 800;
+// Candidate-output budget handed to the judge. Raised from 12k so the judge
+// grades the full generated artifact instead of a head-truncated slice that
+// can hide the proof of correctness.
+const CANDIDATE_MAX_CHARS = 40_000;
 
 /**
  * Pick the appropriate judge family for an agent under test.
@@ -57,8 +61,12 @@ function pickJudge(agentName) {
  * @param {string} params.candidate - Agent output (text + concatenated generated files)
  * @returns {Promise<{score: number, passed: boolean, criteria: Object[], rationale: string, judge: string, raw: string}>}
  */
-async function judgeOne({ judge, question, oracleAnswer, rubric, candidate }) {
-  const prompt = buildSingleRubricPrompt({ question, oracleAnswer, rubric, candidate });
+async function judgeOne({ judge, question, oracleAnswer, rubric, candidate, includeOracle = false }) {
+  // `includeOracle` defaults to FALSE: rubric-only grading. Showing the judge
+  // the reference answer at grade time invites keyword-matching the oracle
+  // instead of reasoning about the rubric (leakage). The oracle answer is
+  // reserved for human validation of the judge, not the judge itself.
+  const prompt = buildSingleRubricPrompt({ question, oracleAnswer, rubric, candidate, includeOracle });
   const raw = await callJudge(judge, prompt);
   const parsed = parseJudgeJson(raw, rubric.length);
   return { ...parsed, judge, raw };
@@ -102,24 +110,24 @@ async function judgePair({ judge, question, rubric, candidateA, candidateB, labe
   };
 }
 
-function buildSingleRubricPrompt({ question, oracleAnswer, rubric, candidate }) {
+function buildSingleRubricPrompt({ question, oracleAnswer, rubric, candidate, includeOracle = false }) {
   const rubricList = rubric.map((c, i) => `  ${i + 1}. ${c}`).join('\n');
+  const referenceSection = includeOracle && oracleAnswer
+    ? `\n# Reference / expected behavior\n${oracleAnswer.trim()}\n`
+    : '';
   return `You are evaluating an AI coding agent's output against a rubric.
 
-Score strictly. Do not give partial credit for criteria that are partially met — each criterion is binary (met / not met).
+Score strictly. Do not give partial credit for criteria that are partially met — each criterion is binary (met / not met). Judge ONLY against the rubric below.
 
 # Task given to the agent
 ${question.trim()}
-
-# Reference / expected behavior
-${oracleAnswer.trim()}
-
+${referenceSection}
 # Rubric (${rubric.length} binary criteria)
 ${rubricList}
 
 # Agent's output (text + generated files concatenated)
 \`\`\`
-${truncate(candidate, 12000)}
+${truncate(candidate, CANDIDATE_MAX_CHARS)}
 \`\`\`
 
 Respond with ONLY a JSON object (no prose, no markdown fence) in this exact shape:

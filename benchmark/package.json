@@ -8,6 +8,7 @@
     "bench": "node harness/runner.js",
     "bench:scenario": "node harness/runner.js --scenario",
     "bench:agent": "node harness/runner.js --agent",
+    "bench:analyze": "node harness/analyze.js",
     "bench:docker": "docker compose -f docker/docker-compose.yml up --abort-on-container-exit"
   },
   "engines": {

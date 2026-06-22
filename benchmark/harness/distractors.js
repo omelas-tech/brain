@@ -142,6 +142,60 @@ function generateDistractors(n, seed = 42, opts = {}) {
   return memories;
 }
 
+// Hard-negative bodies: assert an OLD/rejected convention for a topic. They
+// share the oracle's project + tags + topic, so similarity-only retrievers
+// (keyword/vector) rank them high and get confused — while decay/recency-aware
+// recall should down-rank them (they are old and rarely accessed).
+const HARD_NEG_BODIES = [
+  (t) => `the previous ${t} approach used offset/page-number; it was later abandoned.`,
+  (t) => `${t} used to be handled inline in components before the refactor.`,
+  (t) => `an earlier ${t} decision set the TTL to 600s globally; this was reverted.`,
+  (t) => `${t} once used a 3rd-party SaaS; replaced after the outage.`,
+  (t) => `the old ${t} key format omitted the resource namespace.`,
+];
+
+/**
+ * Generate hard-negative memories anchored to oracle memories: same project,
+ * tags, and topic, but describing a SUPERSEDED convention. Deterministic.
+ *
+ * @param {Array<Object>} anchors - oracle memories to anchor against
+ * @param {number} [perAnchor=3] - how many hard negatives per anchor
+ * @param {number} [seed=7] - deterministic seed
+ * @returns {Array<Object>}
+ */
+function generateHardNegatives(anchors, perAnchor = 3, seed = 7) {
+  const rng = createRng(seed);
+  const out = [];
+  (anchors || []).forEach((a, ai) => {
+    const proj = (a.encoding_context && a.encoding_context.project) || 'aurora-cms';
+    const topics = (a.encoding_context && a.encoding_context.topics) || a.tags || [];
+    const topic = topics[0] || 'general';
+    for (let j = 0; j < perAnchor; j++) {
+      const id = `mem_hardneg_${seed}_${ai}_${j}`;
+      const body = `In ${proj}, a superseded ${topic} convention: ${pick(rng, HARD_NEG_BODIES)(topic)}`;
+      out.push({
+        id,
+        type: 'decision',
+        cognitive_type: 'semantic',
+        title: `${topic} convention (superseded) ${ai}.${j}`,
+        body,
+        content: `# ${topic} (superseded)\n\n${body}\n\nThis was later changed; the current convention differs.`,
+        path: `professional/decisions/${id}.md`,
+        strength: 0.5,
+        decay_rate: 0.99,
+        salience: 0.4,
+        confidence: 0.6,
+        tags: a.tags || [topic],
+        access_count: 1,
+        created: '2025-08-01T00:00:00.000Z',     // old
+        last_accessed: '2025-09-01T00:00:00.000Z', // rarely touched
+        encoding_context: { project: proj, topics: [topic], task_type: 'implementing' },
+      });
+    }
+  });
+  return out;
+}
+
 /**
  * Approximate token count for a memory pool. Char/4 heuristic — matches
  * the budget estimator used in src/index-manager.js.
@@ -163,6 +217,7 @@ const PRESETS = {
 
 module.exports = {
   generateDistractors,
+  generateHardNegatives,
   estimatePoolTokens,
   createRng,
   FAKE_PROJECTS,
