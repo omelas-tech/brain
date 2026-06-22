@@ -523,6 +523,6 @@ describe('Formatter', () => {
 describe('Agent Registry', () => {
   it('getAllNames returns expected agent names', () => {
     const names = getAllNames();
-    assert.deepEqual(names, ['claude', 'gemini', 'codex', 'opencode', 'ollama']);
+    assert.deepEqual(names, ['claude', 'gemini', 'codex', 'opencode', 'ollama', 'deepseek']);
   });
 });

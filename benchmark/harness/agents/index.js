@@ -8,8 +8,9 @@ const gemini = require('./gemini');
 const codex = require('./codex');
 const opencode = require('./opencode');
 const ollama = require('./ollama-direct');
+const deepseek = require('./deepseek-direct');
 
-const ALL_AGENTS = [claude, gemini, codex, opencode, ollama];
+const ALL_AGENTS = [claude, gemini, codex, opencode, ollama, deepseek];
 
 /**
  * Detect which agents are installed and available.
