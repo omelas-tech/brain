@@ -49,10 +49,12 @@ function parseArgs(argv) {
 function resolveRuntimesFromFlags(flags) {
   const runtimes = [];
   if (flags.has('claude')) runtimes.push('claude');
-  if (flags.has('gemini')) runtimes.push('gemini');
   if (flags.has('openai') || flags.has('codex')) runtimes.push('openai');
   if (flags.has('opencode')) runtimes.push('opencode');
-  if (flags.has('all')) return ['claude', 'gemini', 'openai', 'opencode'];
+  if (flags.has('antigravity')) runtimes.push('antigravity');
+  // --all installs the verified CLIs. Antigravity stays opt-in (--antigravity)
+  // because its native paths are experimental / pending live verification.
+  if (flags.has('all')) return ['claude', 'openai', 'opencode'];
   return runtimes;
 }
 
@@ -76,10 +78,10 @@ async function runInstall(flags) {
     if (runtimes.length === 0) {
       console.log(' Which runtimes would you like to install for?\n');
       console.log(' 1) Claude Code');
-      console.log(' 2) Gemini CLI');
-      console.log(' 3) OpenAI Codex CLI');
-      console.log(' 4) OpenCode');
-      console.log(' 5) All');
+      console.log(' 2) OpenAI Codex CLI');
+      console.log(' 3) OpenCode');
+      console.log(' 4) Google Antigravity (experimental)');
+      console.log(' 5) All current CLIs (Claude Code + Codex + OpenCode)');
       console.log('');
 
       const choice = await ask(rl, ' Select (1/2/3/4/5): ');
@@ -88,16 +90,16 @@ async function runInstall(flags) {
           runtimes = ['claude'];
           break;
         case '2':
-          runtimes = ['gemini'];
-          break;
-        case '3':
           runtimes = ['openai'];
           break;
-        case '4':
+        case '3':
           runtimes = ['opencode'];
           break;
-      case '5':
-          runtimes = ['claude', 'gemini', 'openai', 'opencode'];
+        case '4':
+          runtimes = ['antigravity'];
+          break;
+        case '5':
+          runtimes = ['claude', 'openai', 'opencode'];
           break;
         default:
           console.log(' Invalid choice. Defaulting to Claude Code.');
@@ -108,8 +110,8 @@ async function runInstall(flags) {
     // Interactive scope selection
     if (!scope) {
       console.log('\n Installation scope:\n');
-      console.log(' 1) Global — Available in all projects (~/.claude/, ~/.gemini/, ~/.codex/, ~/.config/opencode/)');
-      console.log(' 2) Local — This project only (./.claude/, ./.gemini/, ./.codex/, ./.opencode/)');
+      console.log(' 1) Global — Available in all projects (~/.claude/, ~/.codex/, ~/.config/opencode/, ~/.agents/skills/)');
+      console.log(' 2) Local — This project only (./.claude/, ./.codex/, ./.opencode/, ./.agents/skills/)');
       console.log('');
 
       const choice = await ask(rl, ' Select (1/2): ');
