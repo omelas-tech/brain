@@ -30,9 +30,11 @@ const {
 const { removeDocument } = require('../src/tfidf');
 
 function main(argv) {
-  const id = (argv || process.argv.slice(2)).find((a) => a && !a.startsWith('--'));
+  const args = argv || process.argv.slice(2);
+  const id = args.find((a) => a && !a.startsWith('--'));
+  const force = args.includes('--force');
   if (!id) {
-    console.error(JSON.stringify({ error: 'Usage: brain forget <id>' }));
+    console.error(JSON.stringify({ error: 'Usage: brain forget <id> [--force]' }));
     process.exit(1);
   }
 
@@ -45,6 +47,19 @@ function main(argv) {
   const entry = index.memories[id];
   if (!entry) {
     console.error(JSON.stringify({ error: `Memory not found: ${id}` }));
+    process.exit(1);
+  }
+
+  // CoALA salience protection: high-salience memories are "never auto-pruned"
+  // (the documented guarantee). Enforce it deterministically here — the only
+  // archival primitive — instead of relying on the agent to honor it. --force
+  // overrides for a deliberate, explicit removal.
+  const SALIENCE_FLOOR = 0.7;
+  if (!force && typeof entry.salience === 'number' && entry.salience >= SALIENCE_FLOOR) {
+    console.error(JSON.stringify({
+      error: `Refusing to archive high-salience memory ${id} (salience ${entry.salience} >= ${SALIENCE_FLOOR}). Pass --force to override.`,
+      protected: true,
+    }));
     process.exit(1);
   }
 

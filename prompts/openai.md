@@ -4,7 +4,7 @@ This project uses the **Brain Memory** plugin — a hierarchical, file-system-ba
 
 ## Memory Location
 
-All memories are stored in `.brain/` with a deep nested directory structure organized by life domains (professional, personal, social, family) with on-demand subcategories.
+All memories are stored in `~/.brain/` with a deep nested directory structure organized by life domains (professional, personal, social, family) with on-demand subcategories.
 
 ## How It Works
 
@@ -37,7 +37,7 @@ Each memory is a Markdown file with YAML frontmatter containing: `id`, `type`, `
 | observation | 0.40 | 0.950 | Casual facts or notices |
 
 ### Associative Network
-Memories are connected via weighted edges in `.brain/associations.json`. When you recall memory A, **spreading activation** automatically surfaces related memories B and C — just like how the brain activates linked neurons. Links are strengthened through **Hebbian learning**: memories recalled together become more tightly connected over time.
+Memories are connected via weighted edges in `~/.brain/associations.json`. When you recall memory A, **spreading activation** automatically surfaces related memories B and C — just like how the brain activates linked neurons. Links are strengthened through **Hebbian learning**: memories recalled together become more tightly connected over time.
 
 ### Context-Dependent Recall
 Memories store their encoding context (project, topics, task type). During recall, memories encoded in a similar context to the current session are scored higher — matching how human memory works better when recall context matches encoding context.
@@ -60,7 +60,7 @@ Core:
 
 Sync & skills:
 - `/brain-sync [subcommand]` — Sync via Brain Cloud, Git remote, or export/import (auto-initializes on first run)
-- `/brain-skill [list|show|add|use|remove|export]` — Manage procedural skills
+- `/brain-skills [list|show|add|use|remove|export]` — Manage procedural skills
 
 Maintenance (usually automatic — runs in the background):
 - `/brain-sleep [scope]` — Full maintenance cycle: replay, homeostasis, propagation, crystallization, reorganize, consolidate, prune, review reinforcement, REM dreaming, expertise detection
@@ -69,7 +69,7 @@ Maintenance (usually automatic — runs in the background):
 
 **Perform these steps at session start — but keep it lightweight.**
 
-If `.brain/index.json` exists:
+If `~/.brain/index.json` exists:
 
 1. **Run the session-start aggregator** — one deterministic, budget-bounded call:
    ```bash
@@ -125,7 +125,7 @@ When a session is ending (user says bye/thanks/done, conversation wraps up, or y
 
 ### Step 1: Save Session Context (ALWAYS — do this first)
 
-**Immediately** append a session summary to `.brain/contexts.json`, even for trivial sessions. Context tracking is cheap and provides valuable recall signals for future sessions.
+**Immediately** append a session summary to `~/.brain/contexts.json`, even for trivial sessions. Context tracking is cheap and provides valuable recall signals for future sessions.
 
 ```json
 {
@@ -166,7 +166,7 @@ When the user asks you to "remember" something, or when context from past sessio
 2. The engine computes TF-IDF relevance, decayed strength, spreading activation, context match, and salience — all deterministically
 3. Read the top-scoring memory files and present results
 4. Run `brain reinforce <mem_id1> <mem_id2> ...` to apply spaced reinforcement and Hebbian co-retrieval strengthening
-5. If no matches, search the archive (`.brain/_archived/`)
+5. If no matches, search the archive (`~/.brain/_archived/`)
 
 The recall engine ensures **identical scoring across all agents** — Claude, Gemini, and Codex all get the same rankings for the same query.
 
@@ -174,7 +174,7 @@ The recall engine ensures **identical scoring across all agents** — Claude, Ge
 
 Brain memories can be synced across devices in two ways:
 
-1. **Git remote** — Push/pull `.brain/` to any private Git repository (GitHub, GitLab, Codeberg, self-hosted). Run `/brain-sync setup <url>` to configure, then use `/brain-sync push` and `/brain-sync pull`.
-2. **Export/Import** — Pack the entire `.brain/` into a single portable file for manual transfer. Run `/brain-sync export` and `/brain-sync import <path>`.
+1. **Git remote** — Push/pull `~/.brain/` to any private Git repository (GitHub, GitLab, Codeberg, self-hosted). Run `/brain-sync setup <url>` to configure, then use `/brain-sync push` and `/brain-sync pull`.
+2. **Export/Import** — Pack the entire `~/.brain/` into a single portable file for manual transfer. Run `/brain-sync export` and `/brain-sync import <path>`.
 
 Both methods support optional AES-256-GCM encryption. Sync is always manual — never automatic.

@@ -74,7 +74,12 @@ function computeStrengthAndDecay(type, cognitiveType, strengthAdjustment = 0) {
   const strength = Math.max(0, Math.min(1.0,
     typeDefaults.strength + cogAdj.strength_delta + strengthAdjustment
   ));
-  const decay_rate = typeDefaults.decay_rate * cogAdj.decay_multiplier;
+  // Cap strictly below 1.0. Procedural memories are meant to decay *slowly*, but
+  // a multiplier that pushed decay_rate >= 1.0 would make effective strength GROW
+  // over time (strength * decay_rate^days) — inverted decay. 0.9999/day is
+  // "extremely slow" (a memory loses ~3% of its strength per year) without ever
+  // inverting.
+  const decay_rate = Math.min(0.9999, typeDefaults.decay_rate * cogAdj.decay_multiplier);
 
   return { strength: Math.round(strength * 100) / 100, decay_rate };
 }
