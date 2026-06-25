@@ -257,18 +257,19 @@ describe('injectPrompt', () => {
 // installForRuntime — local scope (uses tmpDir as cwd)
 // ===========================================================================
 describe('installForRuntime (local scope)', () => {
+  let savedOpenaiSkills;
   beforeEach(() => {
     setup();
-    // Override RUNTIMES localDir to point into tmpDir for isolation
+    // Override RUNTIMES dirs to point into tmpDir for isolation
     RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
-    RUNTIMES.gemini.localDir = path.join(tmpDir, '.gemini');
     RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
+    savedOpenaiSkills = RUNTIMES.openai.skillsLocalDir;
+    RUNTIMES.openai.skillsLocalDir = path.join(tmpDir, '.agents', 'skills');
   });
   afterEach(() => {
-    // Restore defaults
     RUNTIMES.claude.localDir = '.claude';
-    RUNTIMES.gemini.localDir = '.gemini';
     RUNTIMES.openai.localDir = '.codex';
+    RUNTIMES.openai.skillsLocalDir = savedOpenaiSkills;
     teardown();
   });
 
@@ -282,20 +283,15 @@ describe('installForRuntime (local scope)', () => {
     assert.ok(fs.existsSync(path.join(commandsDir, 'sleep.md')));
   });
 
-  it('installs gemini commands as flat files', () => {
-    installForRuntime('gemini', 'local');
-
-    const commandsDir = path.join(tmpDir, '.gemini', 'commands', 'brain');
-    assert.ok(fs.existsSync(commandsDir));
-    assert.ok(fs.existsSync(path.join(commandsDir, 'memorize.md')));
-  });
-
-  it('installs openai commands as skill directories', () => {
+  it('installs openai (Codex) skills at ~/.agents/skills with name: frontmatter', () => {
     installForRuntime('openai', 'local');
 
-    const skillsDir = path.join(tmpDir, '.codex', 'skills');
+    const skillsDir = path.join(tmpDir, '.agents', 'skills');
+    const memPath = path.join(skillsDir, 'brain-memorize', 'SKILL.md');
     assert.ok(fs.existsSync(path.join(skillsDir, 'brain-remember', 'SKILL.md')));
-    assert.ok(fs.existsSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md')));
+    assert.ok(fs.existsSync(memPath));
+    // Codex requires a name: frontmatter matching the skill folder.
+    assert.match(fs.readFileSync(memPath, 'utf-8'), /^---\nname: brain-memorize\n/);
   });
 
   it('injects prompt into the correct file for each runtime', () => {
@@ -436,28 +432,27 @@ describe('detectInstallations', () => {
     setup();
     savedDirs = {
       claude: { local: RUNTIMES.claude.localDir, global: RUNTIMES.claude.globalDir },
-      gemini: { local: RUNTIMES.gemini.localDir, global: RUNTIMES.gemini.globalDir },
-      openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir },
+      openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir, skillsLocal: RUNTIMES.openai.skillsLocalDir, skillsGlobal: RUNTIMES.openai.skillsGlobalDir },
       opencode: { local: RUNTIMES.opencode.localDir, global: RUNTIMES.opencode.globalDir },
     };
     // Redirect both local and global to tmpDir subdirs for isolation
     RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
-    RUNTIMES.gemini.localDir = path.join(tmpDir, '.gemini');
     RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
     RUNTIMES.opencode.localDir = path.join(tmpDir, '.opencode');
+    RUNTIMES.openai.skillsLocalDir = path.join(tmpDir, '.agents', 'skills');
     RUNTIMES.claude.globalDir = path.join(tmpDir, 'global', '.claude');
-    RUNTIMES.gemini.globalDir = path.join(tmpDir, 'global', '.gemini');
     RUNTIMES.openai.globalDir = path.join(tmpDir, 'global', '.codex');
+    RUNTIMES.openai.skillsGlobalDir = path.join(tmpDir, 'global', '.agents', 'skills');
     RUNTIMES.opencode.globalDir = path.join(tmpDir, 'global', '.config', 'opencode');
   });
   afterEach(() => {
     RUNTIMES.claude.localDir = savedDirs.claude.local;
-    RUNTIMES.gemini.localDir = savedDirs.gemini.local;
     RUNTIMES.openai.localDir = savedDirs.openai.local;
     RUNTIMES.opencode.localDir = savedDirs.opencode.local;
+    RUNTIMES.openai.skillsLocalDir = savedDirs.openai.skillsLocal;
     RUNTIMES.claude.globalDir = savedDirs.claude.global;
-    RUNTIMES.gemini.globalDir = savedDirs.gemini.global;
     RUNTIMES.openai.globalDir = savedDirs.openai.global;
+    RUNTIMES.openai.skillsGlobalDir = savedDirs.openai.skillsGlobal;
     RUNTIMES.opencode.globalDir = savedDirs.opencode.global;
     teardown();
   });
@@ -482,7 +477,7 @@ describe('detectInstallations', () => {
     // Regression guard: detection once keyed off `brain-init/SKILL.md`, which
     // silently broke when `init` was removed in the six-verb refactor. Detection
     // must match ANY brain-* skill. Build a skills dir with no brain-init.
-    const skillsDir = path.join(tmpDir, '.codex', 'skills');
+    const skillsDir = path.join(tmpDir, '.agents', 'skills');
     fs.mkdirSync(path.join(skillsDir, 'brain-memorize'), { recursive: true });
     fs.writeFileSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md'), '# Memorize');
     fs.mkdirSync(path.join(skillsDir, 'brain-status'), { recursive: true });
@@ -508,11 +503,11 @@ describe('detectInstallations', () => {
 
   it('detects multiple runtimes', () => {
     installForRuntime('claude', 'local');
-    installForRuntime('gemini', 'local');
+    installForRuntime('opencode', 'local');
     const results = detectInstallations();
     const runtimes = results.filter((r) => r.scope === 'local').map((r) => r.runtime);
     assert.ok(runtimes.includes('claude'));
-    assert.ok(runtimes.includes('gemini'));
+    assert.ok(runtimes.includes('opencode'));
   });
 
   it('returns empty array when nothing installed (ignoring cwd prompt files)', () => {
@@ -624,7 +619,9 @@ describe('removeCommands', () => {
     fs.mkdirSync(path.join(skillsDir, 'other-skill'), { recursive: true });
     fs.writeFileSync(path.join(skillsDir, 'other-skill', 'SKILL.md'), '# Other');
 
-    const removed = removeCommands(targetDir, RUNTIMES.openai);
+    // Use a config whose skills resolve to targetDir/skills (no skillsDir override).
+    const cfg = { ...RUNTIMES.openai, skillsGlobalDir: undefined, skillsLocalDir: undefined };
+    const removed = removeCommands(targetDir, cfg);
 
     assert.equal(removed.length, 2);
     assert.ok(!fs.existsSync(path.join(skillsDir, 'brain-init')));
@@ -653,23 +650,20 @@ describe('uninstallForRuntime', () => {
     setup();
     savedDirs = {
       claude: { local: RUNTIMES.claude.localDir, global: RUNTIMES.claude.globalDir },
-      gemini: { local: RUNTIMES.gemini.localDir, global: RUNTIMES.gemini.globalDir },
-      openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir },
+      openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir, skillsGlobal: RUNTIMES.openai.skillsGlobalDir },
     };
     RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
-    RUNTIMES.gemini.localDir = path.join(tmpDir, '.gemini');
     RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
     RUNTIMES.claude.globalDir = path.join(tmpDir, 'global', '.claude');
-    RUNTIMES.gemini.globalDir = path.join(tmpDir, 'global', '.gemini');
     RUNTIMES.openai.globalDir = path.join(tmpDir, 'global', '.codex');
+    RUNTIMES.openai.skillsGlobalDir = path.join(tmpDir, 'global', '.agents', 'skills');
   });
   afterEach(() => {
     RUNTIMES.claude.localDir = savedDirs.claude.local;
-    RUNTIMES.gemini.localDir = savedDirs.gemini.local;
     RUNTIMES.openai.localDir = savedDirs.openai.local;
     RUNTIMES.claude.globalDir = savedDirs.claude.global;
-    RUNTIMES.gemini.globalDir = savedDirs.gemini.global;
     RUNTIMES.openai.globalDir = savedDirs.openai.global;
+    RUNTIMES.openai.skillsGlobalDir = savedDirs.openai.skillsGlobal;
     teardown();
   });
 
@@ -689,7 +683,7 @@ describe('uninstallForRuntime', () => {
 
   it('install then uninstall leaves no brain commands (openai skills, global)', () => {
     installForRuntime('openai', 'global');
-    const skillsDir = path.join(tmpDir, 'global', '.codex', 'skills');
+    const skillsDir = path.join(tmpDir, 'global', '.agents', 'skills');
     assert.ok(fs.existsSync(path.join(skillsDir, 'brain-memorize', 'SKILL.md')));
 
     uninstallForRuntime('openai', 'global');

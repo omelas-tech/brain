@@ -239,16 +239,20 @@ describe('Hook files — reference notes', () => {
 // Integration: full install + brain init round-trip
 // ===========================================================================
 describe('Integration: install + init round-trip', () => {
+  let savedOpenaiSkills;
   beforeEach(() => {
     setup();
     RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
-    RUNTIMES.gemini.localDir = path.join(tmpDir, '.gemini');
     RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
+    RUNTIMES.opencode.localDir = path.join(tmpDir, '.opencode');
+    savedOpenaiSkills = RUNTIMES.openai.skillsLocalDir;
+    RUNTIMES.openai.skillsLocalDir = path.join(tmpDir, '.agents', 'skills');
   });
   afterEach(() => {
     RUNTIMES.claude.localDir = '.claude';
-    RUNTIMES.gemini.localDir = '.gemini';
     RUNTIMES.openai.localDir = '.codex';
+    RUNTIMES.opencode.localDir = '.opencode';
+    RUNTIMES.openai.skillsLocalDir = savedOpenaiSkills;
     teardown();
   });
 
@@ -269,7 +273,7 @@ describe('Integration: install + init round-trip', () => {
   it('full OpenAI install creates skill directories', () => {
     installForRuntime('openai', 'local');
 
-    const skillsDir = path.join(tmpDir, '.codex', 'skills');
+    const skillsDir = path.join(tmpDir, '.agents', 'skills');
     const skills = fs.readdirSync(skillsDir);
     assert.ok(skills.length >= 8, `Expected >= 8 skills, got ${skills.length}`);
     assert.ok(skills.includes('brain-remember'));
@@ -333,16 +337,16 @@ describe('Integration: install + init round-trip', () => {
     assert.equal(startCount, 1, 'Should have exactly one start marker after double install');
   });
 
-  it('all three runtimes can be installed simultaneously', () => {
+  it('multiple runtimes can be installed simultaneously', () => {
     installForRuntime('claude', 'local');
-    installForRuntime('gemini', 'local');
+    installForRuntime('opencode', 'local');
     installForRuntime('openai', 'local');
 
-    // Claude
+    // Claude (flat commands)
     assert.ok(fs.existsSync(path.join(tmpDir, '.claude', 'commands', 'brain', 'memorize.md')));
-    // Gemini
-    assert.ok(fs.existsSync(path.join(tmpDir, '.gemini', 'commands', 'brain', 'memorize.md')));
-    // OpenAI
-    assert.ok(fs.existsSync(path.join(tmpDir, '.codex', 'skills', 'brain-memorize', 'SKILL.md')));
+    // OpenCode (flat commands)
+    assert.ok(fs.existsSync(path.join(tmpDir, '.opencode', 'commands', 'brain', 'memorize.md')));
+    // Codex (skills at ~/.agents/skills)
+    assert.ok(fs.existsSync(path.join(tmpDir, '.agents', 'skills', 'brain-memorize', 'SKILL.md')));
   });
 });

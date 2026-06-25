@@ -6,6 +6,17 @@ const { getBrainDir } = require('./index-manager');
 
 const PACKAGE_ROOT = path.resolve(__dirname, '..');
 
+// Local-first integration targets, current as of mid-2026. The hosted MCP
+// connector (Brain Cloud) is the universal path for everything else (Claude.ai,
+// ChatGPT, mobile, Antigravity/Gemini-Enterprise via remote MCP); these are the
+// CLIs where a native install adds the ambient zero-config loop MCP can't.
+//
+// `skillsGlobalDir`/`skillsLocalDir` decouple where skills land from where the
+// prompt lands (Codex prompts go to ~/.codex/AGENTS.md but skills go to the
+// cross-tool ~/.agents/skills/). `skillName: true` injects the `name:`
+// frontmatter that Codex/Antigravity require to match the skill folder.
+//
+// Gemini CLI was retired 2026-06-18 (absorbed into Antigravity) and is removed.
 const RUNTIMES = {
   claude: {
     name: 'Claude Code',
@@ -16,23 +27,33 @@ const RUNTIMES = {
     promptSource: 'claude.md',
     commandStyle: 'flat',
   },
-  gemini: {
-    name: 'Gemini CLI',
-    globalDir: path.join(os.homedir(), '.gemini'),
-    localDir: '.gemini',
-    commandsSubdir: 'commands',
-    promptFile: 'GEMINI.md',
-    promptSource: 'gemini.md',
-    commandStyle: 'flat',
-  },
   openai: {
     name: 'OpenAI Codex CLI',
     globalDir: path.join(os.homedir(), '.codex'),
     localDir: '.codex',
     commandsSubdir: 'skills',
+    // Codex reads skills from the cross-tool ~/.agents/skills/, NOT ~/.codex/skills/.
+    skillsGlobalDir: path.join(os.homedir(), '.agents', 'skills'),
+    skillsLocalDir: path.join('.agents', 'skills'),
     promptFile: 'AGENTS.md',
     promptSource: 'openai.md',
     commandStyle: 'skills',
+    skillName: true,
+  },
+  antigravity: {
+    name: 'Google Antigravity',
+    // NB: Antigravity reuses ~/.gemini/ and reads GEMINI.md globally + Markdown
+    // SKILL.md skills under ~/.gemini/skills/. These paths are community-sourced
+    // (official docs are JS SPAs) — VERIFY against a live Antigravity install.
+    globalDir: path.join(os.homedir(), '.gemini'),
+    localDir: '.',
+    commandsSubdir: 'skills',
+    skillsGlobalDir: path.join(os.homedir(), '.gemini', 'skills'),
+    skillsLocalDir: path.join('.agents', 'skills'),
+    promptFile: 'GEMINI.md',
+    promptSource: 'antigravity.md',
+    commandStyle: 'skills',
+    skillName: true,
   },
   opencode: {
     name: 'OpenCode',
@@ -44,6 +65,14 @@ const RUNTIMES = {
     commandStyle: 'flat',
   },
 };
+
+/** Where skills install for a runtime+scope (decoupled from the prompt target). */
+function skillsDestFor(config, scope) {
+  if (scope === 'global') {
+    return config.skillsGlobalDir || path.join(config.globalDir, config.commandsSubdir);
+  }
+  return config.skillsLocalDir || path.join(config.localDir, config.commandsSubdir);
+}
 
 const BRAIN_MARKER_START = '<!-- BRAIN-MEMORY-START -->';
 const BRAIN_MARKER_END = '<!-- BRAIN-MEMORY-END -->';
@@ -66,17 +95,32 @@ function copyDir(src, dest, _depth = 0) {
   }
 }
 
-function installSkills(commandsSrc, skillsDest) {
+function installSkills(commandsSrc, skillsDest, addName = false) {
   const entries = fs.readdirSync(commandsSrc).filter((f) => f.endsWith('.md'));
   for (const file of entries) {
     const name = file.replace('.md', '');
-    const skillDir = path.join(skillsDest, `brain-${name}`);
+    const skillFolder = `brain-${name}`;
+    const skillDir = path.join(skillsDest, skillFolder);
     fs.mkdirSync(skillDir, { recursive: true });
-    fs.copyFileSync(
-      path.join(commandsSrc, file),
-      path.join(skillDir, 'SKILL.md')
-    );
+    let content = fs.readFileSync(path.join(commandsSrc, file), 'utf-8');
+    if (addName) content = ensureSkillName(content, skillFolder);
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content);
   }
+}
+
+/**
+ * Codex and Antigravity require a `name:` frontmatter field that matches the
+ * skill folder. The source command files only carry `description:`, so inject
+ * `name:` as the first frontmatter field (idempotent — skips if already present).
+ */
+function ensureSkillName(content, name) {
+  if (/^---\s*\n/.test(content)) {
+    const end = content.indexOf('\n---', 3);
+    const block = end !== -1 ? content.slice(0, end) : content;
+    if (/^\s*name\s*:/m.test(block)) return content;
+    return content.replace(/^---\s*\n/, `---\nname: ${name}\n`);
+  }
+  return `---\nname: ${name}\n---\n\n${content}`;
 }
 
 function injectPrompt(targetDir, promptFile, promptSource) {
@@ -85,6 +129,11 @@ function injectPrompt(targetDir, promptFile, promptSource) {
     'utf-8'
   );
   const targetPath = path.join(targetDir, promptFile);
+  // Ensure the prompt dir exists. Previously this was created as a side-effect
+  // of installing commands/skills into the same dir; now that skills can land
+  // elsewhere (e.g. Codex skills → ~/.agents/skills), the prompt dir (~/.codex)
+  // must be created explicitly.
+  fs.mkdirSync(targetDir, { recursive: true });
 
   const wrappedContent = `\n${BRAIN_MARKER_START}\n${promptContent}\n${BRAIN_MARKER_END}\n`;
 
@@ -115,7 +164,7 @@ function detectInstallations() {
       // Check for command files/dirs
       let commandsFound = false;
       if (config.commandStyle === 'skills') {
-        const skillsDir = path.join(targetDir, config.commandsSubdir);
+        const skillsDir = skillsDestFor(config, scope);
         commandsFound = fs.existsSync(skillsDir) &&
           fs.readdirSync(skillsDir).some(
             (d) => d.startsWith('brain-') &&
@@ -176,11 +225,14 @@ function removePromptSection(promptPath) {
   return { removed: true, fileDeleted: false };
 }
 
-function removeCommands(targetDir, config) {
+function removeCommands(targetDir, config, scope = 'global') {
   const removed = [];
 
   if (config.commandStyle === 'skills') {
-    const skillsDir = path.join(targetDir, config.commandsSubdir);
+    // Honor an explicit skills override; otherwise resolve relative to the
+    // passed targetDir (so callers that pass a custom targetDir still work).
+    const override = scope === 'global' ? config.skillsGlobalDir : config.skillsLocalDir;
+    const skillsDir = override || path.join(targetDir, config.commandsSubdir);
     if (fs.existsSync(skillsDir)) {
       const entries = fs.readdirSync(skillsDir).filter((d) => d.startsWith('brain-'));
       for (const entry of entries) {
@@ -212,7 +264,7 @@ function uninstallForRuntime(runtime, scope) {
   const promptTarget = scope === 'global' ? config.globalDir : '.';
   const promptPath = path.join(promptTarget, config.promptFile);
 
-  const removedCommands = removeCommands(targetDir, config);
+  const removedCommands = removeCommands(targetDir, config, scope);
   const promptResult = removePromptSection(promptPath);
 
   return { removedCommands, promptResult };
@@ -230,7 +282,7 @@ function installForRuntime(runtime, scope) {
   const commandsSrc = path.join(PACKAGE_ROOT, 'commands', 'brain');
 
   if (config.commandStyle === 'skills') {
-    const skillsDest = path.join(targetDir, config.commandsSubdir);
+    const skillsDest = skillsDestFor(config, scope);
     // Clear stale brain-* skill dirs first so renamed/removed commands don't
     // linger across upgrades (e.g. brain-skill → brain-skills).
     if (fs.existsSync(skillsDest)) {
@@ -240,7 +292,7 @@ function installForRuntime(runtime, scope) {
         }
       }
     }
-    installSkills(commandsSrc, skillsDest);
+    installSkills(commandsSrc, skillsDest, config.skillName);
   } else {
     const commandsDest = path.join(targetDir, config.commandsSubdir, 'brain');
     // Wipe the brain command dir before copying so renamed/removed commands
