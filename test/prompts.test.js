@@ -43,7 +43,7 @@ function readHook(name) {
 describe('Prompt source files — session lifecycle sections', () => {
   const promptFiles = [
     { file: 'claude.md', prefix: '/brain:' },
-    { file: 'gemini.md', prefix: '/brain:' },
+    { file: 'antigravity.md', prefix: '/brain-' },
     { file: 'openai.md', prefix: '/brain-' },
   ];
 
@@ -172,7 +172,7 @@ describe('Prompt source files — session lifecycle sections', () => {
 describe('Prompt content consistency across runtimes', () => {
   it('all prompts contain the same core sections', () => {
     const claude = readPrompt('claude.md');
-    const gemini = readPrompt('gemini.md');
+    const antigravity = readPrompt('antigravity.md');
     const openai = readPrompt('openai.md');
 
     const coreSections = [
@@ -186,21 +186,19 @@ describe('Prompt content consistency across runtimes', () => {
 
     for (const section of coreSections) {
       assert.ok(claude.includes(section), `claude.md missing "${section}"`);
-      assert.ok(gemini.includes(section), `gemini.md missing "${section}"`);
+      assert.ok(antigravity.includes(section), `antigravity.md missing "${section}"`);
       assert.ok(openai.includes(section), `openai.md missing "${section}"`);
     }
   });
 
-  it('openai prompt uses /brain- prefix while others use /brain:', () => {
+  it('openai prompt uses /brain- prefix while claude uses /brain:', () => {
     const claude = readPrompt('claude.md');
-    const gemini = readPrompt('gemini.md');
     const openai = readPrompt('openai.md');
 
-    // Claude and Gemini use /brain: prefix
+    // Claude Code uses the /brain: prefix
     assert.ok(claude.includes('/brain:memorize'));
-    assert.ok(gemini.includes('/brain:memorize'));
 
-    // OpenAI uses /brain- prefix
+    // OpenAI Codex uses /brain- prefix
     assert.ok(openai.includes('/brain-memorize'));
     assert.ok(!openai.includes('/brain:memorize'));
   });

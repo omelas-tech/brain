@@ -96,8 +96,8 @@ export default function OpengraphImage() {
             }}
           >
             Decays on an Ebbinghaus curve, strengthens through recall, consolidates
-            during sleep — deterministic across Claude Code, Gemini, Codex &amp;
-            OpenCode.
+            during sleep — deterministic across Claude Code, Codex, OpenCode &amp;
+            Antigravity, plus the Claude &amp; ChatGPT apps.
           </span>
         </div>
 

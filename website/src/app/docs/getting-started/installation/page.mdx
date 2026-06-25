@@ -5,14 +5,55 @@ import { docMeta } from "@/lib/docs";
 
 export const metadata = docMeta("/docs/getting-started/installation", {
   title: "Installation - Brain Memory",
-  description: "How to install Brain Memory for Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode.",
+  description: "Add Brain Memory via the hosted MCP connector (universal) or the free local-first native plugin for Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity.",
   category: "Getting Started",
   order: 1,
 });
 
 # Installation
 
-Brain Memory is installed in two steps: a global npm install (for CLI tools) and a setup wizard (for slash commands and prompts).
+There are two ways to give an agent a brain:
+
+1. **The hosted MCP connector** — the universal path. One streamable-HTTP + OAuth
+   endpoint (`https://mcp.brainmemory.ai/mcp`) reaches every supported host, including
+   the Claude.ai and ChatGPT apps. Nothing to install locally.
+2. **The local-first native plugin** — free, stores everything in `~/.brain/` on your
+   machine, and wires slash commands and prompt sections into the agent's own config.
+
+Most people start with the connector; reach for the native plugin when you want a
+fully local, no-account brain.
+
+## The hosted MCP connector (universal)
+
+The connector is a remote [MCP](https://modelcontextprotocol.io) server
+(`https://mcp.brainmemory.ai/mcp`, streamable-HTTP + OAuth). A single connector
+reaches **Claude Code, OpenAI Codex CLI, OpenCode, the Claude.ai apps, ChatGPT
+(paid plans + Developer Mode), and Google Antigravity / Gemini Enterprise**. Point each
+host at the URL:
+
+```bash
+# Claude Code
+claude mcp add --transport http brain https://mcp.brainmemory.ai/mcp
+
+# OpenAI Codex CLI
+codex mcp add brain --url https://mcp.brainmemory.ai/mcp
+```
+
+- **OpenCode** — add a remote MCP server in `opencode.json` (`mcp` → remote `url`:
+  `https://mcp.brainmemory.ai/mcp`).
+- **Antigravity** — set `serverUrl` to `https://mcp.brainmemory.ai/mcp` in `mcp_config.json`.
+- **Claude.ai / ChatGPT apps** — add a custom connector (URL + OAuth) in **Settings →
+  Connectors**. See [Use Brain in the Claude apps](/docs/getting-started/claude-apps/) for the full walkthrough.
+
+<Callout type="tip">
+  The connector needs a [Brain Cloud](https://app.brainmemory.ai) account so your brain is
+  reachable from any host. OAuth is handled automatically — leave any client ID / secret blank.
+</Callout>
+
+## The local-first native plugin
+
+Prefer a fully local brain with no hosted service? Install the plugin globally,
+then run the setup wizard.
 
 ## Install
 
@@ -23,7 +64,12 @@ brain
 
 The first command installs the package globally — this gives you both the interactive setup wizard and the `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) that agents rely on for deterministic scoring.
 
-The second command runs the setup wizard, which asks which runtime(s) to configure (Claude Code, Gemini CLI, OpenAI Codex CLI, or all) and whether to install globally or for the current project.
+The second command runs the setup wizard, which asks which runtime(s) to configure (Claude Code, OpenAI Codex CLI, OpenCode, Antigravity, or all) and whether to install globally or for the current project.
+
+<Callout type="info">
+  Antigravity native support is **experimental** — it writes `GEMINI.md` plus skills under
+  `~/.gemini/skills/`. For Antigravity, the [MCP connector](#the-hosted-mcp-connector-universal) is the more reliable path.
+</Callout>
 
 <Callout type="tip">
   Global installation is recommended for most users. It makes your brain available across all projects with any supported agent.
@@ -43,14 +89,14 @@ npm install -g brain-memory@beta
 # Claude Code, global
 brain --claude --global
 
-# Gemini CLI, local project
-brain --gemini --local
-
 # OpenAI Codex CLI, global
 brain --codex --global
 
-# OpenCode, global
-brain --opencode --global
+# OpenCode, local project
+brain --opencode --local
+
+# Antigravity (experimental), global
+brain --antigravity --global
 
 # All runtimes, global
 brain --all --global
@@ -61,7 +107,7 @@ brain --all --global
 The installer copies two things to your agent's configuration directory:
 
 1. **Command prompts** — Slash command definitions (e.g., `/brain:memorize`, `/brain:remember`) that teach the agent how to use the memory system
-2. **Prompt section** — Instructions appended to your agent's main prompt file (`CLAUDE.md`, `GEMINI.md`, or `AGENTS.md`) that enable session lifecycle behavior (auto-loading memories at start, suggesting memorization at end)
+2. **Prompt section** — Instructions appended to your agent's main prompt file (`CLAUDE.md`, `AGENTS.md`, or `GEMINI.md`) that enable session lifecycle behavior (auto-loading memories at start, suggesting memorization at end)
 
 Your actual memories live in `~/.brain/`, which the installer creates for you (it's also auto-created on your first `/brain:memorize` or `/brain:sync`).
 
@@ -79,28 +125,42 @@ cp -r commands/brain/ ~/.claude/commands/brain/
 cat prompts/claude.md >> ~/.claude/CLAUDE.md
 ```
 
-### Gemini CLI
-
-```bash
-# Copy commands
-cp -r commands/brain/ ~/.gemini/commands/brain/
-
-# Append prompt section to GEMINI.md
-cat prompts/gemini.md >> ~/.gemini/GEMINI.md
-```
-
 ### OpenAI Codex CLI
 
 ```bash
 # Each command becomes a skill
 for f in commands/brain/*.md; do
   name=$(basename "$f" .md)
-  mkdir -p ~/.codex/skills/brain-"$name"
-  cp "$f" ~/.codex/skills/brain-"$name"/SKILL.md
+  mkdir -p ~/.agents/skills/brain-"$name"
+  cp "$f" ~/.agents/skills/brain-"$name"/SKILL.md
 done
 
 # Append prompt section to AGENTS.md
 cat prompts/openai.md >> ~/.codex/AGENTS.md
+```
+
+### OpenCode
+
+```bash
+# Copy commands
+cp -r commands/brain/ ~/.config/opencode/command/brain/
+
+# Append prompt section to AGENTS.md
+cat prompts/openai.md >> ~/.config/opencode/AGENTS.md
+```
+
+### Antigravity (experimental)
+
+```bash
+# Each command becomes a skill
+for f in commands/brain/*.md; do
+  name=$(basename "$f" .md)
+  mkdir -p ~/.gemini/skills/brain-"$name"
+  cp "$f" ~/.gemini/skills/brain-"$name"/SKILL.md
+done
+
+# Append prompt section to GEMINI.md
+cat prompts/gemini.md >> ~/.gemini/GEMINI.md
 ```
 
 ## Update
@@ -116,9 +176,9 @@ The first command updates the package and CLI tools. The second command refreshe
 
 ```bash
 brain update --claude
-brain update --gemini
 brain update --codex
 brain update --opencode
+brain update --antigravity
 brain update --all
 ```
 

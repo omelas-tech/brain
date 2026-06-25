@@ -27,7 +27,7 @@ export const docPages = [
   {
     title: "Installation",
     description:
-      "Install the Brain Memory plugin for Claude Code, Gemini CLI, or OpenAI Codex.",
+      "Install the Brain Memory plugin for Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity — or add the hosted MCP connector.",
     href: "/docs/getting-started/installation",
     category: "Getting Started",
     order: 1,
@@ -208,7 +208,7 @@ export const docPages = [
   {
     title: "Cross-Agent Sharing",
     description:
-      "Share memories across Claude Code, Gemini CLI, and OpenAI Codex agents.",
+      "Share memories across Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity agents.",
     href: "/docs/advanced/cross-agent",
     category: "Advanced",
     order: 3,

@@ -15,7 +15,7 @@ const FAQ = [
   },
   {
     q: "Which AI agents does Brain Memory support?",
-    a: "Brain Memory works across Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode. A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
+    a: "The universal path is the hosted MCP connector (https://mcp.brainmemory.ai/mcp) — one connector reaches Claude Code, OpenAI Codex CLI, OpenCode, the Claude.ai apps, ChatGPT, and Google Antigravity. There's also a free local-first native plugin for Claude Code, Codex, OpenCode, and Antigravity (experimental). A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
   },
   {
     q: "Is Brain Memory free and open source?",
@@ -96,8 +96,8 @@ export default function Home() {
             <p className="sub">
               A hierarchical, file-system memory that{" "}
               <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
-              and consolidates during sleep. Deterministic across Claude&nbsp;Code,
-              Gemini&nbsp;CLI, Codex&nbsp;CLI, and OpenCode — <b>one brain, any model, every agent.</b>
+              and consolidates during sleep. One hosted MCP connector reaches Claude&nbsp;Code,
+              Codex&nbsp;CLI, OpenCode, Antigravity, and the Claude &amp; ChatGPT apps — <b>one brain, any model, every agent.</b>
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#quickstart">
@@ -284,16 +284,54 @@ export default function Home() {
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">06</span> Compatibility</span>
             <h2>One memory store. Every agent.</h2>
+            <p className="lede">
+              The universal path is the <b>hosted MCP connector</b> — one
+              streamable-HTTP + OAuth endpoint that reaches every host below.
+              Prefer to stay local? The free <b>native plugin</b> writes to
+              <code>~/.brain/</code> for the current CLIs.
+            </p>
           </div>
+
+          <div className="qs-block reveal">
+            <div className="qs-line">
+              <span className="prompt">MCP</span>
+              <span className="cmd">https://mcp.brainmemory.ai/mcp</span>
+              <CopyButton className="copy" text="https://mcp.brainmemory.ai/mcp" idleLabel="copy" />
+            </div>
+          </div>
+
           <div className="compat-grid reveal">
-            {compat.map((c) => (
+            {connectorHosts.map((c) => (
               <div className="compat-card" key={c.name}>
                 <div className="cc-name">{c.name}</div>
+                <div className="cc-tag">{c.vendor}</div>
+                <div className="code-chip">{c.setup}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="section-head reveal" style={{ marginTop: 48 }}>
+            <h2>Or run it local-first.</h2>
+            <p className="lede">
+              <code>npm i -g brain-memory@beta &amp;&amp; brain</code> installs the
+              free native plugin — slash commands and prompt sections wired into
+              the agent&apos;s own config, all pointing at a single
+              <code>~/.brain/</code>.
+            </p>
+          </div>
+          <div className="compat-grid reveal">
+            {nativeHosts.map((c) => (
+              <div className="compat-card" key={c.name}>
+                <div className="cc-name">{c.name}{c.experimental ? " *" : ""}</div>
                 <div className="cc-tag">{c.vendor}</div>
                 <div className="code-chip">brain <span className="flag">{c.flag}</span> --global</div>
               </div>
             ))}
           </div>
+          <p className="qs-note reveal">
+            * Antigravity native support is experimental. For everything else —
+            the Claude.ai apps and ChatGPT included — use the MCP connector above.
+          </p>
         </div>
       </section>
 
@@ -312,9 +350,10 @@ export default function Home() {
             </div>
           </div>
           <p className="qs-note reveal">
-            Then run <code>brain --claude</code> (or <code>--gemini</code> /{" "}
-            <code>--codex</code> / <code>--opencode</code>, or <code>--all</code>) to configure your runtime(s). One store,
-            deterministic recall, all agents.
+            Then run <code>brain --claude</code> (or <code>--codex</code> /{" "}
+            <code>--opencode</code> / <code>--antigravity</code>, or <code>--all</code>) to configure your runtime(s).
+            For the Claude and ChatGPT apps, add the MCP connector instead. One store,
+            deterministic recall, every agent.
           </p>
         </div>
       </section>
@@ -434,7 +473,7 @@ const features = [
   { title: "Associative network", icon: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3 9M17 8l-4 8"/>', body: "Weighted edges link related memories. Recalling one activates its neighbours via spreading activation." },
   { title: "Spaced reinforcement", icon: '<path d="M4 18V8m6 10V5m6 13v-7"/><circle cx="4" cy="6" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="16" cy="9" r="1.5"/>', body: "Longer intervals between recalls produce larger, more durable boosts. The spacing effect, by design." },
   { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
-  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Gemini CLI, Codex CLI, and OpenCode share one store — and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
+  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Codex CLI, OpenCode, and Antigravity share one store — plus the Claude and ChatGPT apps via the hosted MCP connector, and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
   { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
   { title: "Sync your way — no lock-in", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Plain files in a folder. Point BRAIN_DIR at Google Drive, Dropbox, or iCloud — or sync via git or encrypted export. No account required." },
 ];
@@ -465,11 +504,23 @@ const neuroRows = [
   { name: "Synaptic homeostasis", impl: "Global strength down-scaling during sleep prevents runaway inflation." },
 ];
 
-const compat = [
+// The universal path — one hosted MCP connector (streamable-HTTP + OAuth)
+// reaches every host below. Per-host is just how you point each one at the URL.
+const connectorHosts = [
+  { name: "Claude Code", vendor: "Anthropic", setup: "claude mcp add --transport http brain …/mcp" },
+  { name: "Codex CLI", vendor: "OpenAI", setup: "codex mcp add brain --url …/mcp" },
+  { name: "OpenCode", vendor: "Any model", setup: "opencode.json → mcp remote url" },
+  { name: "Claude apps", vendor: "Anthropic", setup: "Settings → Connectors → Add (URL + OAuth)" },
+  { name: "ChatGPT", vendor: "OpenAI", setup: "Settings → Connectors → custom (paid / Dev Mode)" },
+  { name: "Antigravity", vendor: "Google", setup: "mcp_config.json → serverUrl" },
+];
+
+// The free local-first native plugin (~/.brain/) for the current CLIs.
+const nativeHosts = [
   { name: "Claude Code", vendor: "Anthropic", flag: "--claude" },
-  { name: "Gemini CLI", vendor: "Google", flag: "--gemini" },
   { name: "Codex CLI", vendor: "OpenAI", flag: "--codex" },
   { name: "OpenCode", vendor: "Any model", flag: "--opencode" },
+  { name: "Antigravity", vendor: "Google", flag: "--antigravity", experimental: true },
 ];
 
 const referenceGroups = [

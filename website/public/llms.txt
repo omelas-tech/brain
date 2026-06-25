@@ -7,7 +7,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 ## Getting Started
 
 - [Overview](https://brainmemory.ai/docs): Introduction to Brain Memory — a neuroscience-inspired memory system for AI coding agents.
-- [Installation](https://brainmemory.ai/docs/getting-started/installation): Install the Brain Memory plugin for Claude Code, Gemini CLI, or OpenAI Codex.
+- [Installation](https://brainmemory.ai/docs/getting-started/installation): Install the Brain Memory plugin for Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity — or add the hosted MCP connector.
 - [Quick Start](https://brainmemory.ai/docs/getting-started/quick-start): Get up and running with Brain Memory in under 5 minutes.
 - [Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps): Recall your brain from Claude on the web, desktop, and your phone via the Brain connector (remote MCP).
 
@@ -38,7 +38,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Scoring Formula](https://brainmemory.ai/docs/advanced/scoring-formula): The v4 recall scoring formula: relevance, decayed strength, recency, spreading bonus, context match, and salience.
 - [Spaced Reinforcement](https://brainmemory.ai/docs/advanced/spaced-reinforcement): How recall spacing affects strength boosts and decay rate improvements.
 - [Sleep Cycle](https://brainmemory.ai/docs/advanced/sleep-cycle): Deep dive into the sleep maintenance cycle: replay, homeostasis, crystallization, and dreaming.
-- [Cross-Agent Sharing](https://brainmemory.ai/docs/advanced/cross-agent): Share memories across Claude Code, Gemini CLI, and OpenAI Codex agents.
+- [Cross-Agent Sharing](https://brainmemory.ai/docs/advanced/cross-agent): Share memories across Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity agents.
 - [Portable Sync](https://brainmemory.ai/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
 - [Working Memory & Session Start](https://brainmemory.ai/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
 

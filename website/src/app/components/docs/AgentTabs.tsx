@@ -5,8 +5,9 @@ import { ReactNode, useCallback } from "react";
 
 const agents = [
   { id: "claude", label: "Claude Code" },
-  { id: "gemini", label: "Gemini CLI" },
-  { id: "codex", label: "Codex" },
+  { id: "codex", label: "Codex CLI" },
+  { id: "opencode", label: "OpenCode" },
+  { id: "antigravity", label: "Antigravity" },
 ] as const;
 
 type AgentId = (typeof agents)[number]["id"];

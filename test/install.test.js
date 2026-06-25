@@ -235,8 +235,8 @@ describe('injectPrompt', () => {
     assert.ok(content.includes('## Session End Behavior'));
   });
 
-  it('works for gemini prompt source', () => {
-    injectPrompt(tmpDir, 'GEMINI.md', 'gemini.md');
+  it('works for antigravity prompt source', () => {
+    injectPrompt(tmpDir, 'GEMINI.md', 'antigravity.md');
 
     const content = fs.readFileSync(path.join(tmpDir, 'GEMINI.md'), 'utf-8');
     assert.ok(content.includes(BRAIN_MARKER_START));

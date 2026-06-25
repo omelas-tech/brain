@@ -12,7 +12,7 @@
 
 A hierarchical, file-system-based memory plugin for AI coding agents. Inspired by human neuroscience — memories are organized into deep nested life-domain categories, connected via associative networks, strengthened through spaced recall, and naturally decay over time.
 
-Works with **Claude Code**, **Gemini CLI**, **OpenAI Codex CLI**, and **OpenCode**.
+One hosted **MCP connector** reaches every major agent and chat app — **Claude Code**, **OpenAI Codex CLI**, **OpenCode**, the **Claude.ai** apps, **ChatGPT**, and **Google Antigravity** (Gemini CLI's successor). Prefer a free, local-first install? The native plugin runs entirely from `~/.brain/` on Claude Code, Codex, OpenCode, and Antigravity.
 
 ```
 ~/.brain/
@@ -52,6 +52,50 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 
 ## Install
 
+There are two ways to give an agent its brain. They are complementary — most people end up with both:
+
+| Path | Reaches | Storage | Cost | Best for |
+|------|---------|---------|------|----------|
+| **Hosted MCP connector** | Every MCP-capable host (Claude Code, Codex CLI, OpenCode, Claude.ai apps, ChatGPT, Antigravity) | Brain Cloud (hosted) | account | One connector, everywhere — including web & mobile chat |
+| **Local-first native plugin** | The current CLIs (Claude Code, Codex CLI, OpenCode, Antigravity) | `~/.brain/` on your machine | free | Zero-config ambient memory, no account, files you own |
+
+### 1. Universal path — the hosted MCP connector
+
+Brain Cloud exposes a single remote MCP server (streamable-HTTP + OAuth) at **`https://mcp.brainmemory.ai/mcp`**. Add it once per host and that host can recall, memorize, pin, and check status — no local install, no per-project setup. It works everywhere MCP does, including the chat apps that can't run a native plugin.
+
+```bash
+# Claude Code
+claude mcp add --transport http brain https://mcp.brainmemory.ai/mcp
+
+# OpenAI Codex CLI
+codex mcp add brain --url https://mcp.brainmemory.ai/mcp
+```
+
+<details>
+<summary>Per-host setup for every other connector</summary>
+
+- **Codex CLI (config file)** — add to `~/.codex/config.toml`:
+  ```toml
+  [mcp_servers.brain]
+  url = "https://mcp.brainmemory.ai/mcp"
+  ```
+- **OpenCode** — add to `opencode.json`:
+  ```json
+  {
+    "mcp": {
+      "brain": { "type": "remote", "url": "https://mcp.brainmemory.ai/mcp" }
+    }
+  }
+  ```
+- **Claude.ai / ChatGPT** — **Settings → Connectors → Add custom connector**, paste `https://mcp.brainmemory.ai/mcp`, and complete the OAuth sign-in. (ChatGPT requires a paid plan or Developer Mode.)
+- **Google Antigravity** — add to `mcp_config.json` under the `serverUrl` key. *(Legacy Gemini CLI used the `httpUrl` key in `settings.json`.)*
+
+</details>
+
+The first time a host connects you'll complete an OAuth sign-in with the Google account that holds your cloud brain; the connector then syncs to every client on that account. See **[Use Brain in Claude apps](https://brainmemory.ai/docs/getting-started/claude-apps)** for the full walkthrough.
+
+### 2. Local-first path — the native plugin
+
 ```bash
 npm install -g brain-memory@beta
 brain
@@ -59,16 +103,23 @@ brain
 
 The first command installs the package globally — this gives you both the interactive setup wizard and the `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) that agents rely on for deterministic scoring.
 
-The second command runs the setup wizard, which asks which runtime(s) to configure (Claude Code, Gemini CLI, OpenAI Codex CLI, or all) and whether to install globally or for the current project.
+The second command runs the setup wizard, which asks which runtime(s) to configure and whether to install globally or for the current project. Each runtime gets its instructions file plus the brain commands/skills:
 
-### Non-interactive
+| Runtime | Instructions file | Commands land at |
+|---------|-------------------|------------------|
+| **Claude Code** | `CLAUDE.md` | `~/.claude/commands/brain/` (plugin slash commands) |
+| **OpenAI Codex CLI** | `AGENTS.md` (`~/.codex/`) | `~/.agents/skills/<name>/SKILL.md` |
+| **OpenCode** | `AGENTS.md` | `~/.config/opencode/commands/` |
+| **Google Antigravity** | `GEMINI.md` | `~/.gemini/skills/` *(experimental — verify paths against a live install)* |
+
+#### Non-interactive
 
 ```bash
-brain --claude --global   # Claude Code, global
-brain --gemini --local    # Gemini CLI, local project
-brain --codex --global    # OpenAI Codex CLI, global
-brain --opencode --global # OpenCode, global
-brain --all --global      # All runtimes, global
+brain --claude --global    # Claude Code, global
+brain --codex --global     # OpenAI Codex CLI, global
+brain --opencode --global  # OpenCode, global
+brain --antigravity --global  # Google Antigravity, global (experimental)
+brain --all --global       # All runtimes, global
 ```
 
 ### Update
@@ -78,7 +129,7 @@ npm install -g brain-memory@beta
 brain update
 ```
 
-The first command updates the package and the `brain` CLI. The second command refreshes the slash command prompts for your installed runtimes. Target specific runtimes with `--claude`, `--gemini`, `--openai`, or `--all`.
+The first command updates the package and the `brain` CLI. The second command refreshes the slash command prompts for your installed runtimes. Target specific runtimes with `--claude`, `--codex`, `--opencode`, `--antigravity`, or `--all`.
 
 > **Upgrading from an older version?** The separate binaries (`brain-recall`, `brain-memorize`, `brain-reinforce`, `brain-cloud`, `brain-memory`) were unified into a single `brain` dispatcher — use `brain recall`, `brain memorize`, `brain reinforce`, `brain cloud <…>` instead. Run `brain update` to refresh your runtime prompts to the new command surface.
 
@@ -95,27 +146,38 @@ The first command removes slash commands and prompt sections from your agent con
 
 ### Manual Install
 
-Copy the `commands/brain/` directory to your agent's commands folder:
+If you'd rather wire up the native plugin by hand, copy the brain commands into your agent's folder, then append the matching prompt file to its instructions file.
 
 ```bash
-# Claude Code
+# Claude Code — flat slash commands
 cp -r commands/brain/ ~/.claude/commands/brain/
 
-# Gemini CLI
-cp -r commands/brain/ ~/.gemini/commands/brain/
+# OpenCode — flat slash commands
+mkdir -p ~/.config/opencode/commands/brain
+cp -r commands/brain/. ~/.config/opencode/commands/brain/
 
-# OpenAI Codex CLI (each command becomes a skill)
+# OpenAI Codex CLI — each command becomes a skill under the cross-tool skills dir
 for f in commands/brain/*.md; do
   name=$(basename "$f" .md)
-  mkdir -p ~/.codex/skills/brain-"$name"
-  cp "$f" ~/.codex/skills/brain-"$name"/SKILL.md
+  mkdir -p ~/.agents/skills/brain-"$name"
+  cp "$f" ~/.agents/skills/brain-"$name"/SKILL.md
+done
+
+# Google Antigravity (experimental — verify paths) — skills under ~/.gemini/skills/
+for f in commands/brain/*.md; do
+  name=$(basename "$f" .md)
+  mkdir -p ~/.gemini/skills/brain-"$name"
+  cp "$f" ~/.gemini/skills/brain-"$name"/SKILL.md
 done
 ```
 
 Then append the contents of the corresponding prompt file to your agent's instructions file:
 - `prompts/claude.md` → `CLAUDE.md`
-- `prompts/gemini.md` → `GEMINI.md`
-- `prompts/openai.md` → `AGENTS.md`
+- `prompts/openai.md` → `AGENTS.md` (Codex, in `~/.codex/`)
+- `prompts/opencode.md` → `AGENTS.md` (OpenCode)
+- `prompts/antigravity.md` → `GEMINI.md` (experimental)
+
+> **`AGENTS.md` collision (local scope):** Codex and OpenCode both read a project-local `AGENTS.md`. If you install both for the *same* project, point only one at the local file (or install one globally) so their brain sections don't conflict. Globally they're separate (`~/.codex/AGENTS.md` vs OpenCode's own config dir).
 
 ## Commands
 
@@ -446,7 +508,7 @@ Failed recalls reset the interval to 1 day. Successful recalls extend the interv
 
 ### Cross-Agent Memory Sharing
 
-`~/.brain/` is a single global directory in the user's home folder. All memories are shared across every project and every supported agent automatically. A decision stored by Claude Code in one project is immediately available to Gemini CLI, OpenAI Codex CLI, or OpenCode in any other project — no configuration, no export, no per-project setup. The format is agent-agnostic: plain Markdown files with YAML frontmatter, readable by any tool.
+`~/.brain/` is a single global directory in the user's home folder. All memories are shared across every project and every supported agent automatically. A decision stored by Claude Code in one project is immediately available to OpenAI Codex CLI, OpenCode, or Google Antigravity in any other project — no configuration, no export, no per-project setup. The format is agent-agnostic: plain Markdown files with YAML frontmatter, readable by any tool.
 
 Brain Memory is **model-agnostic** as well as agent-portable: because memory is plain files rather than embeddings welded to a particular model, the LLM underneath your agent can be anything — GPT, Claude, Gemini, or any model routed through a gateway — and your memory is unaffected. **Switch your model or switch your agent, and you keep remembering and pick up exactly where you left off.**
 
