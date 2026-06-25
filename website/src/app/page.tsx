@@ -308,7 +308,7 @@ export default function Home() {
             <div className="qs-line">
               <span className="prompt">$</span>
               <span className="cmd">npm install -g brain-memory@beta</span>
-              <CopyButton className="copy" text="npm install -g brain-memory@beta">copy</CopyButton>
+              <CopyButton className="copy" text="npm install -g brain-memory@beta" idleLabel="copy" />
             </div>
           </div>
           <p className="qs-note reveal">
@@ -324,28 +324,54 @@ export default function Home() {
   );
 }
 
-/* ─── Copy button (hero ghost + quick-start) ──────────────────────── */
+/* ─── Copy affordance icons ───────────────────────────────────────── */
+function ClipboardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+/* ─── Copy button (hero install pill + quick-start) ───────────────────
+   Always gives feedback: a clipboard icon hints it's copyable, and on
+   click it confirms with a green check + "copied". */
 function CopyButton({
   text,
   className,
   children,
+  idleLabel,
 }: {
   text: string;
   className?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  idleLabel?: string;
 }) {
   const [copied, setCopied] = useState(false);
-  const isGhost = className?.includes("copy"); // quick-start variant swaps label
   return (
     <button
+      type="button"
       className={className}
+      aria-label="Copy to clipboard"
+      title={copied ? "Copied!" : "Copy to clipboard"}
       onClick={async () => {
         try { await navigator.clipboard.writeText(text); } catch {}
         setCopied(true);
-        setTimeout(() => setCopied(false), 1400);
+        setTimeout(() => setCopied(false), 1600);
       }}
     >
-      {isGhost && copied ? "copied" : children}
+      {children}
+      <span className={`copy-ind${copied ? " is-copied" : ""}`} aria-live="polite">
+        {copied ? <><CheckIcon />copied</> : <><ClipboardIcon />{idleLabel}</>}
+      </span>
     </button>
   );
 }

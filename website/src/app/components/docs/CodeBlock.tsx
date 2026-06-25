@@ -33,9 +33,24 @@ export default function CodeBlock({ title, children }: CodeBlockProps) {
 
       <button
         onClick={handleCopy}
-        className={`absolute right-2 ${title ? "top-10" : "top-2"} font-mono text-[10px] uppercase tracking-wider rounded border border-[var(--border-strong)] bg-[var(--surface)] px-2 py-1 text-[var(--text-secondary)] opacity-0 transition-all hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] group-hover:opacity-100`}
+        aria-label="Copy code to clipboard"
+        className={`absolute right-2 ${title ? "top-10" : "top-2"} inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider rounded border px-2 py-1 transition-all ${
+          copied
+            ? "border-[var(--live-fg)] text-[var(--live-fg)] opacity-100"
+            : "border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-secondary)] opacity-0 hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] group-hover:opacity-100"
+        }`}
       >
-        {copied ? "copied" : "copy"}
+        {copied ? (
+          <>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+            copied
+          </>
+        ) : (
+          <>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+            copy
+          </>
+        )}
       </button>
 
       <div
