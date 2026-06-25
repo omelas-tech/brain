@@ -1,63 +1,68 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Brain Memory — deep-lab redesign · dark + amber
-   Single accent (--accent) drives the whole palette via color-mix.
+   Brain Memory — technical-white redesign · light + cyan
+   Minimal, paper-bright, developer-calm. Single cyan accent
+   used sparingly, plus a blueprint "technical" override layer.
+   Dark deep-lab available via [data-theme="dark"]. A single
+   --accent drives the whole palette through color-mix.
    ============================================================ */
 
+/* ---- Tokens (LIGHT is the default) ---- */
 :root {
-  /* surfaces */
-  --bg:          #07090A;
-  --bg-grad-1:   #0A0D0F;
-  --bg-grad-2:   #070809;
-  --surface:     #0D1012;
-  --surface-2:   #11161A;
-  --surface-3:   #161C20;
+  /* surfaces — cool paper */
+  --bg:          #FBFCFD;
+  --bg-grad-1:   #FFFFFF;
+  --bg-grad-2:   #F1F5F9;
+  --surface:     #FFFFFF;
+  --surface-2:   #F4F7FA;
+  --surface-3:   #ECF1F5;
 
-  /* hairlines */
-  --border:        rgba(231, 245, 240, 0.07);
-  --border-strong: rgba(231, 245, 240, 0.13);
-  --border-subtle: rgba(231, 245, 240, 0.045);
-  --border-accent: color-mix(in srgb, var(--accent) 30%, transparent);
+  /* hairlines — cool ink */
+  --border:        rgba(16, 34, 52, 0.09);
+  --border-strong: rgba(16, 34, 52, 0.15);
+  --border-subtle: rgba(16, 34, 52, 0.05);
+  --border-accent: color-mix(in srgb, var(--accent) 40%, transparent);
 
-  /* text — design scheme */
-  --fg:   #E9EFEC;
-  --fg-2: #97A09C;
-  --fg-3: #5A625F;
-  --fg-4: #3C423F;
+  /* text */
+  --fg:   #10202E;
+  --fg-2: #54636F;
+  --fg-3: #8A97A2;
+  --fg-4: #B4BEC7;
 
   /* text — docs scheme (mapped onto the same palette) */
   --text-primary:   var(--fg);
   --text-secondary: var(--fg-2);
   --text-tertiary:  var(--fg-3);
 
-  /* accent — single source of truth; everything derives via color-mix */
-  --accent:        #E8A33D;                                          /* vivid brand / glow / canvas */
-  --accent-hi:     color-mix(in srgb, var(--accent) 70%, #fff);       /* hover background (brighter) */
-  --accent-text:   var(--accent);                                    /* accent used as TEXT/icon */
-  --accent-bright: color-mix(in srgb, var(--accent) 52%, #fff);      /* pale glow text on dark */
+  /* accent — single source of truth; everything else derives via color-mix.
+     Swap --accent (and optionally data-theme) to recolor the whole site. */
+  --accent:        #46C6FF;                                          /* vivid brand / glow / canvas */
+  --accent-hi:     color-mix(in srgb, var(--accent) 82%, #000);       /* darker for hover on light */
+  --accent-text:   color-mix(in srgb, var(--accent) 58%, #052233);   /* readable link/icon ink-cyan */
+  --accent-bright: color-mix(in srgb, var(--accent) 64%, #052233);   /* gradient text on paper */
   --accent-dim:    color-mix(in srgb, var(--accent) 70%, #000);
-  --accent-deep:   color-mix(in srgb, var(--accent) 16%, var(--bg));  /* tinted chip background */
-  --accent-soft:   color-mix(in srgb, var(--accent) 12%, transparent);
-  --accent-line:   color-mix(in srgb, var(--accent) 42%, transparent);
-  --accent-glow:   color-mix(in srgb, var(--accent) 42%, transparent);
+  --accent-deep:   color-mix(in srgb, var(--accent) 13%, #fff);      /* tinted chip background */
+  --accent-soft:   color-mix(in srgb, var(--accent) 11%, transparent);
+  --accent-line:   color-mix(in srgb, var(--accent) 36%, transparent);
+  --accent-glow:   color-mix(in srgb, var(--accent) 26%, transparent);
   --accent-hover:  var(--accent-hi);
 
-  /* translucent chrome */
-  --nav-bg:   rgba(7, 9, 10, 0.72);
-  --chip-bg:  rgba(13, 16, 18, 0.6);
-  --ghost-bg: rgba(13, 16, 18, 0.7);
+  /* translucent chrome (flips per theme) */
+  --nav-bg:   rgba(251, 252, 253, 0.78);
+  --chip-bg:  rgba(255, 255, 255, 0.7);
+  --ghost-bg: #FFFFFF;
 
   /* status */
-  --live-fg: #3DD6A0;  --live-bg: rgba(61,214,160,0.13);
-  --beta-fg: #E8A33D;  --beta-bg: rgba(232,163,61,0.13);
-  --gold:    #E8A33D;
-  --danger:  #D87474;
+  --live-fg: #0E9E6E;  --live-bg: rgba(14,158,110,0.11);
+  --beta-fg: #C08312;  --beta-bg: rgba(192,131,18,0.12);
+  --gold:    var(--accent);
+  --danger:  #D8574F;
 
-  /* type */
-  --sans:  var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
-  --mono:  var(--font-jbmono), "JetBrains Mono", ui-monospace, monospace;
-  --serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+  /* type — provided by next/font (see layout.tsx) */
+  --sans:  var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --mono:  var(--font-jbmono), 'JetBrains Mono', ui-monospace, monospace;
+  --serif: var(--font-instrument-serif), 'Instrument Serif', Georgia, serif;
 
   /* layout */
   --prose: 720px;
@@ -73,49 +78,91 @@
   --space-section: clamp(2.5rem, 5vh + 1rem, 5rem);
   --space-hero-top: clamp(2rem, 4vh + 1rem, 8rem);
   --space-hero-bottom: clamp(2.5rem, 5vh + 1rem, 5rem);
-
   --fs-h1: clamp(2.25rem, 4.5vw + 1rem, 4rem);
   --fs-h2: clamp(1.5rem, 2vw + 0.875rem, 2rem);
   --fs-lead: clamp(1rem, 0.75vw + 0.875rem, 1.125rem);
+
+  /* blueprint grid hairlines (technical layer) */
+  --grid-minor: rgba(16, 34, 52, 0.05);
+  --grid-major: rgba(16, 34, 52, 0.085);
 }
 
-/* ─── Base ──────────────────────────────────────────────────────── */
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-[id] { scroll-margin-top: calc(var(--nav-h) + 0.75rem); }
+/* ============================================================
+   DARK THEME — deep lab. Same accent, light-on-dark text.
+   Activate with <html data-theme="dark">.
+   ============================================================ */
+[data-theme="dark"] {
+  --bg:          #07090A;
+  --bg-grad-1:   #0A0D0F;
+  --bg-grad-2:   #070809;
+  --surface:     #0D1012;
+  --surface-2:   #11161A;
+  --surface-3:   #161C20;
 
+  --border:        rgba(231, 245, 240, 0.07);
+  --border-strong: rgba(231, 245, 240, 0.13);
+  --border-subtle: rgba(231, 245, 240, 0.045);
+  --border-accent: color-mix(in srgb, var(--accent) 30%, transparent);
+
+  --fg:   #E9EFEC;
+  --fg-2: #97A09C;
+  --fg-3: #5A625F;
+  --fg-4: #3C423F;
+
+  --accent-hi:     color-mix(in srgb, var(--accent) 70%, #fff);
+  --accent-text:   var(--accent);
+  --accent-bright: color-mix(in srgb, var(--accent) 52%, #fff);
+  --accent-deep:   color-mix(in srgb, var(--accent) 16%, var(--bg));
+  --accent-soft:   color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-line:   color-mix(in srgb, var(--accent) 42%, transparent);
+  --accent-glow:   color-mix(in srgb, var(--accent) 42%, transparent);
+
+  --nav-bg:   rgba(7, 9, 10, 0.72);
+  --chip-bg:  rgba(13, 16, 18, 0.6);
+  --ghost-bg: rgba(13, 16, 18, 0.7);
+
+  --live-fg: #3DD6A0;  --live-bg: rgba(61,214,160,0.13);
+  --beta-fg: #E8A33D;  --beta-bg: rgba(232,163,61,0.13);
+
+  --grid-minor: rgba(231, 245, 240, 0.045);
+  --grid-major: rgba(231, 245, 240, 0.08);
+}
+
+/* ---- Base ---- */
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+[id] { scroll-margin-top: calc(var(--nav-h) + 0.75rem); }
 body {
+  margin: 0;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
   font-feature-settings: "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
+a { color: inherit; text-decoration: none; }
+img, svg, canvas { display: block; max-width: 100%; }
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
+p { margin: 0; }
+::selection { background: var(--accent-soft); color: var(--accent-text); }
 
-@supports (padding: env(safe-area-inset-top)) {
-  body {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-}
-
-.font-mono {
-  font-family: var(--mono);
-  font-feature-settings: "calt", "liga";
-}
+.font-mono { font-family: var(--mono); font-feature-settings: "calt", "liga"; }
 .font-serif { font-family: var(--serif); }
+.glyph { display: block; }
 
-::selection { background: color-mix(in srgb, var(--accent) 26%, transparent); color: var(--fg); }
-
-/* ─── Landing layout helpers ────────────────────────────────────── */
-.wrap   { width: 100%; max-width: var(--max);  margin: 0 auto; padding-inline: var(--gutter); }
-.wrap.wide { max-width: var(--wide); }
-.wrap.prose-w { max-width: var(--prose); }
+/* ---- Layout helpers ---- */
+.wrap   { width: 100%; max-width: var(--max);   margin: 0 auto; padding-inline: var(--gutter); }
+.prose, .wrap.prose-w { max-width: var(--prose); }
+.wide, .wrap.wide { max-width: var(--wide); }
 
 .section { position: relative; padding-block: clamp(80px, 11vw, 150px); }
 .section + .section { border-top: 1px solid var(--border); }
 
+/* Section eyebrow with index number */
 .eyebrow {
   display: inline-flex; align-items: center; gap: 12px;
   font-family: var(--mono);
@@ -125,22 +172,21 @@ body {
   margin-bottom: 22px;
 }
 .eyebrow .idx { color: var(--accent-text); }
-.eyebrow::after { content: ""; width: 38px; height: 1px; background: var(--border-strong); }
+.eyebrow::after {
+  content: ""; width: 38px; height: 1px;
+  background: var(--border-strong);
+}
 .section-head { margin-bottom: clamp(36px, 5vw, 64px); }
 .section-head h2 {
-  margin: 0; font-weight: 600;
   font-size: clamp(1.7rem, 3.4vw, 2.4rem);
-  line-height: 1.08; letter-spacing: -0.025em; color: var(--fg);
+  line-height: 1.08; letter-spacing: -0.025em;
 }
 .section-head .lede {
-  margin: 18px 0 0; max-width: 640px;
+  margin-top: 18px; max-width: 640px;
   color: var(--fg-2); font-size: 1.0625rem;
 }
 .section-head .lede a { color: var(--accent-text); border-bottom: 1px solid var(--accent-line); }
-.section-head .lede a:hover { opacity: .75; }
-
-/* ─── Reusable glyph color helper ───────────────────────────────── */
-.glyph { display: block; }
+.section-head .lede a:hover { color: var(--accent-text); opacity: .75; }
 
 /* ============================================================
    NAV
@@ -172,16 +218,16 @@ body {
   color: var(--fg-2); padding: 8px 12px; border-radius: 8px;
   transition: color .2s;
 }
-.nav-links a:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
-.nav-links a.active { color: var(--accent); }
+.nav-links a:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.nav-links a.active { color: var(--accent-text); }
 .nav-cta {
   font-family: var(--mono); font-size: 0.8rem; font-weight: 500; white-space: nowrap;
-  color: var(--bg) !important; background: var(--accent);
+  color: #04222F !important; background: var(--accent);
   padding: 8px 16px !important; border-radius: 999px;
   margin-left: 8px;
-  transition: box-shadow .2s, transform .2s;
+  transition: box-shadow .2s, transform .2s, background .2s;
 }
-.nav-cta:hover { background: var(--accent-hi) !important; box-shadow: 0 0 24px var(--accent-glow); transform: translateY(-1px); }
+.nav-cta:hover { background: var(--accent-hi) !important; box-shadow: 0 4px 16px var(--accent-glow); transform: translateY(-1px); }
 
 /* ============================================================
    HERO
@@ -193,21 +239,18 @@ body {
   overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
-/* Reined into the centered content grid so its right edge lines up with the
-   header and the HUD readout (rather than bleeding to the viewport edge). */
 #brain-canvas {
-  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
-  margin-inline: auto;
-  width: 100%; max-width: calc(var(--max) - 2 * var(--gutter));
-  height: 100%; z-index: 0;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 0;
 }
+/* legibility scrim — brighter on the left where the headline sits */
 .hero::before {
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
-    linear-gradient(100deg, var(--bg) 8%, rgba(7,9,10,0.78) 34%, rgba(7,9,10,0.12) 62%, transparent 86%),
+    linear-gradient(100deg, var(--bg) 6%, color-mix(in srgb, var(--bg) 80%, transparent) 38%, color-mix(in srgb, var(--bg) 12%, transparent) 66%, transparent 88%),
     radial-gradient(120% 80% at 50% 120%, var(--bg) 0%, transparent 55%);
 }
-.hero::after {
+.hero::after { /* top fade under nav */
   content: ""; position: absolute; inset: 0 0 auto 0; height: 160px; z-index: 1; pointer-events: none;
   background: linear-gradient(var(--bg), transparent);
 }
@@ -228,16 +271,15 @@ body {
 }
 .hero-tag .dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 10px var(--accent);
+  background: var(--accent); box-shadow: 0 0 9px var(--accent-glow);
   animation: pulse-dot 2.4s var(--ease) infinite;
 }
 @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 
 .hero h1 {
-  margin: 0;
   font-size: clamp(2.7rem, 6.2vw, 5.1rem);
   line-height: 1.0; letter-spacing: -0.035em;
-  font-weight: 600; color: var(--fg);
+  font-weight: 600;
 }
 .hero h1 .serif {
   font-family: var(--serif); font-weight: 400; font-style: italic;
@@ -257,13 +299,15 @@ body {
   display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
   font-family: var(--mono); font-size: 0.85rem; font-weight: 500;
   padding: 12px 22px; border-radius: 999px;
-  transition: border-color .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease), transform .22s var(--ease);
-  cursor: pointer; border: 1px solid transparent;
+  transition: border-color .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease), transform .22s var(--ease); cursor: pointer; border: 1px solid transparent;
 }
-.btn-primary { background: var(--accent); color: #2a1602; }
-.btn-primary:hover { background: var(--accent-hi); box-shadow: 0 0 30px var(--accent-glow); transform: translateY(-1px); }
+.btn-primary { background: var(--accent); color: #04222F; }
+.btn-primary:hover { background: var(--accent-hi); box-shadow: 0 6px 22px var(--accent-glow); transform: translateY(-1px); }
 .btn-primary svg { width: 15px; height: 15px; }
-.btn-ghost { background: var(--ghost-bg); color: var(--fg); border-color: var(--border-strong); }
+.btn-ghost {
+  background: var(--ghost-bg); color: var(--fg);
+  border-color: var(--border-strong);
+}
 .btn-ghost:hover { border-color: var(--border-accent); color: var(--accent-text); }
 .btn-ghost .cmd { color: var(--fg-3); }
 .btn-ghost:hover .cmd { color: var(--accent-text); }
@@ -277,14 +321,11 @@ body {
 .badge span { padding: 4px 9px; white-space: nowrap; }
 .badge .k { background: var(--surface-2); color: var(--fg-2); }
 .badge .v { background: var(--accent-deep); color: var(--accent-text); }
-.badge .v.amber { background: var(--beta-bg); color: var(--beta-fg); }
+.badge .v.amber { background: rgba(232,163,61,0.16); color: var(--beta-fg); }
 
+/* live HUD readout in hero corner */
 .hero-hud {
-  position: absolute;
-  /* Align to the content grid's right edge (matching the header), not the
-     screen edge. (100% = .hero content width, excludes the scrollbar.) */
-  right: calc(max((100% - var(--max)) / 2, 0px) + var(--gutter));
-  bottom: 30px; z-index: 2;
+  position: absolute; right: var(--gutter); bottom: 30px; z-index: 2;
   font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.05em;
   color: var(--fg-3); text-align: right; line-height: 1.9;
   display: grid; gap: 1px;
@@ -302,23 +343,28 @@ body {
 @keyframes cue { 0%{transform:scaleY(.3);transform-origin:top;opacity:.4} 50%{transform:scaleY(1);opacity:1} 100%{transform:scaleY(.3);transform-origin:bottom;opacity:.4} }
 
 /* ============================================================
-   FEATURE GRID
+   "WHAT'S INSIDE" feature grid
    ============================================================ */
 .feature-grid {
   display: grid; grid-template-columns: repeat(2, 1fr);
   gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
 }
-.feature { background: var(--bg); padding: 30px 32px; }
-.feature:hover { background: var(--surface); }
+.feature {
+  background: var(--surface); padding: 30px 32px;
+}
+.feature:hover { background: var(--surface-2); }
 .feature .ft-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.feature .ft-ico { width: 30px; height: 30px; flex: none; color: var(--accent-text); }
-.feature h3 { margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--fg); }
-.feature p { margin: 0; color: var(--fg-2); font-size: 0.95rem; line-height: 1.55; }
+.feature .ft-ico {
+  width: 30px; height: 30px; flex: none;
+  color: var(--accent-text);
+}
+.feature h3 { font-size: 1.0625rem; font-weight: 600; }
+.feature p { margin-top: 0; color: var(--fg-2); font-size: 0.95rem; line-height: 1.55; }
 .feature .ft-num { margin-left: auto; font-family: var(--mono); font-size: 0.7rem; color: var(--fg-4); }
 
 /* ============================================================
-   HOW IT WORKS
+   "HOW IT WORKS" steps + decay visual
    ============================================================ */
 .works-layout { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: start; }
 .steps { display: grid; gap: 0; }
@@ -327,9 +373,12 @@ body {
   padding: 24px 0; border-top: 1px solid var(--border);
 }
 .step:first-child { border-top: 0; padding-top: 0; }
-.step .st-num { font-family: var(--mono); font-size: 0.8rem; color: var(--accent-text); padding-top: 3px; }
-.step h3 { margin: 0 0 7px; font-size: 1.125rem; font-weight: 600; color: var(--fg); }
-.step p { margin: 0; color: var(--fg-2); font-size: 0.95rem; line-height: 1.55; }
+.step .st-num {
+  font-family: var(--mono); font-size: 0.8rem; color: var(--accent-text);
+  padding-top: 3px;
+}
+.step h3 { font-size: 1.125rem; margin-bottom: 7px; }
+.step p { color: var(--fg-2); font-size: 0.95rem; line-height: 1.55; }
 .step .mono-em { font-family: var(--mono); font-size: 0.86em; color: var(--accent-text); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
 
 .decay-panel {
@@ -349,8 +398,8 @@ body {
    BENCHMARKS
    ============================================================ */
 .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }
-.stat { background: var(--bg); padding: 26px 28px; }
-.stat .v { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); }
+.stat { background: var(--surface); padding: 26px 28px; }
+.stat .v { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; }
 .stat .v .u { font-size: 0.9rem; color: var(--fg-3); font-weight: 500; }
 .stat .k { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); margin-top: 6px; }
 
@@ -367,6 +416,7 @@ body {
 .scenarios .sc-name { color: var(--fg); font-weight: 500; }
 .scenarios .sc-q { display: block; color: var(--fg-3); font-style: italic; font-size: 0.86rem; margin-top: 3px; font-family: var(--serif); letter-spacing: 0; }
 
+/* model tabs + results */
 .bench-tabs { display: flex; gap: 8px; margin: 36px 0 18px; flex-wrap: wrap; }
 .bench-tab {
   font-family: var(--mono); font-size: 0.78rem; padding: 8px 16px; border-radius: 999px;
@@ -374,7 +424,7 @@ body {
   background: transparent; transition: color .2s, border-color .2s;
 }
 .bench-tab:hover { border-color: var(--border-accent); color: var(--fg); }
-.bench-tab.active { background: var(--accent); color: #2a1602; border-color: var(--accent); font-weight: 500; }
+.bench-tab.active { background: var(--accent); color: #04222F; border-color: var(--accent); font-weight: 500; }
 .bench-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--fg-4); margin-bottom: 16px; }
 
 .results { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.82rem; }
@@ -390,30 +440,29 @@ body {
 .bench-note { font-family: var(--mono); font-size: 0.66rem; color: var(--fg-4); margin-top: 16px; line-height: 1.6; }
 
 /* ============================================================
-   NEUROSCIENCE
+   NEUROSCIENCE foundations table
    ============================================================ */
 .neuro-table { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
 .neuro-table .data-table td:first-child { color: var(--fg); font-weight: 500; width: 32%; }
 .neuro-table .data-table td:first-child::before {
   content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
   background: var(--accent); margin-right: 11px; vertical-align: middle;
-  box-shadow: 0 0 8px var(--accent);
 }
 
 /* ============================================================
-   RESEARCH
+   RESEARCH references
    ============================================================ */
 .ref-group { margin-top: 36px; }
 .ref-group:first-of-type { margin-top: 0; }
 .ref-group h4 {
   font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--fg-3); font-weight: 500; margin: 0 0 18px;
+  color: var(--fg-3); font-weight: 500; margin-bottom: 18px;
   padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
 .ref { padding: 12px 0; border-bottom: 1px solid var(--border); }
 .ref:last-child { border-bottom: 0; }
 .ref .r-title { color: var(--fg); font-size: 0.95rem; font-weight: 500; }
-.ref .r-title:hover { color: var(--accent-text); }
+.ref a.r-title:hover { color: var(--accent-text); }
 .ref .r-meta { font-family: var(--mono); font-size: 0.66rem; color: var(--accent-text); margin-left: 10px; }
 .ref .r-desc { color: var(--fg-3); font-size: 0.86rem; margin-top: 4px; line-height: 1.5; }
 
@@ -421,9 +470,9 @@ body {
    COMPATIBILITY
    ============================================================ */
 .compat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.compat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; transition: border-color .3s, transform .3s; }
-.compat-card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
-.compat-card .cc-name { font-weight: 600; font-size: 1.05rem; color: var(--fg); }
+.compat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; transition: border-color .3s, transform .3s, box-shadow .3s; }
+.compat-card:hover { border-color: var(--border-accent); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(16,34,52,0.05); }
+.compat-card .cc-name { font-weight: 600; font-size: 1.05rem; }
 .compat-card .cc-tag { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); margin-top: 4px; }
 .code-chip {
   margin-top: 18px; background: var(--bg); border: 1px solid var(--border);
@@ -435,13 +484,19 @@ body {
 /* ============================================================
    QUICK START
    ============================================================ */
-.qs-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px; max-width: 640px; }
-.qs-line { display: flex; align-items: center; gap: 14px; font-family: var(--mono); font-size: 0.95rem; padding: 18px 20px; }
+.qs-block {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 6px; max-width: 640px;
+}
+.qs-line {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--mono); font-size: 0.95rem; padding: 18px 20px;
+}
 .qs-line .prompt { color: var(--accent-text); }
 .qs-line .cmd { color: var(--fg); }
 .qs-line .copy {
   margin-left: auto; font-size: 0.7rem; color: var(--fg-3); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: color .2s, border-color .2s; background: transparent;
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: all .2s; background: transparent;
 }
 .qs-line .copy:hover { color: var(--accent-text); border-color: var(--border-accent); }
 .qs-note { margin-top: 16px; color: var(--fg-3); font-size: 0.9rem; }
@@ -453,7 +508,7 @@ body {
 .site-footer { border-top: 1px solid var(--border); padding-block: 48px; }
 .site-footer .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
 .site-footer .copy { font-family: var(--mono); font-size: 0.74rem; color: var(--fg-3); display: flex; align-items: center; gap: 10px; }
-.site-footer .copy .glyph { width: 18px; height: 18px; color: var(--fg-3); }
+.site-footer .copy .glyph { width: 18px; height: 18px; }
 .site-footer .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
 .site-footer .footer-links a { font-family: var(--mono); font-size: 0.76rem; color: var(--fg-3); transition: color .2s; }
 .site-footer .footer-links a:hover { color: var(--accent-text); }
@@ -465,7 +520,7 @@ body {
 .reveal.in { opacity: 1; transform: none; }
 
 /* ============================================================
-   Landing responsive
+   Responsive
    ============================================================ */
 @media (max-width: 880px) {
   .works-layout { grid-template-columns: 1fr; gap: 36px; }
@@ -476,16 +531,119 @@ body {
   .hero-hud { display: none; }
 }
 @media (max-width: 560px) {
+  body { font-size: 16px; }
   .hero-inner { padding-top: 120px; }
   .data-table th, .data-table td { padding: 12px 14px; }
   .scenarios .sc-q { display: none; }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
   .hero-tag .dot, .scroll-cue .line { animation: none; }
 }
 
-/* ─── Animations (docs/shared) ──────────────────────────────────── */
+/* ============================================================
+   TECHNICAL OVERRIDE LAYER
+   Hard corners · HUD registration marks · bracketed mono labels ·
+   instrument numerals · hero spec strip · ticked dividers.
+   ============================================================ */
+
+/* --- hard corners everywhere --- */
+.nav-cta, .btn, .hero-tag, .badge, .feature-grid, .feature, .decay-panel,
+.stat-row, .data-table.scenarios, .neuro-table, .compat-card, .code-chip,
+.qs-block, .qs-line .copy, .bench-tab, .nav-links a, .step .mono-em,
+.qs-note code, .badge span, .results tr.hl { border-radius: 2px !important; }
+
+/* mono numerals lock to tabular */
+.mono, [class*="mono"], .results, .hero-hud, .badge, .bench-meta, .ft-num,
+.stat .v { font-variant-numeric: tabular-nums; }
+
+/* --- eyebrow → bracketed coordinate label --- */
+.eyebrow { letter-spacing: 0.24em; }
+.eyebrow .idx { letter-spacing: 0.08em; }
+.eyebrow .idx::before { content: "["; opacity: .6; }
+.eyebrow .idx::after  { content: "]"; opacity: .6; }
+.eyebrow::after { width: 54px; background: repeating-linear-gradient(90deg, var(--border-strong) 0 5px, transparent 5px 9px); height: 1px; }
+
+/* --- HERO --- */
+.hero h1 { font-size: clamp(2.8rem, 6.6vw, 5.5rem); letter-spacing: -0.042em; }
+.hero h1 .serif {
+  font-family: var(--sans); font-style: normal; font-weight: 600;
+  letter-spacing: -0.042em;
+  background: none; -webkit-background-clip: border-box; background-clip: border-box;
+  -webkit-text-fill-color: currentColor; color: var(--accent-text);
+}
+.hero-tag {
+  border-radius: 0 !important; border: 1px solid var(--border-strong);
+  border-left: 2px solid var(--accent); background: var(--chip-bg);
+}
+.hero-tag .dot { border-radius: 0; box-shadow: 0 0 0 3px var(--accent-soft); }
+.hero-spec {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 9px;
+  margin-top: 20px; font-family: var(--mono); font-size: 0.7rem;
+  letter-spacing: 0.03em; color: var(--fg-3);
+}
+.hero-spec .sep { color: var(--fg-4); }
+.hero-spec .ok  { color: var(--live-fg); }
+
+/* --- buttons: square, mono, bracket affordance --- */
+.btn-primary { box-shadow: inset 0 0 0 1px color-mix(in srgb, #04222F 22%, transparent); }
+.btn-ghost { border-left: 2px solid var(--border-strong); }
+.btn-ghost:hover { border-left-color: var(--accent); }
+
+/* --- HUD registration brackets on key panels --- */
+.decay-panel, .compat-card, .qs-block { position: relative; }
+.decay-panel::before, .compat-card::before, .qs-block::before,
+.decay-panel::after,  .compat-card::after,  .qs-block::after {
+  content: ""; position: absolute; width: 10px; height: 10px;
+  pointer-events: none; z-index: 3; border: 1.5px solid var(--accent);
+}
+.decay-panel::before, .compat-card::before, .qs-block::before {
+  top: 6px; left: 6px; border-right: 0; border-bottom: 0;
+}
+.decay-panel::after, .compat-card::after, .qs-block::after {
+  bottom: 6px; right: 6px; border-left: 0; border-top: 0;
+}
+
+/* --- feature cards: index + hover spine --- */
+.feature { position: relative; transition: background .2s; }
+.feature::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--accent); transform: scaleY(0); transform-origin: top;
+  transition: transform .26s var(--ease);
+}
+.feature:hover::before { transform: scaleY(1); }
+.feature .ft-num { color: var(--fg-3); }
+
+/* --- instrument numerals on stats --- */
+.stat .v { font-family: var(--mono); font-weight: 700; letter-spacing: -0.03em; }
+
+/* --- scenario id as a node tag --- */
+.scenarios .sc-id {
+  display: inline-block; min-width: 1.4em; text-align: center;
+  border: 1px solid var(--border-accent); color: var(--accent-text);
+  margin-right: 6px; line-height: 1.3; padding: 0 2px;
+}
+
+/* --- section dividers: ticked hairline --- */
+.section + .section {
+  border-top: 1px solid var(--border);
+  background-image: linear-gradient(90deg, var(--accent) 0 28px, transparent 28px);
+  background-size: 100% 2px; background-repeat: no-repeat; background-position: 0 -1px;
+}
+
+/* --- nav: monospace spine --- */
+.nav.scrolled { border-bottom: 1px solid var(--border-strong); }
+.brand .word { letter-spacing: 0.04em; }
+
+@media (max-width: 560px) {
+  .hero-spec { font-size: 0.64rem; gap: 6px; }
+  .hero-spec .sep { display: none; }
+}
+
+/* ============================================================
+   Animations (docs/shared)
+   ============================================================ */
 .fade-in { opacity: 0; animation: fadeInUp 0.6s ease-out forwards; }
 .fade-in-delay-1 { animation-delay: 0.08s; }
 .fade-in-delay-2 { animation-delay: 0.16s; }
@@ -493,7 +651,9 @@ body {
 .fade-in-delay-4 { animation-delay: 0.32s; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ─── Prose tweaks for MDX docs ─────────────────────────────────── */
+/* ============================================================
+   Prose tweaks for MDX docs
+   ============================================================ */
 .prose-doc h1 {
   font-size: clamp(1.75rem, 2.5vw + 1rem, 2.5rem);
   font-weight: 600;
@@ -536,7 +696,7 @@ body {
 .prose-doc ol > li { list-style: decimal; }
 .prose-doc strong { color: var(--text-primary); font-weight: 600; }
 .prose-doc a {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
@@ -599,10 +759,11 @@ body {
   margin: 2rem 0;
 }
 
-/* Shiki / rehype-pretty-code — force dark theme (site is dark-only) */
-code[data-theme~="dark"],
-code[data-theme~="dark"] span {
-  color: var(--shiki-dark);
+/* Shiki / rehype-pretty-code — light theme (site is light-first) */
+code[data-theme],
+code[data-theme] span,
+[data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-light);
   background-color: transparent !important;
 }
 [data-rehype-pretty-code-figure] pre {

@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "A hierarchical, file-system-based memory system for AI coding agents, inspired by human neuroscience.",
     start_url: "/",
     display: "standalone",
-    background_color: "#07090A",
-    theme_color: "#07090A",
+    background_color: "#FBFCFD",
+    theme_color: "#FBFCFD",
     icons: [
       { src: "/favicon.svg", type: "image/svg+xml", sizes: "any" },
       { src: "/favicon-32.png", type: "image/png", sizes: "32x32" },

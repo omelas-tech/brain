@@ -138,7 +138,7 @@ const structuredData = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07090A",
+  themeColor: "#FBFCFD",
 };
 
 export default function RootLayout({
@@ -149,6 +149,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="light"
       className={`${spaceGrotesk.variable} ${jbmono.variable} ${instrumentSerif.variable}`}
     >
       <body className="min-h-dvh bg-[var(--bg)] text-[var(--text-primary)] antialiased">

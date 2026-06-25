@@ -84,6 +84,15 @@ export default function Home() {
               <br />
               <span className="serif">modeled on the&nbsp;brain.</span>
             </h1>
+            <div className="hero-spec" aria-hidden="true">
+              <span>SYS / brain-memory</span>
+              <span className="sep">//</span>
+              <span>arch: hierarchical-fs</span>
+              <span className="sep">//</span>
+              <span>decay: e^(−λt)</span>
+              <span className="sep">//</span>
+              <span className="ok">recall: deterministic</span>
+            </div>
             <p className="sub">
               A hierarchical, file-system memory that{" "}
               <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
@@ -125,7 +134,7 @@ export default function Home() {
 
       {/* ============ 01 WHAT'S INSIDE ============ */}
       <section className="section" id="inside">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">01</span> What&apos;s inside</span>
             <h2>A memory architecture, not a vector store.</h2>
@@ -147,7 +156,7 @@ export default function Home() {
 
       {/* ============ 02 HOW IT WORKS ============ */}
       <section className="section" id="how">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">02</span> How it works</span>
             <h2>The lifecycle of a memory.</h2>
@@ -183,7 +192,7 @@ export default function Home() {
 
       {/* ============ 03 BENCHMARKS ============ */}
       <section className="section" id="benchmarks">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">03</span> Benchmark results</span>
             <h2>Six-scenario suite for long-term agent memory.</h2>
@@ -223,7 +232,7 @@ export default function Home() {
 
       {/* ============ 04 NEUROSCIENCE ============ */}
       <section className="section" id="neuro">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">04</span> Neuroscience foundations</span>
             <h2>Every mechanism maps to a published model.</h2>
@@ -271,7 +280,7 @@ export default function Home() {
 
       {/* ============ 06 COMPATIBILITY ============ */}
       <section className="section" id="compat">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="section-head reveal">
             <span className="eyebrow"><span className="idx">06</span> Compatibility</span>
             <h2>One memory store. Every agent.</h2>

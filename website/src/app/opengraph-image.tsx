@@ -16,12 +16,13 @@ export const alt = "Brain Memory — Memory for AI agents, modeled on the brain.
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Brand palette (see CLAUDE.md): amber on near-black "deep-lab" aesthetic.
+// Brand palette: cyan on near-black "deep-lab" aesthetic (the technical
+// design's dark variant — bold and legible in social feeds).
 const BG = "#07090A";
-const AMBER = "#E8A33D";
-const TEXT = "#F5F3EE";
-const MUTED = "#9AA0A6";
-const DIM = "#5A6066";
+const CYAN = "#5BC8FF";
+const TEXT = "#EAF1F5";
+const MUTED = "#9AA6AD";
+const DIM = "#5A6369";
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -35,7 +36,7 @@ export default function OpengraphImage() {
           justifyContent: "space-between",
           backgroundColor: BG,
           backgroundImage:
-            "radial-gradient(900px 500px at 78% -10%, rgba(232,163,61,0.16), rgba(7,9,10,0))",
+            "radial-gradient(900px 500px at 78% -10%, rgba(70,198,255,0.18), rgba(7,9,10,0))",
           padding: "76px 80px",
           fontFamily: "sans-serif",
         }}
@@ -53,7 +54,7 @@ export default function OpengraphImage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span
               style={{
-                color: AMBER,
+                color: CYAN,
                 fontSize: 30,
                 fontWeight: 700,
                 letterSpacing: 9,
@@ -76,7 +77,7 @@ export default function OpengraphImage() {
           </span>
           <span
             style={{
-              color: AMBER,
+              color: CYAN,
               fontSize: 76,
               fontStyle: "italic",
               fontWeight: 600,
@@ -108,7 +109,7 @@ export default function OpengraphImage() {
             alignItems: "center",
           }}
         >
-          <span style={{ color: AMBER, fontSize: 27, letterSpacing: 1 }}>
+          <span style={{ color: CYAN, fontSize: 27, letterSpacing: 1 }}>
             brainmemory.ai
           </span>
           <span style={{ color: DIM, fontSize: 25 }}>npm i -g brain-memory</span>
