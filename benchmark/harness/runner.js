@@ -214,10 +214,11 @@ async function runScenario(scenarioName, scenarioDir, agents, { config, modeConf
   // Compute cross-agent summary (skip for new arm-scenarios; reporter handles them)
   const summary = isArmScenario ? null : computeCrossAgentSummary(agentResults);
 
-  // Model label for results
+  // Model label for results — reflect the ACTUAL agent(s)/model under test
+  // (e.g. "deepseek/deepseek-v4-pro") rather than a hard-coded list.
   const modelLabel = mode === 'ollama'
     ? (modeConfig.model || 'ollama')
-    : 'cloud (claude-sonnet / gemini-flash / gpt)';
+    : agents.map((a) => (a.model ? `${a.name}/${a.model}` : a.name)).join(', ');
 
   return {
     scenario: scenarioName,

@@ -5,86 +5,103 @@ import { docMeta } from "@/lib/docs";
 export const metadata = docMeta("/docs/benchmarks/results", {
   title: "Benchmark Results - Brain Memory",
   description:
-    "Latest smoke-test results from the Brain Memory benchmark across Gemini and DeepSeek V4 Pro on Scenario A. Raw JSON downloads included.",
+    "Results from the Brain Memory benchmark: DeepSeek V4 Pro under test across five long-term-memory scenarios, graded by a cross-family judge panel. Raw JSON included.",
   category: "Benchmarks",
   order: 3,
 });
 
 # Benchmark Results
 
-This page tracks current measurements from the benchmark suite. Numbers are reproducible — the harness is deterministic up to model-provider non-determinism, and the same scenario JSON + distractor seed always produces the same memory pool.
+This page tracks current measurements from the benchmark suite. Numbers are reproducible — the harness is deterministic up to model-provider non-determinism, and the same scenario JSON + distractor seed always produces the same memory pool. Regenerate any table below with `node harness/summarize.js results/<file>.json` and the statistics with `node harness/analyze.js results/<file>.json`.
 
 <Callout type="warning">
-  Results below are **smoke runs** (1 run per arm) intended to validate that the harness works end-to-end and surface real signal. Full statistical-confidence runs (3-5 runs × all 6 scenarios × multiple agents) will follow. Treat individual numbers as directional, not definitive.
+  Run at **n=3 per arm**. The token differences are **directional, not statistically significant** (Mann–Whitney U is not significant at this sample size — see the 90% CIs in the stats file). The **pass-rate gradient is the result.** Two scenarios (C, F) are honest **nulls** — reported as-is rather than dropped.
 </Callout>
 
 ## Run metadata
 
 | Field | Value |
 |---|---|
-| Date | 2026-05-28 |
-| Scenario | A — The Noisy Project Folder |
-| Runs per arm | 1 (smoke) |
-| Distractor haystack | 200 deterministic memories (seed=42) |
-| Oracle memories | 3 (`mem_orcl_cache_redis`, `mem_orcl_cursor_pagination`, `mem_orcl_vue_composable`) |
-| Agents | Gemini Flash · OpenCode → DeepSeek V4 Pro |
-| Judge | Cross-family (Claude judges Gemini; Claude also judges OpenCode/DeepSeek) |
-| Rubric size | 7 binary criteria |
+| Date | 2026-06-26 |
+| Agent under test | **DeepSeek V4 Pro** (single-shot, `deepseek-v4-pro`) |
+| Judge | **Cross-family panel** — Gemini 2.5 Flash + Gemma-4 12B + Qwen-3.5 9B, **majority vote**, each criterion majority-voted |
+| Runs per arm | 3 |
+| Scenarios | A, B, C, D, F (E — continual — deferred) |
+| Distractor haystack | up to 1000 deterministic memories (seed=42) |
 
-## Scenario A — Gemini Flash
+Why single-shot? The model receives the task plus whatever the arm injects (nothing, a retriever's top-k, brain's session-start payload, or the oracle) and replies in one turn. This isolates **memory's effect** — there is no agentic file exploration to rediscover conventions — and keeps token counts clean and comparable (no cache-read inflation). It mirrors the Mem0 / LongMemEval framing.
 
-| Arm | Input | Output | Total | Tok/success | Recall@5 | Pass |
-|---|---:|---:|---:|---:|:---:|:---:|
-| bare | 21,749 | 2,356 | 24,105 | 24,105 | — | yes |
-| fixture-only | 15,171 | 1,663 | 16,834 | 16,834 | — | yes |
-| brain-real | 25,535 | 2,265 | 27,800 | 27,800 | 0.33 | yes |
-| brain-no-recall (dump bodies) | 40,381 | 3,218 | 43,599 | 43,599 | — | yes |
-| brain-no-pin | 80,952 | 5,386 | 86,338 | 86,338 | 0.33 | yes |
-| context-dump (upper bound) | 48,132 | 2,624 | 50,756 | 50,756 | — | yes |
+## Scenario A — Noisy Project Folder (retrieval under 1000 distractors)
 
-[Raw JSON →](/benchmarks/scenario-A-gemini-2026-05-28.json)
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| no-memory (floor) | — | — | 0.43 | 0% |
+| vector (embeddings) | — | 0.00 | 0.33 | 0% |
+| keyword (BM25) | — | 0.33 | 0.48 | 0% |
+| **brain-full** | **3,199** | 0.67 | 1.00 | **100%** |
+| brain-no-pin | 5,135 | 0.33 | 0.67 | 67% |
+| brain-no-recall | 3,643 | — | 0.95 | 100% |
+| oracle (ceiling) | 3,572 | 1.00 | 1.00 | 100% |
+| context-dump 8k | 5,856 | — | 1.00 | 100% |
+| context-dump 60k | 20,689 | — | 1.00 | 100% |
 
-**Headline:** `brain-real` uses **28K tokens** — only 16% more than `bare` (24K) — while every other memory mode is **1.6×–3.1×** more expensive. `brain-no-pin` at 86K is dramatic: turning the pinned tier off **triples** token usage on this scenario.
+**Headline.** Under a 1000-distractor haystack, **brain is the only retrieval method whose memories let the model succeed** — both BM25 (Recall@5 0.33) and a local vector store (Recall@5 0.00) fail to surface the three oracle memories, and the model fails with them. Brain retrieves 2/3 (Recall@5 0.67), which is enough to pass, and it does so at the **lowest tokens-per-success of any passing arm** (3,199 — below the oracle's 3,572 and far below the 8k/60k dumps). Disabling the pinned tier drops brain to 67% and doubles its Recall miss — the ablation that isolates pinning's value.
 
-All arms pass the judge at 1 run, so this isn't a *correctness* differentiator yet — it's an *efficiency* one. Multi-run results will surface whether the harder ablation arms (`brain-no-pin`, `context-dump`) also degrade correctness under retry pressure.
+## Scenario B — Three Sessions, One Decision (continuity)
 
-## Scenario A — OpenCode → DeepSeek V4 Pro
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| fixture-only (floor) | 2,546 | — | 0.62 | 67% |
+| keyword (BM25) | 2,721 | 1.00 | 0.95 | 100% |
+| **brain-real** | **1,871** | 1.00 | 1.00 | **100%** |
+| brain-no-pin | 2,072 | 1.00 | 1.00 | 100% |
+| oracle (ceiling) | 1,734 | 1.00 | 1.00 | 100% |
 
-| Arm | Input | Output | Total | Tok/success | Recall@5 | Pass |
-|---|---:|---:|---:|---:|:---:|:---:|
-| bare | 19,624 | 418 | 20,042 | 20,042 | — | yes |
-| fixture-only | 13,548 | 214 | 13,762 | 13,762 | — | yes |
-| brain-real | 0 | 0 | timeout | — | — | no |
-| brain-no-recall | 19,418 | 302 | 19,720 | 19,720 | — | yes |
-| brain-no-pin | 17,288 | 221 | 17,509 | 17,509 | 0.33 | yes |
-| context-dump | 0 | 0 | timeout | — | — | no |
+**Headline.** Postgres was decided across three sessions despite a discarded Mongo prototype. Brain recalls it perfectly (Recall@5 1.0) and passes at the **fewest tokens-per-success of the memory arms**. Here the haystack is small (100 distractors), so plain BM25 also retrieves the decision and passes — on this scenario brain's edge is **efficiency, not correctness**.
 
-[Raw JSON →](/benchmarks/scenario-A-opencode-deepseek-2026-05-28.json)
+## Scenario C — The Contradiction Test (tabs → spaces → tabs)
 
-**Headline & caveat:** Two arms timed out at the 300-second prompt limit — `brain-real` and `context-dump`. DeepSeek V4 Pro is slower per call than Gemini Flash, and the larger prompts (session-start with pinned tier; full memory contents dumped) exceeded the budget. The harness timeout has since been raised to 600s and a SIGKILL fallback added (see `benchmark/harness/agents/opencode.js`); the next run should not exhibit these timeouts.
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| fixture-only (floor) | 1,218 | — | 0.78 | 67% |
+| keyword (BM25) | 1,775 | 1.00 | 0.72 | 33% |
+| brain-real | 1,572 | 1.00 | 0.83 | 67% |
+| brain-no-pin | 1,058 | 1.00 | 0.83 | 67% |
+| oracle (ceiling) | 915 | 1.00 | 0.83 | 67% |
+| dump-all-chrono | 469 | — | 0.94 | 100% |
 
-What's interesting in the four arms that completed: DeepSeek's `brain-no-pin` is **17,509 tokens** — *lower* than `bare` (20,042). This is the opposite of Gemini's behavior. DeepSeek appears to use memory context to short-circuit tool-use iterations; Gemini lets memory context extend its exploration. Per-agent behavior matters — generalizations across agents will need multiple-run, multi-agent data.
+**Headline — an honest null.** Everything clusters near 67%. Indentation (tabs vs spaces) is a **noisy signal to grade from a single-shot text reply**, and the arm that does best is `dump-all-chrono`, which simply concatenates all three versions in time order so the latest (tabs) wins. Brain retrieves the final decision (Recall@5 1.0) but doesn't convert that into a clear pass-rate win here. We report it rather than hide it.
 
-## Cross-agent reading
+## Scenario D — Skill Progressive Disclosure (token efficiency)
 
-The same scenario produces very different patterns across models:
+| Arm | tok/success | rubric score | pass |
+|---|---:|:---:|:---:|
+| fixture-only (floor) | — | 0.33 | 0% |
+| brain-skills L0 (index only) | — | 0.50 | 0% |
+| **brain-skills loaded (L1)** | **1,580** | 1.00 | **100%** |
+| brain-skills all-loaded | 2,289 | 1.00 | 100% |
 
-| Arm | Gemini Flash | OpenCode/DeepSeek V4 Pro |
-|---|---:|---:|
-| bare | 24,105 | 20,042 |
-| fixture-only | 16,834 | 13,762 |
-| brain-real | 27,800 | timeout |
-| brain-no-recall | 43,599 | 19,720 |
-| brain-no-pin | 86,338 | 17,509 |
-| context-dump | 50,756 | timeout |
+**Headline.** Loading **just the one relevant skill** passes 100% at **1,580 tokens-per-success — ~31% leaner** than dumping every skill body (2,289). The index-only (L0) and no-skills arms fail: a single-shot model can't act on a skill *index* the way an agent would (read the index, then load the matching `SKILL.md`). That on-demand load is exactly what the skills tier automates — and when it fires, it's both correct and the cheapest passing arm.
 
-DeepSeek runs much tighter on tokens overall but is more sensitive to long prompts (more timeouts). Gemini soaks more tokens at the high end (`brain-no-pin` 86K vs DeepSeek 18K) but completes more reliably. This is exactly the kind of comparison the arm matrix is built to surface.
+## Scenario F — Abstention (no confabulation)
+
+| Arm | tok/success | rubric score | pass |
+|---|---:|:---:|:---:|
+| fixture-only (floor) | 775 | 1.00 | 100% |
+| keyword (BM25) | 1,238 | 0.89 | 67% |
+| brain-real | 920 | 1.00 | 100% |
+| oracle (ceiling) | 890 | 1.00 | 100% |
+
+**Headline — a second honest null.** Asked to set up a deployment pipeline with no deployment target in memory, DeepSeek **abstains correctly with or without brain** (100%) — the base model already declines to invent a target. A noisy keyword retriever, which injects irrelevant top-k, actually drags it down to 67%. Memory neither helps nor hurts abstention in this case.
+
+## Reading the suite
+
+Brain wins where it is designed to — **retrieval under heavy noise (A)** and **procedural-skill efficiency (D)** — passing where the BM25 and vector baselines fail, at the lowest token cost among passing arms. It is **efficient and competitive on continuity (B)**, and **neutral on contradiction (C) and abstention (F)**, where the base model needs no memory. That mixed, baseline-anchored picture — floor, oracle ceiling, real retriever baselines, and brain ablations on every scenario — is the point: the wins are attributable to the memory system, and the nulls are reported honestly.
+
+[Raw JSON →](/benchmarks/deepseek-v4-suite-2026-06-26.json)
 
 ## What's next
 
-Pending runs:
-- 5 runs × all 6 scenarios × Gemini Flash — for statistical confidence on the headline metrics
-- 1 run × all 6 scenarios × DeepSeek (V3.2 / `deepseek-chat` to keep cost manageable, then optionally V4 Pro on a subset)
-- Scenario E continual mode validated end-to-end (write-side memorize step)
-
-Results will be appended to this page as JSON in [`/public/benchmarks/`](https://github.com/omelas-tech/brain/tree/main/website/public/benchmarks) and summarized inline.
+- More runs (5–10/arm) for statistical-confidence error bars on the token metric.
+- Scenario E (continual coding, write-side `memorize`) validated end-to-end.
+- A second agent under test (e.g. a stronger reasoning model) to separate memory effects from base-model competence.

@@ -198,17 +198,19 @@ export default function Home() {
             <h2>Six-scenario suite for long-term agent memory.</h2>
             <p className="lede">
               Grounded in 2025–2026 long-term-memory evaluation methodology —
-              LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0 / BEAM. Cross-family
-              LLM judge, distractor haystacks, <em>N</em>-arm matrix.{" "}
+              LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0, BEAM. DeepSeek V4
+              Pro under test, graded by a cross-family judge <em>panel</em>
+              {" "}(Gemini + Gemma-4 + Qwen-3.5, majority vote), distractor
+              haystacks, floor-to-oracle arm matrix.{" "}
               <a href="/docs/benchmarks">Methodology →</a>{" "}
               <a href="/docs/benchmarks/results">Live results →</a>
             </p>
           </div>
 
           <div className="stat-row reveal">
-            <div className="stat"><div className="v">27.8<span className="u">K</span></div><div className="k">brain-real tokens / success</div></div>
-            <div className="stat"><div className="v">50.8<span className="u">K</span></div><div className="k">context-dump tokens / success</div></div>
-            <div className="stat"><div className="v">86.3<span className="u">K</span></div><div className="k">brain-no-pin tokens / success</div></div>
+            <div className="stat"><div className="v">100<span className="u">%</span></div><div className="k">brain pass-rate on the 1000-distractor haystack — where BM25 &amp; vector retrievers both score 0%</div></div>
+            <div className="stat"><div className="v">3,199</div><div className="k">brain tokens / success on Scenario A — the leanest of every passing arm</div></div>
+            <div className="stat"><div className="v">−31<span className="u">%</span></div><div className="k">tokens vs dumping all skills — load only the one needed (Scenario D)</div></div>
           </div>
 
           <table className="data-table scenarios reveal">
@@ -415,22 +417,22 @@ function CopyButton({
   );
 }
 
-/* ─── Benchmark results (real data, per-agent tabs) ───────────────── */
+/* ─── Benchmark results (real data, per-scenario tabs) ────────────── */
 function BenchmarkResults() {
-  const agents = Object.keys(agentData);
-  const [active, setActive] = useState(agents[0]);
-  const data = agentData[active];
+  const tabs = Object.keys(scenarioData);
+  const [active, setActive] = useState(tabs[0]);
+  const data = scenarioData[active];
 
   return (
     <div className="reveal">
       <div className="bench-tabs">
-        {agents.map((a) => (
+        {tabs.map((t) => (
           <button
-            key={a}
-            className={`bench-tab${active === a ? " active" : ""}`}
-            onClick={() => setActive(a)}
+            key={t}
+            className={`bench-tab${active === t ? " active" : ""}`}
+            onClick={() => setActive(t)}
           >
-            {a}
+            {t}
           </button>
         ))}
       </div>
@@ -439,16 +441,14 @@ function BenchmarkResults() {
       <div style={{ overflowX: "auto" }}>
         <table className="results">
           <thead>
-            <tr><th>arm</th><th>tokens</th><th>tok / success</th><th>recall@5</th><th>pass</th></tr>
+            <tr><th>arm</th><th>tok / success</th><th>recall@5</th><th>pass</th></tr>
           </thead>
           <tbody>
             {data.arms.map((row) => {
-              const hl = row.arm === "brain-real";
-              const timeout = row.tokens === "timeout";
+              const hl = row.arm.startsWith("brain-full") || row.arm.startsWith("brain-real") || row.arm.startsWith("brain-skills loaded");
               return (
                 <tr key={row.arm} className={hl ? "hl" : ""}>
                   <td>{row.arm}</td>
-                  <td className={timeout ? "danger" : ""}>{row.tokens}</td>
                   <td>{row.tokensPerSuccess}</td>
                   <td>{row.recallAt5}</td>
                   <td className={row.passRate === "0%" ? "danger" : "pass"}>{row.passRate}</td>
@@ -458,9 +458,12 @@ function BenchmarkResults() {
           </tbody>
         </table>
       </div>
+      <p className="bench-note">{data.takeaway}</p>
       <p className="bench-note">
-        {data.scenario} · 1 run · all arms judged by a cross-family LLM. Results
-        in progress; numbers update as runs complete.
+        Agent under test: DeepSeek V4 Pro (single-shot) · graded by a cross-family
+        panel — Gemini + Gemma-4 + Qwen-3.5, majority vote · 3 runs per arm. At
+        n=3 the token gaps are directional, not yet statistically significant; the
+        pass-rate gradient is the result.
       </p>
     </div>
   );
@@ -537,46 +540,87 @@ const referenceGroups = [
     heading: "Memory benchmarks",
     refs: [
       { title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory", id: "arXiv 2410.10813", url: "https://arxiv.org/abs/2410.10813", note: "Distractor-haystack design (Scenario A) and the rubric-based LLM judge." },
-      { title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents", id: "arXiv 2507.05257", url: "https://arxiv.org/abs/2507.05257", note: "Four-competency framework; FactConsolidation inspired Scenario C (The Contradiction Test)." },
+      { title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents", id: "arXiv 2507.05257", url: "https://arxiv.org/abs/2507.05257", note: "Four competencies — accurate retrieval, test-time learning, long-range understanding, selective forgetting. FactConsolidation inspired Scenario C (The Contradiction Test)." },
       { title: "SWE-Bench-CL: Continual Learning for Coding Agents", id: "arXiv 2507.00014", url: "https://arxiv.org/abs/2507.00014", note: "Forward transfer in continual coding — basis for Scenario E." },
-      { title: "Mem0 / BEAM: Memory Architectures for Production Agents", id: "arXiv 2504.19413", url: "https://arxiv.org/abs/2504.19413", note: "Tokens-per-query co-reported with accuracy — source of the tokens-per-successful-task metric." },
+      { title: "Mem0: Scalable Long-Term Memory for Production AI Agents", id: "arXiv 2504.19413", url: "https://arxiv.org/abs/2504.19413", note: "Tokens-per-query co-reported with accuracy — source of the tokens-per-successful-task metric." },
+      { title: "BEAM: Benchmarking Long-Term Memory up to 10M Tokens", id: "arXiv 2510.27246", url: "https://arxiv.org/abs/2510.27246", note: "Structured memory beats a 10M-token context window, and the gap widens with scale — memory still matters past long context." },
     ],
   },
   {
     heading: "Methodology",
     refs: [
-      { title: "Preference Leakage: A Pitfall in LLM-as-a-Judge", id: "arXiv 2502.01534", url: "https://arxiv.org/abs/2502.01534", note: "Documents same-family judging cost. Brain's benchmark enforces a cross-family judge map." },
-      { title: "When Judgment Becomes Noise: Position Bias in LLM Judges", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293", note: "Empirical position-bias study. Brain's benchmark uses position-swap on every pairwise judgment." },
+      { title: "Preference Leakage: A Pitfall in LLM-as-a-Judge", id: "arXiv 2502.01534", url: "https://arxiv.org/abs/2502.01534", note: "Same-family judging inflates scores (~24% leakage vs ~3% cross-family). The benchmark judges DeepSeek with a panel of non-DeepSeek families." },
+      { title: "Replacing Judges with Juries: a Panel of LLM Evaluators (PoLL)", id: "arXiv 2404.18796", url: "https://arxiv.org/abs/2404.18796", note: "A panel of smaller, disjoint-family judges beats a single large judge on human agreement, with less intra-model bias — the basis for the Gemini + Gemma-4 + Qwen-3.5 panel." },
+      { title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", id: "arXiv 2306.05685", url: "https://arxiv.org/abs/2306.05685", note: "Documents position, verbosity, and self-enhancement bias; origin of the swap-consistency check the benchmark applies to pairwise judgments." },
+      { title: "When Judgment Becomes Noise", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293", note: "Judge verdicts carry large unexplained variance — report uncertainty rather than aggregate it away. Why results are published with n=3 error bars, not bare point estimates." },
       { title: "LastingBench: Defending Benchmarks Against Data Leakage", id: "arXiv 2506.21614", url: "https://arxiv.org/abs/2506.21614", note: "Synthetic, decay-driven scenarios guard against memorised public-set answers." },
     ],
   },
 ];
 
-interface ArmRow { arm: string; tokens: string; tokensPerSuccess: string; recallAt5: string; passRate: string; }
-interface AgentArmResult { subtitle: string; scenario: string; arms: ArmRow[]; }
-const agentData: Record<string, AgentArmResult> = {
-  "Gemini Flash": {
-    subtitle: "gemini-2.5-flash · Scenario A × 1 run",
-    scenario: "Scenario A — Noisy Project Folder",
+interface ArmRow { arm: string; tokensPerSuccess: string; recallAt5: string; passRate: string; }
+interface ScenarioResult { subtitle: string; takeaway: string; arms: ArmRow[]; }
+const scenarioData: Record<string, ScenarioResult> = {
+  "A · Noisy folder": {
+    subtitle: "Scenario A — retrieval under a 1000-distractor haystack",
+    takeaway:
+      "Brain is the only retriever whose memories let the model succeed under heavy noise — BM25 (R@5 0.33) and vector embeddings (R@5 0.00) both fail outright — and it passes at the lowest tokens-per-success of any passing arm. Turning the pinned tier off drops it to 67%.",
     arms: [
-      { arm: "bare", tokens: "24.1K", tokensPerSuccess: "24.1K", recallAt5: "—", passRate: "100%" },
-      { arm: "fixture-only", tokens: "16.8K", tokensPerSuccess: "16.8K", recallAt5: "—", passRate: "100%" },
-      { arm: "brain-real", tokens: "27.8K", tokensPerSuccess: "27.8K", recallAt5: "0.33", passRate: "100%" },
-      { arm: "brain-no-recall", tokens: "43.6K", tokensPerSuccess: "43.6K", recallAt5: "—", passRate: "100%" },
-      { arm: "brain-no-pin", tokens: "86.3K", tokensPerSuccess: "86.3K", recallAt5: "0.33", passRate: "100%" },
-      { arm: "context-dump", tokens: "50.8K", tokensPerSuccess: "50.8K", recallAt5: "—", passRate: "100%" },
+      { arm: "no-memory (floor)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
+      { arm: "vector (embeddings)", tokensPerSuccess: "—", recallAt5: "0.00", passRate: "0%" },
+      { arm: "keyword (BM25)", tokensPerSuccess: "—", recallAt5: "0.33", passRate: "0%" },
+      { arm: "brain-full", tokensPerSuccess: "3,199", recallAt5: "0.67", passRate: "100%" },
+      { arm: "brain-no-pin", tokensPerSuccess: "5,135", recallAt5: "0.33", passRate: "67%" },
+      { arm: "oracle (ceiling)", tokensPerSuccess: "3,572", recallAt5: "1.00", passRate: "100%" },
+      { arm: "context-dump 8k", tokensPerSuccess: "5,856", recallAt5: "—", passRate: "100%" },
+      { arm: "context-dump 60k", tokensPerSuccess: "20,689", recallAt5: "—", passRate: "100%" },
     ],
   },
-  "OpenCode → DeepSeek V4 Pro": {
-    subtitle: "deepseek/deepseek-v4-pro · Scenario A × 1 run",
-    scenario: "Scenario A — Noisy Project Folder",
+  "B · Continuity": {
+    subtitle: "Scenario B — one decision held across three sessions",
+    takeaway:
+      "Postgres was decided despite a discarded Mongo prototype. Brain recalls it perfectly (R@5 1.0) and passes at the fewest tokens-per-success. Here the haystack is small enough that plain BM25 also succeeds — on this one, memory's edge is efficiency, not correctness.",
     arms: [
-      { arm: "bare", tokens: "20.0K", tokensPerSuccess: "20.0K", recallAt5: "—", passRate: "100%" },
-      { arm: "fixture-only", tokens: "13.8K", tokensPerSuccess: "13.8K", recallAt5: "—", passRate: "100%" },
-      { arm: "brain-real", tokens: "timeout", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
-      { arm: "brain-no-recall", tokens: "19.7K", tokensPerSuccess: "19.7K", recallAt5: "—", passRate: "100%" },
-      { arm: "brain-no-pin", tokens: "17.5K", tokensPerSuccess: "17.5K", recallAt5: "0.33", passRate: "100%" },
-      { arm: "context-dump", tokens: "timeout", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
+      { arm: "fixture-only (floor)", tokensPerSuccess: "2,546", recallAt5: "—", passRate: "67%" },
+      { arm: "keyword (BM25)", tokensPerSuccess: "2,721", recallAt5: "1.00", passRate: "100%" },
+      { arm: "brain-real", tokensPerSuccess: "1,871", recallAt5: "1.00", passRate: "100%" },
+      { arm: "brain-no-pin", tokensPerSuccess: "2,072", recallAt5: "1.00", passRate: "100%" },
+      { arm: "oracle (ceiling)", tokensPerSuccess: "1,734", recallAt5: "1.00", passRate: "100%" },
+    ],
+  },
+  "C · Contradiction": {
+    subtitle: "Scenario C — tabs → spaces → tabs, which version wins?",
+    takeaway:
+      "An honest null. Everything clusters near 67% — single-shot indentation is a noisy signal — and dumping all three versions in chronological order (so the latest wins) edges out retrieval here. Brain neither clearly wins nor loses contradiction in this setup.",
+    arms: [
+      { arm: "fixture-only (floor)", tokensPerSuccess: "1,218", recallAt5: "—", passRate: "67%" },
+      { arm: "keyword (BM25)", tokensPerSuccess: "1,775", recallAt5: "1.00", passRate: "33%" },
+      { arm: "brain-real", tokensPerSuccess: "1,572", recallAt5: "1.00", passRate: "67%" },
+      { arm: "brain-no-pin", tokensPerSuccess: "1,058", recallAt5: "1.00", passRate: "67%" },
+      { arm: "oracle (ceiling)", tokensPerSuccess: "915", recallAt5: "1.00", passRate: "67%" },
+      { arm: "dump-all-chrono", tokensPerSuccess: "469", recallAt5: "—", passRate: "100%" },
+    ],
+  },
+  "D · Skills": {
+    subtitle: "Scenario D — five skills indexed, one needed",
+    takeaway:
+      "Loading just the relevant skill passes 100% at 1,580 tokens-per-success — ~31% leaner than dumping every skill body (2,289). The index-only and no-skills arms fail: a single-shot model can't load a skill on demand the way an agent would, which is exactly what the skills tier automates.",
+    arms: [
+      { arm: "fixture-only (floor)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
+      { arm: "brain-skills L0 (index)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
+      { arm: "brain-skills loaded (L1)", tokensPerSuccess: "1,580", recallAt5: "—", passRate: "100%" },
+      { arm: "brain-skills all-loaded", tokensPerSuccess: "2,289", recallAt5: "—", passRate: "100%" },
+    ],
+  },
+  "F · Abstention": {
+    subtitle: "Scenario F — no deployment target in memory",
+    takeaway:
+      "Another honest null. DeepSeek abstains correctly with or without brain (100%) — the base model already declines to invent a deploy target — while a noisy keyword retriever drags it to 67%. Memory neither helps nor hurts abstention here.",
+    arms: [
+      { arm: "fixture-only (floor)", tokensPerSuccess: "775", recallAt5: "—", passRate: "100%" },
+      { arm: "keyword (BM25)", tokensPerSuccess: "1,238", recallAt5: "—", passRate: "67%" },
+      { arm: "brain-real", tokensPerSuccess: "920", recallAt5: "—", passRate: "100%" },
+      { arm: "oracle (ceiling)", tokensPerSuccess: "890", recallAt5: "—", passRate: "100%" },
     ],
   },
 };

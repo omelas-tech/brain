@@ -40,7 +40,7 @@ const { pinMemory } = require('../../src/pinning');
 const { generateDistractors, generateHardNegatives } = require('./distractors');
 const { sessionStart, recall, scoreRetrieval, formatSessionStartForPrompt } = require('./recall-probe');
 const { createRunMetrics, recordPrompt, aggregateRuns, summarizeOutcomes, classifyRun, OUTCOME } = require('./metrics');
-const { pickJudge, judgeOne } = require('./judge');
+const { pickJudge, judgeOne, judgePanel } = require('./judge');
 
 const SEED_MODES = new Set([
   'none',                   // no memories at all
@@ -197,9 +197,17 @@ async function executeArmRun(ctx) {
       });
       judgeResult = { passed: false, score: 0, criteria: [], rationale: 'DEFERRED', deferred: true };
     } else if (setup.judge) {
-      judgeResult = await judgeViaLlm({ agent, setup, candidate });
+      judgeResult = await judgeViaLlm({ agent, setup, candidate, judges: config.judges });
     } else {
       judgeResult = { passed: true, score: 1, criteria: [], rationale: 'no judge defined' };
+    }
+
+    if (process.env.BENCH_DEBUG_DUMP) {
+      try {
+        fs.appendFileSync(process.env.BENCH_DEBUG_DUMP, JSON.stringify({
+          arm: arm.name, run: runIndex, memoryPrefix, candidate, judge: judgeResult,
+        }) + '\n');
+      } catch { /* best-effort debug */ }
     }
 
     return {
@@ -215,6 +223,7 @@ async function executeArmRun(ctx) {
         rationale: judgeResult.rationale,
         family: judgeResult.judge,
         criteria: judgeResult.criteria || [],
+        ...(judgeResult.panel ? { panel: judgeResult.panel, agreement: judgeResult.agreement } : {}),
       },
       output_chars: candidate.length,
     };
@@ -269,7 +278,7 @@ async function executeContinualArm(ctx) {
       const candidate = [result.output, ...generated.map((g) => `\n# ${g.path}\n${g.content}`)].join('\n\n');
 
       const judged = task.judge
-        ? await judgeViaLlm({ agent, setup: { judge: task.judge, test: [task] }, candidate })
+        ? await judgeViaLlm({ agent, setup: { judge: task.judge, test: [task] }, candidate, judges: config.judges })
         : { passed: true, score: 1, rationale: 'no judge' };
 
       taskResults.push({
@@ -491,10 +500,13 @@ function wrapContextBlock(inner) {
     `=== END MEMORY CONTEXT ===\n\n`;
 }
 
-/** Uniform, header-less item list (the wrapper supplies the header). */
+/** Uniform, header-less item list (the wrapper supplies the header). Injects
+ * full `content` (falling back to `body`) so the retriever/oracle arms convey
+ * the SAME depth as the brain session-start arm — only the retrieval METHOD
+ * differs across arms, never how much of a surfaced memory the agent sees. */
 function formatMemItemsForPrompt(mems) {
   if (!mems || mems.length === 0) return '';
-  return mems.map((m) => `  • ${m.title || m.id}: ${m.body || ''}`.trim()).join('\n');
+  return mems.map((m) => `  • ${m.title || m.id}: ${m.content || m.body || ''}`.trim()).join('\n');
 }
 
 /** Lazily load a baseline retriever module by injection mode. */
@@ -520,26 +532,42 @@ function buildCorpus(arm, setup) {
 /** Map a thrown agent error to a coarse reason code for NO_COMPLETION runs. */
 function classifyError(err) {
   const m = (err && err.message || '').toLowerCase();
+  // Permanent / account-level errors — retrying NEVER helps, so fail fast
+  // instead of burning the backoff ladder on every arm (e.g. an empty API
+  // credit balance or a revoked key).
+  if (/credit balance|insufficient|billing|payment required|\b402\b|invalid x-api-key|authentication_error|invalid api key/.test(m)) return 'permanent';
+  // Rate-limit / overload — transient, retry with a LONG backoff. A single huge
+  // prompt (e.g. the dump-everything arm) can blow the per-minute token budget
+  // and 429 every subsequent call; backing off lets the window reset.
+  if (/rate.?limit|overloaded|\b429\b|too many requests|quota|usage limit/.test(m)) return 'ratelimit';
   if (m.includes('timed out') || m.includes('timeout')) return 'timeout';
-  if (/econnreset|etimedout|enotfound|socket|network|exited with code|stream parse/.test(m)) return 'infra';
+  if (/econnreset|etimedout|enotfound|socket|network|exited with code|stream parse|result error|error_during_execution|no parseable/.test(m)) return 'infra';
   if (m.includes('parse')) return 'parse';
   return 'other';
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Run an agent prompt, retrying ONCE on transient infra errors. A genuine
- * timeout (model couldn't finish in budget) is a real result and is NOT
- * retried — we don't want to mask the scaling wall a dump baseline hits.
+ * Run an agent prompt, retrying transient infra + rate-limit errors with
+ * exponential backoff. A genuine timeout (model couldn't finish in budget) is a
+ * real result and is NOT retried — we don't want to mask the scaling wall a dump
+ * baseline hits.
  */
-async function runAgentWithRetry(agent, prompt, opts, retries = 1) {
+async function runAgentWithRetry(agent, prompt, opts, retries = 4) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await agent.run(prompt, opts);
     } catch (err) {
       lastErr = err;
-      if (classifyError(err) !== 'infra' || attempt === retries) throw err;
-      process.stdout.write(`        infra error, retrying once: ${String(err.message).slice(0, 80)}\n`);
+      const cls = classifyError(err);
+      if ((cls !== 'infra' && cls !== 'ratelimit') || attempt === retries) throw err;
+      const backoff = cls === 'ratelimit'
+        ? Math.min(150000, 15000 * 2 ** attempt)   // 15s → 30 → 60 → 120 → 150
+        : Math.min(30000, 3000 * 2 ** attempt);    // 3s → 6 → 12 → 24 → 30
+      process.stdout.write(`        ${cls} error (attempt ${attempt + 1}/${retries + 1}), backing off ${Math.round(backoff / 1000)}s: ${String(err.message).slice(0, 90)}\n`);
+      await sleep(backoff);
     }
   }
   throw lastErr;
@@ -622,15 +650,17 @@ function exportCandidate(rec) {
   catch (e) { console.error(`defer-judge export failed: ${e.message}`); }
 }
 
-async function judgeViaLlm({ agent, setup, candidate }) {
+async function judgeViaLlm({ agent, setup, candidate, judges }) {
+  const question = setup.judge.question || setup.test?.[0]?.text || '';
+  const oracleAnswer = setup.judge.oracle_answer || '';
+  const rubric = setup.judge.rubric || [];
+  // A configured cross-family PANEL (config.judges) takes precedence — majority
+  // vote across independent judges. Falls back to the single cross-family judge.
+  if (Array.isArray(judges) && judges.length > 0) {
+    return judgePanel({ judges, question, oracleAnswer, rubric, candidate });
+  }
   const judge = setup.judge.family || pickJudge(agent.name);
-  return judgeOne({
-    judge,
-    question: setup.judge.question || setup.test?.[0]?.text || '',
-    oracleAnswer: setup.judge.oracle_answer || '',
-    rubric: setup.judge.rubric || [],
-    candidate,
-  });
+  return judgeOne({ judge, question, oracleAnswer, rubric, candidate });
 }
 
 /* ─────────────────────────── helpers ─────────────────────────── */

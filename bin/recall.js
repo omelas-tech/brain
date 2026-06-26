@@ -26,6 +26,7 @@ const {
   bm25Search,
   rebuildIndex,
   createSearchIndex,
+  isSearchIndexStale,
 } = require('../src/tfidf');
 
 const {
@@ -154,17 +155,6 @@ function main() {
  * empty-index and add/remove/rename drift cases (in-place same-id body edits
  * are not detected by count alone — acceptable until a version/mtime check).
  */
-function isSearchIndexStale(searchIndex, index) {
-  if (!searchIndex || !searchIndex.documents) return true;
-  const memIds = Object.keys((index && index.memories) || {});
-  const docCount = searchIndex.doc_count != null
-    ? searchIndex.doc_count
-    : Object.keys(searchIndex.documents).length;
-  if (docCount !== memIds.length) return true;
-  for (const id of memIds) if (!(id in searchIndex.documents)) return true;
-  return false;
-}
-
 /**
  * Rebuild the search index from all memories.
  */

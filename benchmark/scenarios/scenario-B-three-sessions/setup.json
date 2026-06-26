@@ -2,16 +2,22 @@
   "name": "Scenario B — Three Sessions, One Decision",
   "pitch": "On Monday we picked Postgres. On Wednesday I rewrote the API. On Friday I add a new resource — does it still use Postgres?",
   "tests": "Multi-session continuity with a pinned architectural decision plus realistic distractor sessions. Directly ablates the Pinned Tier (CoALA Phase 1).",
-  "key_metrics": ["judge_pass_rate", "recall_at_5", "tokens_per_success"],
-
+  "key_metrics": [
+    "judge_pass_rate",
+    "recall_at_5",
+    "tokens_per_success"
+  ],
   "context": {
     "project": "ledger-svc",
-    "topics": ["database", "architecture"],
+    "topics": [
+      "database",
+      "architecture"
+    ],
     "task_type": "implementing"
   },
-
-  "oracle_memory_ids": ["mem_orcl_postgres_decision"],
-
+  "oracle_memory_ids": [
+    "mem_orcl_postgres_decision"
+  ],
   "memories": [
     {
       "id": "mem_orcl_postgres_decision",
@@ -23,13 +29,25 @@
       "path": "professional/decisions/ledger_db_001.md",
       "strength": 0.92,
       "decay_rate": 0.997,
-      "salience": 0.90,
+      "salience": 0.9,
       "confidence": 0.98,
-      "tags": ["database", "postgres", "ledger-svc", "architecture"],
+      "tags": [
+        "database",
+        "postgres",
+        "ledger-svc",
+        "architecture"
+      ],
       "access_count": 8,
       "last_accessed": "2026-03-18T10:00:00.000Z",
       "created": "2026-02-03T09:00:00.000Z",
-      "encoding_context": { "project": "ledger-svc", "topics": ["database", "architecture"], "task_type": "designing" },
+      "encoding_context": {
+        "project": "ledger-svc",
+        "topics": [
+          "database",
+          "architecture"
+        ],
+        "task_type": "designing"
+      },
       "pin": true,
       "pin_priority": 9
     },
@@ -44,12 +62,24 @@
       "strength": 0.65,
       "decay_rate": 0.985,
       "salience": 0.55,
-      "confidence": 0.80,
-      "tags": ["database", "mongo", "mongoose", "ledger-svc", "prototype"],
+      "confidence": 0.8,
+      "tags": [
+        "database",
+        "mongo",
+        "mongoose",
+        "ledger-svc",
+        "prototype"
+      ],
       "access_count": 3,
       "last_accessed": "2026-02-20T10:00:00.000Z",
       "created": "2026-02-07T09:00:00.000Z",
-      "encoding_context": { "project": "ledger-svc", "topics": ["database"], "task_type": "prototyping" }
+      "encoding_context": {
+        "project": "ledger-svc",
+        "topics": [
+          "database"
+        ],
+        "task_type": "prototyping"
+      }
     },
     {
       "id": "mem_session_api_rewrite",
@@ -62,34 +92,92 @@
       "strength": 0.75,
       "decay_rate": 0.997,
       "salience": 0.65,
-      "confidence": 0.90,
-      "tags": ["api", "grpc", "ledger-svc", "rewrite"],
+      "confidence": 0.9,
+      "tags": [
+        "api",
+        "grpc",
+        "ledger-svc",
+        "rewrite"
+      ],
       "access_count": 4,
       "last_accessed": "2026-03-05T10:00:00.000Z",
       "created": "2026-02-25T09:00:00.000Z",
-      "encoding_context": { "project": "ledger-svc", "topics": ["api", "grpc"], "task_type": "designing" }
+      "encoding_context": {
+        "project": "ledger-svc",
+        "topics": [
+          "api",
+          "grpc"
+        ],
+        "task_type": "designing"
+      }
     }
   ],
-
   "associations": [
-    { "idA": "mem_orcl_postgres_decision", "idB": "mem_session_mongo_prototype", "weight": 0.8, "origin": "co_retrieval" },
-    { "idA": "mem_orcl_postgres_decision", "idB": "mem_session_api_rewrite",   "weight": 0.5, "origin": "co_retrieval" }
+    {
+      "idA": "mem_orcl_postgres_decision",
+      "idB": "mem_session_mongo_prototype",
+      "weight": 0.8,
+      "origin": "co_retrieval"
+    },
+    {
+      "idA": "mem_orcl_postgres_decision",
+      "idB": "mem_session_api_rewrite",
+      "weight": 0.5,
+      "origin": "co_retrieval"
+    }
   ],
-
   "arms": [
-    { "name": "fixture-only",     "label": "Fixtures only",          "seed": "none",                 "memory_injection": "none" },
-    { "name": "brain-real",       "label": "Brain (production)",     "seed": "scenario+distractors", "distractor_size": 100, "memory_injection": "session-start", "pin": true,  "skills": true },
-    { "name": "brain-no-pin",     "label": "Brain w/ pinning OFF",   "seed": "scenario+distractors", "distractor_size": 100, "memory_injection": "session-start", "pin": false, "skills": true },
-    { "name": "brain-no-recall",  "label": "Dump oracle bodies",     "seed": "scenario",             "memory_injection": "dump-bodies" }
+    {
+      "name": "fixture-only",
+      "label": "Fixtures only",
+      "seed": "none",
+      "memory_injection": "none"
+    },
+    {
+      "name": "oracle-ceiling",
+      "label": "Inject exact oracle (ceiling)",
+      "seed": "scenario",
+      "memory_injection": "oracle"
+    },
+    {
+      "name": "keyword",
+      "label": "Lexical retriever (BM25)",
+      "seed": "scenario+distractors",
+      "distractor_size": 100,
+      "memory_injection": "keyword",
+      "recall_top": 5
+    },
+    {
+      "name": "brain-real",
+      "label": "Brain (production)",
+      "seed": "scenario+distractors",
+      "distractor_size": 100,
+      "memory_injection": "session-start",
+      "pin": true,
+      "skills": true
+    },
+    {
+      "name": "brain-no-pin",
+      "label": "Brain w/ pinning OFF",
+      "seed": "scenario+distractors",
+      "distractor_size": 100,
+      "memory_injection": "session-start",
+      "pin": false,
+      "skills": true
+    },
+    {
+      "name": "brain-no-recall",
+      "label": "Dump oracle bodies",
+      "seed": "scenario",
+      "memory_injection": "dump-bodies"
+    }
   ],
-
   "test": [
     {
       "label": "add-account-resource",
       "text": "Add a new 'accounts' resource to ledger-svc. We need a repository module that can list, get, and create accounts, plus a migration for the table. Match the project's existing storage conventions. Put the migration in db/migrations/ and the repository in db/."
     }
   ],
-
   "judge": {
     "family": null,
     "question": "Add an 'accounts' resource (repository + migration) to ledger-svc using the project's storage conventions.",

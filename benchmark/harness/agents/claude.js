@@ -77,10 +77,26 @@ function run(prompt, { cwd, timeout = 300000, env = {} }) {
 
       try {
         const raw = JSON.parse(stdout);
+        // Claude Code signals failures in-band: { is_error: true } or a
+        // subtype like "error_during_execution" / "error_max_turns". These
+        // carry NO usage (tokens=0) and an error string in `result`. Surfacing
+        // them as a THROW (instead of silently resolving with tokens=0) lets the
+        // retry/backoff path handle transient rate-limit/overload errors — and
+        // stops a 429 from being mis-scored as a genuine task FAIL.
+        const subtype = typeof raw.subtype === 'string' ? raw.subtype : '';
+        if (raw.is_error === true || subtype.startsWith('error')) {
+          const detail = String(raw.result || raw.error || subtype || 'unknown').slice(0, 400);
+          return reject(new Error(`Claude result error [${subtype || 'is_error'}]: ${detail}`));
+        }
         const tokens = extractTokens(raw);
         const output = extractOutput(raw);
         resolve({ output, raw, tokens, time_ms });
       } catch (parseErr) {
+        // Unparseable stdout — if the process also failed, treat as an error so
+        // it can be retried rather than judged as an empty (failing) candidate.
+        if (code !== 0 || !stdout.trim()) {
+          return reject(new Error(`Claude produced no parseable result (code ${code}): ${stderr.slice(0, 300) || stdout.slice(0, 300)}`));
+        }
         resolve({
           output: stdout.trim(),
           raw: { stdout, stderr },
@@ -102,15 +118,33 @@ function run(prompt, { cwd, timeout = 300000, env = {} }) {
 
 /**
  * Extract token usage from Claude's JSON output.
- * Claude format: { usage: { input_tokens, cache_creation_input_tokens, output_tokens } }
+ * Claude format: { usage: { input_tokens, cache_creation_input_tokens,
+ *                           cache_read_input_tokens, output_tokens } }
+ *
+ * `input` counts every prompt token the model PROCESSED, regardless of whether
+ * it was served fresh, written to cache, or read from cache:
+ *   input = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+ *
+ * Why count cache_read (the ~10%-billed re-reads) at full weight? Because it is
+ * the only CACHE-WARMTH-IMMUNE choice. The constant ~30K Claude Code system
+ * prompt is `cache_creation` on a cold run but `cache_read` on a warm one;
+ * excluding cache_read would make the metric depend on which arm warmed the
+ * cache first — i.e. arm ORDER would bias results. Counting all processed tokens
+ * identically makes the number reproducible and the cross-arm comparison fair.
+ * It is a "total tokens processed across the agentic loop" metric: more turns /
+ * larger context legitimately cost more (latency + 10% billing), which is
+ * exactly the inefficiency Brain aims to reduce. Reported `token_samples` feed
+ * the bootstrap-CI / Mann–Whitney analysis, so stability matters more than a
+ * smaller headline number.
  */
 function extractTokens(raw) {
   if (raw && raw.usage) {
+    const u = raw.usage;
     return {
-      input: (raw.usage.input_tokens || 0) +
-             (raw.usage.cache_creation_input_tokens || 0) +
-             (raw.usage.cache_read_input_tokens || 0),
-      output: raw.usage.output_tokens || 0,
+      input: (u.input_tokens || 0) +
+             (u.cache_creation_input_tokens || 0) +
+             (u.cache_read_input_tokens || 0),
+      output: u.output_tokens || 0,
     };
   }
   return { input: 0, output: 0 };

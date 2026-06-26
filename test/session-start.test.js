@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { getBrainDir, writeIndex, readConfig, writeConfig, DEFAULT_CONFIG } = require('../src/index-manager');
-const { createSearchIndex, addDocument, writeSearchIndex } = require('../src/tfidf');
+const { createSearchIndex, addDocument, writeSearchIndex, readSearchIndex } = require('../src/tfidf');
 const { computeSessionStart, estimateTokens, edgeOrder } = require('../bin/session-start');
 
 let tmpDir;
@@ -124,6 +124,28 @@ describe('computeSessionStart', () => {
     assert.ok(p.context_recall.length > 0);
     assert.ok(p.budget.used <= p.budget.cap, 'never exceeds working-memory cap');
     assert.ok(p.budget.used <= p.budget.recall_cap, 'recall stays within recall cap');
+  });
+
+  it('rebuilds a STALE search index (drift), not just an absent one', () => {
+    // index.json has two memories…
+    writeIndex(makeIndex({
+      mem_a: entry({ title: 'Database pooling', path: 'a.md' }),
+      mem_b: entry({ title: 'Terraform modules', path: 'b.md' }),
+    }), tmpDir);
+    // …but the persisted search index only knows about one (drifted, e.g. after
+    // a sync pull / consolidate that added mem_b outside addDocument's path).
+    const brainDir = getBrainDir(tmpDir);
+    const si = createSearchIndex();
+    addDocument(si, 'mem_a', { title: 'Database pooling', body: 'Database pooling', tags: [] });
+    writeSearchIndex(brainDir, si);
+
+    const p = computeSessionStart(tmpDir, { topics: 'terraform', top: 5 });
+
+    // Before the fix, session-start saw a present index and skipped the rebuild,
+    // so mem_b scored relevance 0. Now the drift is detected and rebuilt.
+    const rebuilt = readSearchIndex(brainDir);
+    assert.ok(rebuilt && rebuilt.documents.mem_b, 'mem_b must be in the rebuilt search index');
+    assert.equal(p.memory_count, 2);
   });
 
   it('enforces the recall token budget and reports overflow', () => {

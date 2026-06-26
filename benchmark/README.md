@@ -8,8 +8,8 @@ This is a redesign of the original benchmark (the legacy 5-scenario suite is arc
 
 - **6 scenarios**, each describable in one sentence (§"Scenario suite")
 - **N-arm matrix** per scenario — production brain vs. ablations (no-pin, no-skills, no-recall) vs. baselines (bare, fixture-only, context-dump upper bound)
-- **Cross-family LLM judge** with per-question rubric and position-swap (Claude judges Gemini and vice-versa — no preference leakage)
-- **Distractor haystacks** — 50-200 plausible-but-irrelevant memories per scenario, so retrieval is non-trivial
+- **Cross-family judge panel** with per-question rubric and majority vote — agent under test = **DeepSeek V4 Pro** (single-shot), judged by **Gemini + Gemma-4 + Qwen-3.5** (none sharing the agent's family, no preference leakage)
+- **Distractor haystacks** — 50-1000 plausible-but-irrelevant memories per scenario, so retrieval is non-trivial
 - **Tokens-per-successful-task** as the headline efficiency metric, alongside **Recall@k** and **judge pass rate**
 - **Write-side cost** (memorize + sleep + skill distillation) co-reported as a separate axis
 
@@ -22,7 +22,7 @@ This is a redesign of the original benchmark (the legacy 5-scenario suite is arc
 | Regex pattern matching for pass/fail | Gameable, ceiling/floor artifacts. | Cross-family LLM judge with explicit per-question rubric + position-swap. |
 | Headline metric: "+18% consistency, +33% success" with token overhead apologized for | Wrong framing. | Headline: **tokens-per-successful-task** + **Recall@k** + **judge pass rate**. |
 | Two arms: with/without brain | Couldn't attribute gains to specific features. | 4-6 arms per scenario including per-feature ablations. |
-| Codex CLI (no token reporting) | Can't compute tokens-per-success | Codex dropped; Claude + Gemini only. |
+| Codex CLI (no token reporting) | Can't compute tokens-per-success | Codex dropped. Agent under test = DeepSeek V4 Pro (single-shot); judged by a Gemini + Gemma-4 + Qwen-3.5 panel. |
 
 ## Scenario suite
 
@@ -75,8 +75,8 @@ Plus, where applicable: **per-task pass rate** (Scenario E), **forward-transfer 
 ### Prerequisites
 
 - Node.js ≥ 18
-- `claude` and/or `gemini` CLIs installed
-- `.env` file at `benchmark/.env` with `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` (the judge needs at least one of each family)
+- **Agent under test:** `DEEPSEEK_API_KEY` in `benchmark/.env` (DeepSeek V4 Pro, single-shot via `harness/agents/deepseek-direct.js`). The agent is set by `config.json` → `enabled_agents`.
+- **Judge panel:** `GOOGLE_API_KEY` (Gemini) plus a local [Ollama](https://ollama.com) running `gemma4:12b` and `qwen3.5:9b`. The panel is configured in `config.json` → `judges`; swap any member there. No judge may share the agent's family.
 - (optional) `MEM0_API_KEY` (+ an embeddings key) to enable the `mem0` hosted-vector-store arm; without it that arm records `NO_COMPLETION`. The `vector-baseline` arm needs no keys (local deterministic embeddings).
 
 ### Run
@@ -90,8 +90,8 @@ node harness/runner.js
 # Single scenario
 node harness/runner.js --scenario scenario-A
 
-# Single agent
-node harness/runner.js --agent claude
+# Single agent (override config.enabled_agents)
+node harness/runner.js --agent deepseek
 
 # Dry run — show plan only
 node harness/runner.js --dry-run
@@ -100,10 +100,10 @@ node harness/runner.js --dry-run
 node harness/runner.js --runs 5
 ```
 
-Cost guideline (3 runs of all 6 scenarios, both agents):
-- Agent calls: ~$5-8 (Claude Sonnet + Gemini Flash)
-- Judge calls: ~$1-2 (cross-family, ~70 judgments)
-- **Total: ~$6-10 per full run**
+Cost guideline (3 runs of all 5 active scenarios):
+- Agent calls: a few $ of DeepSeek V4 Pro (single-shot, ~85 calls)
+- Judge calls: ~free — two judges are local Ollama; only Gemini is metered (~255 judgments)
+- The local judges are the wall-clock bottleneck (~2 min/judgment), not the cost
 
 Scenario E is the most expensive (5 tasks × N runs × per-task memorize prompt); the other five are single-prompt.
 
@@ -113,9 +113,11 @@ The original 5 scenarios are still on disk under `scenarios/scenario-1-*` throug
 
 ## Methodology details
 
-### Cross-family LLM judge
+### Cross-family judge panel
 
-Defined in `harness/judge.js`. For every agent under test, the judge belongs to a different model family (Claude → judged by Gemini; Gemini → judged by Claude). Each judgment uses an explicit per-question rubric (binary criteria). Grading is **rubric-only by default** — the judge does NOT see the oracle answer at grade time (pass `includeOracle: true` to re-enable it), which stops the judge from keyword-matching the reference instead of reasoning about the rubric. The candidate output is graded up to 40K chars (not head-truncated to 12K, which used to hide proof of correctness). Pairwise judgments swap candidate positions and only keep verdicts that survive both orderings (mitigates position bias — arxiv 2509.20293). The oracle answer is reserved for **human validation** of the judge (Cohen's/Fleiss' κ on a sample), not for the judge itself.
+Defined in `harness/judge.js` and configured in `config.json` → `judges`. The agent is graded by a **panel of three judges, every one from a different family than the agent** (DeepSeek → Gemini + Gemma-4 + Qwen-3.5). A candidate **passes only on a majority vote**, and **each rubric criterion is decided by majority** across judges, so a single small-model judge's noise is averaged out (`judgePanel` stores every per-judge verdict + the agreement). A panel of disjoint-family judges beats a single large judge on human agreement with less intra-model bias ([PoLL, arxiv 2404.18796](https://arxiv.org/abs/2404.18796)); cross-family avoids preference leakage ([2502.01534](https://arxiv.org/abs/2502.01534)).
+
+Each judgment uses an explicit per-question rubric (binary criteria). Grading is **rubric-only by default** — the judge does NOT see the oracle answer at grade time (pass `includeOracle: true` to re-enable it), which stops the judge from keyword-matching the reference. The candidate is graded up to 40K chars (not head-truncated). Pairwise judgments swap candidate positions and only keep verdicts that survive both orderings (swap-consistency, [MT-Bench 2306.05685](https://arxiv.org/abs/2306.05685)). Local Ollama judges run with `think:false` (reasoning models otherwise spend the whole budget thinking and return empty JSON) and `format:'json'`; the two local models run sequentially to fit in memory.
 
 ### Distractor corpus
 

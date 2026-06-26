@@ -29,6 +29,7 @@ const {
   search,
   bm25Search,
   rebuildIndex,
+  isSearchIndexStale,
 } = require('../src/tfidf');
 
 const {
@@ -130,9 +131,13 @@ function computeSessionStart(projectRoot, args = {}) {
   const memoryCount = Object.keys(index.memories).length;
 
   // --- Context recall (deterministic, reuses the recall engine) ---
+  // Rebuild when ABSENT *or* STALE — session-start is the first thing a session
+  // runs (e.g. right after a `sync pull`), so it is the most likely path to hit
+  // a search index that has drifted out of sync with index.json. A present-but-
+  // stale index silently zeroes every relevance score (matches recall.js).
   let searchIndex = null;
   try { searchIndex = readSearchIndex(brainDir); } catch (_) { searchIndex = null; }
-  if (!searchIndex) {
+  if (isSearchIndexStale(searchIndex, index)) {
     searchIndex = rebuildIndex(brainDir, index);
     writeSearchIndex(brainDir, searchIndex);
   }

@@ -89,7 +89,7 @@
     { "name": "keyword",                "label": "Lexical retriever",              "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "keyword",       "recall_top": 5 },
     { "name": "vector-baseline",        "label": "Vector store (local embed)",     "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "vector",        "recall_top": 5 },
     { "name": "context-dump-bounded",   "label": "Dump <=8k tokens (fair)",        "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents", "dump_budget_tokens": 8000 },
-    { "name": "context-dump-unbounded", "label": "Dump everything (scaling wall)", "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents" },
+    { "name": "context-dump-large", "label": "Dump ~60k tokens (scaling wall)", "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents", "dump_budget_tokens": 60000 },
     { "name": "brain-full",             "label": "Brain (production)",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": true,  "skills": true },
     { "name": "brain-no-recall",        "label": "Brain, recall off",              "seed": "scenario",             "memory_injection": "dump-bodies" },
     { "name": "brain-no-pin",           "label": "Brain, pinning off",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": false, "skills": true }

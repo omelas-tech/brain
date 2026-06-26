@@ -8,8 +8,19 @@
 
 const { execFile } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 const BRAIN_BIN = path.join(__dirname, '..', '..', 'bin', 'brain.js');
+
+/** Read a memory file's body (everything after the YAML frontmatter). */
+function readMemoryBody(homeDir, relPath) {
+  if (!relPath) return '';
+  try {
+    const raw = fs.readFileSync(path.join(homeDir, '.brain', relPath), 'utf-8');
+    const fmEnd = raw.indexOf('---', raw.indexOf('---') + 3);
+    return (fmEnd !== -1 ? raw.slice(fmEnd + 3) : raw).trim();
+  } catch { return ''; }
+}
 
 /**
  * Run `brain recall <query>` in the given isolated HOME and return parsed JSON.
@@ -65,8 +76,19 @@ function sessionStart({ homeDir, project, topics, task, top }) {
       maxBuffer: 8 * 1024 * 1024,
     }, (err, stdout, stderr) => {
       if (err) return reject(new Error(`brain session-start failed: ${stderr || err.message}`));
-      try { resolve(JSON.parse(stdout)); }
-      catch (e) { reject(new Error(`session-start JSON parse: ${e.message} — ${stdout.slice(0, 200)}`)); }
+      try {
+        const payload = JSON.parse(stdout);
+        // Production session-start returns context_recall as a budget-bounded
+        // INDEX (title/score, no body) because a live agent recalls full content
+        // on demand. A single-shot benchmark agent can't — and the retriever
+        // baseline arms inject full bodies — so to keep the arms apples-to-apples
+        // we enrich the recalled set with the same content the agent would get if
+        // it followed the recall. (pinned already carries `content`.)
+        for (const m of payload.context_recall || []) {
+          if (!m.content) m.content = readMemoryBody(homeDir, m.path);
+        }
+        resolve(payload);
+      } catch (e) { reject(new Error(`session-start JSON parse: ${e.message} — ${stdout.slice(0, 200)}`)); }
     });
   });
 }
@@ -121,7 +143,7 @@ function formatSessionStartForPrompt(payload) {
   if (payload.pinned && payload.pinned.length > 0) {
     lines.push('Always-on conventions (pinned):');
     for (const p of payload.pinned) {
-      lines.push(`  • ${p.title || p.id}: ${p.body || ''}`.trim());
+      lines.push(`  • ${p.title || p.id}: ${p.content || p.body || ''}`.trim());
     }
     lines.push('');
   }
@@ -138,7 +160,9 @@ function formatSessionStartForPrompt(payload) {
     lines.push('Relevant memories for this project:');
     for (const m of payload.context_recall) {
       const verb = TYPE_VERBS[m.type] || 'You noted';
-      lines.push(`  • ${verb}: ${m.body || m.title || m.id}`);
+      const detail = m.content || m.body || '';
+      const head = m.title || m.id;
+      lines.push(detail ? `  • ${verb} — ${head}: ${detail}` : `  • ${verb}: ${head}`);
     }
     lines.push('');
   }

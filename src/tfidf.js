@@ -453,6 +453,29 @@ function rebuildIndex(brainDir, index) {
   return searchIndex;
 }
 
+/**
+ * Is the persisted search index out of sync with index.json?
+ *
+ * The search index drifts whenever memories change outside memorize's
+ * addDocument path (forget, sleep/consolidate, sync pull, manual edit) — and a
+ * present-but-empty index silently makes every relevance score 0. Both `recall`
+ * and `session-start` must rebuild when the doc SET (not mere presence) drifts.
+ *
+ * @param {Object|null} searchIndex - parsed search-index.json (or null if absent)
+ * @param {Object} index - parsed index.json
+ * @returns {boolean} true when a rebuild is required
+ */
+function isSearchIndexStale(searchIndex, index) {
+  if (!searchIndex || !searchIndex.documents) return true;
+  const memIds = Object.keys((index && index.memories) || {});
+  const docCount = searchIndex.doc_count != null
+    ? searchIndex.doc_count
+    : Object.keys(searchIndex.documents).length;
+  if (docCount !== memIds.length) return true;
+  for (const id of memIds) if (!(id in searchIndex.documents)) return true;
+  return false;
+}
+
 module.exports = {
   // Core primitives
   tokenize,
@@ -471,6 +494,7 @@ module.exports = {
   search,
   bm25Search,
   rebuildIndex,
+  isSearchIndexStale,
   // Constants
   SEARCH_INDEX_FILE,
   STOPWORDS,

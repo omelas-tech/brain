@@ -26,7 +26,7 @@ Four headline axes, every scenario, every run:
 
 | Metric | What it answers |
 |---|---|
-| **Task pass rate** | Did the produced code satisfy the rubric? Cross-family LLM judge (Claude judges Gemini, Gemini judges Claude) — no preference leakage. |
+| **Task pass rate** | Did the produced code satisfy the rubric? Graded by a cross-family judge **panel** (Gemini + Gemma-4 + Qwen-3.5, majority vote), none sharing the agent's family — no preference leakage. |
 | **Tokens per successful task** | `(input + output tokens) / passes`. The honest efficiency measure — Mem0/BEAM standard. |
 | **Recall@k** | For arms that use the real `brain` CLI, did the right memory IDs surface in the top-k against the scenario's oracle set? |
 | **Judge rationale** | Captured verbatim per run for spot-checks. |

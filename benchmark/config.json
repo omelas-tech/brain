@@ -6,7 +6,13 @@
     "_comment": "Bumped from 300s/900s after DeepSeek V4 Pro hit timeouts on larger prompts. Older agents still finish well within."
   },
   "runs_per_scenario": 3,
-  "enabled_agents": ["claude", "gemini", "opencode"],
+  "enabled_agents": ["deepseek"],
+  "judges": [
+    { "id": "gemini", "provider": "gemini" },
+    { "id": "gemma4", "provider": "ollama", "model": "gemma4:12b" },
+    { "id": "qwen_35", "provider": "ollama", "model": "qwen3.5:9b" }
+  ],
+  "_judges_comment": "Cross-family LLM-judge panel. Agent under test = DeepSeek V4 Pro (single-shot), so deepseek is EXCLUDED from the panel to avoid self-preference leakage (arXiv 2502.01534). Judges = gemini + gemma4 + qwen3.5, none of them the deepseek family. A candidate passes only on majority vote; each rubric criterion is majority-voted across judges. (gemma4 and gemini share Google lineage — a minor judge-correlation caveat, but neither is the agent's family, which is what matters for agent objectivity.)",
   "cloud": {
     "description": "Uses each agent's default cloud API (Anthropic, Google)",
     "agents": {
@@ -29,9 +35,10 @@
     "scenario-B-three-sessions",
     "scenario-C-contradiction",
     "scenario-D-skills",
-    "scenario-E-continual",
     "scenario-F-abstention"
   ],
+  "deferred_scenarios": ["scenario-E-continual"],
+  "_deferred_comment": "Scenario E (continual coding, write-side memorize) is exercised separately — it is fragile and even SWE-Bench-CL reports continual-coding memory as empirically inconclusive. Run with: node harness/runner.js --scenario scenario-E-continual --agent claude.",
   "legacy_scenarios": [
     "scenario-1-continuity",
     "scenario-2-consistency",
