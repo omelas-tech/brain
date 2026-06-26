@@ -33,6 +33,7 @@ benchmark/results/cand-meta.json
 benchmark/results/pending-judgments.jsonl
 benchmark/results/xmodel-*.jsonl
 benchmark/results/*_stats.md
+benchmark/results/jc*
 
 # Cloudflare Wrangler cache
 .wrangler/
