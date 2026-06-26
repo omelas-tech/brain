@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.28] - 2026-06-26
+
+### Fixed
+
+- **Recall relevance after out-of-band memory changes.** `session-start` now
+  rebuilds its search index when it has drifted out of sync with `index.json`
+  (after a `sync pull`, `sleep`/consolidate, `forget`, or a manual edit), not
+  only when the index is missing — matching `recall`'s behavior. A stale index
+  silently scored every memory's relevance as 0, so newly-synced or changed
+  memories were surfaced by strength/context only, never by relevance.
+
 ## [0.1.0-beta.27] - 2026-06-10
 
 ### Security
