@@ -36,6 +36,22 @@ const {
 } = require('../src/index-manager');
 const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
 
+// Best-effort detection of the host AI agent, recorded on each memory's
+// encoding_context for "where your brain is used" analytics. An explicit
+// BRAIN_AGENT env var always wins (a per-agent install can set it); otherwise we
+// sniff known markers. Unrecognized hosts record "unknown" (the cloud tolerates
+// it). The non-Claude markers are best-effort.
+function detectAgent() {
+  const e = process.env;
+  if (e.BRAIN_AGENT) return e.BRAIN_AGENT;
+  if (e.CLAUDECODE || e.CLAUDE_CODE_ENTRYPOINT) return 'claude-code';
+  if (e.GEMINI_CLI || e.GEMINI_CLI_VERSION) return 'gemini-cli';
+  if (e.CODEX_HOME || e.CODEX_SANDBOX) return 'codex';
+  if (e.OPENCODE || e.OPENCODE_BIN) return 'opencode';
+  return 'unknown';
+}
+const HOST_AGENT = detectAgent();
+
 // --- Type defaults ---
 
 const TYPE_DEFAULTS = {
@@ -119,6 +135,7 @@ function buildMemoryFileContent(mem, id, now) {
     `  project: "${(mem.encoding_context && mem.encoding_context.project) || ''}"`,
     `  topics: [${((mem.encoding_context && mem.encoding_context.topics) || []).map(t => `"${t}"`).join(', ')}]`,
     `  task_type: "${(mem.encoding_context && mem.encoding_context.task_type) || ''}"`,
+    `  agent: "${HOST_AGENT}"`,
     '---',
     '',
   );
@@ -142,7 +159,7 @@ function buildIndexEntry(mem, id, strength, decayRate, now) {
     confidence: mem.confidence ?? 0.7,
     tags: mem.tags || [],
     related: mem.related || [],
-    encoding_context: mem.encoding_context || {},
+    encoding_context: { ...(mem.encoding_context || {}), agent: HOST_AGENT },
     // CoALA Phase 0: cheap chars/4 token estimate for working-memory budgeting.
     token_estimate: Math.ceil((mem.content || '').length / 4),
   };
