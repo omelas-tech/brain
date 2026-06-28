@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, JetBrains_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import JsonLd from "./components/JsonLd";
+import PrivacyNotice from "./components/PrivacyNotice";
 import { SITE_URL } from "@/lib/docs";
 
 const spaceGrotesk = Space_Grotesk({
@@ -156,6 +157,7 @@ export default function RootLayout({
       <body className="min-h-dvh bg-[var(--bg)] text-[var(--text-primary)] antialiased">
         <JsonLd data={structuredData} />
         {children}
+        <PrivacyNotice />
       </body>
     </html>
   );

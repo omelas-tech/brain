@@ -43,10 +43,17 @@ export default function TermsPage() {
               <strong className="text-[var(--text-primary)]">Brain Cloud</strong> sync service, and
               the <strong className="text-[var(--text-primary)]">Claude connector</strong>{" "}
               (collectively, the &ldquo;Service&rdquo;), operated by{" "}
-              <strong className="text-[var(--text-primary)]">Omelas</strong>, a sole proprietorship
-              (eenmanszaak) registered in the Netherlands (KvK 98455303, VAT NL005331814B35)
-              (&ldquo;we&rdquo;, &ldquo;us&rdquo;). By installing, accessing, or using the Service you
-              agree to these Terms. If you do not agree, do not use the Service.
+              <strong className="text-[var(--text-primary)]">Omelas</strong> (
+              <a
+                href="https://omelas.tech"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                omelas.tech
+              </a>
+              ), a sole proprietorship (eenmanszaak) registered in the Netherlands
+              (KvK&nbsp;98455303, VAT&nbsp;NL005331814B35) (&ldquo;we&rdquo;, &ldquo;us&rdquo;). By
+              installing, accessing, or using the Service you agree to these Terms. If you do not
+              agree, do not use the Service.
             </p>
           </section>
 
@@ -155,6 +162,20 @@ export default function TermsPage() {
                 applicable taxes.
               </li>
             </ul>
+            <p className="mt-3">
+              <strong className="text-[var(--text-primary)]">VAT.</strong> Unless marked otherwise,
+              prices are stated exclusive of VAT; we add VAT at the rate applicable to your country
+              where required (EU One-Stop-Shop).
+            </p>
+            <p className="mt-3">
+              <strong className="text-[var(--text-primary)]">Right of withdrawal (EU/EEA consumers).</strong>{" "}
+              You normally have 14 days to withdraw from a purchase of digital services. Because Brain
+              Cloud is supplied to you immediately, by subscribing and requesting immediate access you
+              expressly consent to immediate performance and acknowledge that you{" "}
+              <strong className="text-[var(--text-primary)]">lose your 14-day right of withdrawal</strong>{" "}
+              once the service has been fully performed. This does not affect your other mandatory
+              statutory consumer rights.
+            </p>
           </section>
 
           <section>
@@ -248,6 +269,29 @@ export default function TermsPage() {
               </a>
               .
             </p>
+            <p className="mt-3">
+              <strong className="text-[var(--text-primary)]">Operator &amp; legal information:</strong>{" "}
+              Omelas (
+              <a
+                href="https://omelas.tech"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                omelas.tech
+              </a>
+              ), a sole proprietorship (eenmanszaak) established in the Netherlands · KvK&nbsp;98455303
+              · VAT&nbsp;NL005331814B35 ·{" "}
+              <a
+                href="mailto:support@omelas.tech"
+                className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"
+              >
+                support@omelas.tech
+              </a>
+              .
+            </p>
+            {/* TODO before launch (NL/EU e-Commerce — art. 3:15d BW / e-Commerce Directive art. 5):
+                add the registered business/establishment address above. A real postal address must
+                be easily, directly, and permanently accessible. Decide whether to name the natural
+                person behind the eenmanszaak (see counsel). */}
           </section>
         </div>
       </main>
