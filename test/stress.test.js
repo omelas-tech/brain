@@ -287,8 +287,31 @@ describe('Stress Tests — Data Generation', () => {
   });
 });
 
-// CI runners have variable performance; use generous thresholds
-const PERF_MULTIPLIER = process.env.CI ? 5 : 1;
+// Wall-clock perf budgets are inherently noisy: a busy laptop (background
+// builds, thermal throttling, GC pauses) can blow a tight budget even when the
+// code is fine. CI runners are slower but more controlled, so we hard-gate
+// there with generous slack. Locally — where `prerelease` also runs `npm test`
+// — we measure and log but DON'T fail on the wall clock, so timing jitter can't
+// flake the suite. Correctness assertions below run unconditionally either way.
+const ON_CI = !!process.env.CI;
+const PERF_MULTIPLIER = ON_CI ? 5 : 10;
+
+/**
+ * Assert a wall-clock performance budget without flaking locally.
+ * On CI: a hard gate at `limitMs * PERF_MULTIPLIER`.
+ * Locally: logs a warning when the (very generous) budget is exceeded, but
+ * never fails — local timing is too noisy to gate a release-blocking suite on.
+ */
+function assertPerf(elapsed, limitMs, label) {
+  const budget = limitMs * PERF_MULTIPLIER;
+  if (elapsed < budget) return;
+  const msg = `${label} took ${elapsed.toFixed(2)}ms, expected <${budget}ms`;
+  if (ON_CI) {
+    assert.ok(false, msg);
+  } else {
+    console.warn(`    ⚠ perf budget exceeded (not gated locally): ${msg}`);
+  }
+}
 
 describe('Stress Tests — Performance Benchmarks', () => {
   it('rankMemories with 500 memories + associations + context completes in <500ms', () => {
@@ -300,7 +323,7 @@ describe('Stress Tests — Performance Benchmarks', () => {
     const elapsed = performance.now() - start;
 
     console.log(`    rankMemories: ${elapsed.toFixed(2)}ms for ${memories.length} memories (${edgeCount} edges)`);
-    assert.ok(elapsed < 500 * PERF_MULTIPLIER, `rankMemories took ${elapsed.toFixed(2)}ms, expected <${500 * PERF_MULTIPLIER}ms`);
+    assertPerf(elapsed, 500, 'rankMemories');
     assert.equal(ranked.length, MEMORY_COUNT);
   });
 
@@ -314,7 +337,7 @@ describe('Stress Tests — Performance Benchmarks', () => {
     const elapsed = performance.now() - start;
 
     console.log(`    discoverViaActivation: ${elapsed.toFixed(2)}ms, found ${discovered.length} candidates`);
-    assert.ok(elapsed < 200 * PERF_MULTIPLIER, `discoverViaActivation took ${elapsed.toFixed(2)}ms, expected <${200 * PERF_MULTIPLIER}ms`);
+    assertPerf(elapsed, 200, 'discoverViaActivation');
   });
 
   it('decayAssociations on full graph completes in <100ms', () => {
@@ -326,7 +349,7 @@ describe('Stress Tests — Performance Benchmarks', () => {
     const elapsed = performance.now() - start;
 
     console.log(`    decayAssociations: ${elapsed.toFixed(2)}ms`);
-    assert.ok(elapsed < 100 * PERF_MULTIPLIER, `decayAssociations took ${elapsed.toFixed(2)}ms, expected <${100 * PERF_MULTIPLIER}ms`);
+    assertPerf(elapsed, 100, 'decayAssociations');
   });
 
   it('index CRUD: add 500, update 100, remove 50 completes in <50ms', () => {
@@ -354,7 +377,7 @@ describe('Stress Tests — Performance Benchmarks', () => {
     const elapsed = performance.now() - start;
 
     console.log(`    index CRUD (add 500 + update 100 + remove 50): ${elapsed.toFixed(2)}ms`);
-    assert.ok(elapsed < 50 * PERF_MULTIPLIER, `Index CRUD took ${elapsed.toFixed(2)}ms, expected <${50 * PERF_MULTIPLIER}ms`);
+    assertPerf(elapsed, 50, 'index CRUD');
     assert.equal(index.memory_count, 450); // 500 - 50 removed
     // Verify updates applied
     assert.equal(index.memories[idsToUpdate[0]].strength, 0.99);
@@ -380,7 +403,7 @@ describe('Stress Tests — Performance Benchmarks', () => {
     const elapsed = performance.now() - start;
 
     console.log(`    computeSpreadingActivation (10 memories): ${elapsed.toFixed(2)}ms`);
-    assert.ok(elapsed < 200 * PERF_MULTIPLIER, `computeSpreadingActivation took ${elapsed.toFixed(2)}ms, expected <${200 * PERF_MULTIPLIER}ms`);
+    assertPerf(elapsed, 200, 'computeSpreadingActivation');
     // All bonuses should be in [0, 1]
     for (const r of results) {
       assert.ok(r.bonus >= 0 && r.bonus <= 1.0, `Bonus out of range for ${r.id}: ${r.bonus}`);

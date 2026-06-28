@@ -25,9 +25,11 @@ const {
   readAssociations, writeAssociations, removeEdgesForMemory,
   readReviewQueue, writeReviewQueue, removeFromReviewQueue,
   readArchiveIndex, writeArchiveIndex,
-  readSearchIndex, writeSearchIndex,
 } = require('../src/index-manager');
-const { removeDocument } = require('../src/tfidf');
+// Search-index helpers take (brainDir) — the same signature memorize/recall use.
+// (index-manager exports same-named helpers with a (projectRoot) signature that
+// re-appends `.brain`, which would silently no-op the search-index update here.)
+const { removeDocument, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
 
 function main(argv) {
   const args = argv || process.argv.slice(2);
