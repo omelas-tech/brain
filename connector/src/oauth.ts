@@ -88,8 +88,12 @@ export function resolveBrainUserId(firebaseUid: string): string {
 
 // STUB:STORE — real flow ensures this dir is populated from the user's canonical
 // store (brain-cloud bundle, or BYOS git/Drive). Base is configurable for tests.
+// Default to an EPHEMERAL OS-temp base so plaintext working copies never land in a
+// persistent home dir on dev / non-systemd hosts; prod overrides this to a RAM
+// tmpfs (CONNECTOR_BRAIN_BASE=/run/brain-connector). Either way, copies are reaped
+// when idle / on session end (see store.purgeBrain + the reaper in server.ts).
 export function resolveBrainDir(userId: string): string {
-  const base = process.env.CONNECTOR_BRAIN_BASE || path.join(os.homedir(), ".brain-connector", "users");
+  const base = process.env.CONNECTOR_BRAIN_BASE || path.join(os.tmpdir(), "brain-connector", "users");
   return path.join(base, userId, ".brain");
 }
 

@@ -18,7 +18,7 @@ export interface Session {
 }
 
 const tokens = new Map<string, Session>();
-const TOKEN_TTL_MS = 3600_000;
+export const TOKEN_TTL_MS = 3600_000;
 
 /** Mint an access token bound to a user, their brain dir, and an audience. */
 export function issueToken(
@@ -40,9 +40,30 @@ export function issueToken(
   return token;
 }
 
-/** Drop expired tokens (they were otherwise only checked lazily on use). */
-export function sweepExpiredTokens(now = Date.now()): void {
-  for (const [k, v] of tokens) if (v.exp < now) tokens.delete(k);
+/**
+ * Drop expired tokens (otherwise only checked lazily on use) and report the brain
+ * working copies whose session has fully ended — i.e. dirs an expired token pointed
+ * at that NO surviving live token still references (a user may hold several tokens
+ * or have reconnected mid-session). The caller purges those plaintext copies from
+ * the host (see server.ts), bounding "session end" exposure.
+ */
+export function sweepExpiredTokens(now = Date.now()): string[] {
+  const candidates = new Set<string>();
+  for (const [k, v] of tokens) {
+    if (v.exp < now) {
+      candidates.add(v.brainDir);
+      tokens.delete(k);
+    }
+  }
+  const orphaned: string[] = [];
+  for (const dir of candidates) {
+    let stillLive = false;
+    for (const v of tokens.values()) {
+      if (v.brainDir === dir && v.exp >= now) { stillLive = true; break; }
+    }
+    if (!stillLive) orphaned.push(dir);
+  }
+  return orphaned;
 }
 
 /** Resolve a Bearer token to a live session, or null. */

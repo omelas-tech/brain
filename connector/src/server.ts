@@ -22,7 +22,7 @@ import {
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
 import { isFirebaseConfigured } from "./firebase.js";
-import { ensureUserBrain, syncBack } from "./store.js";
+import { ensureUserBrain, syncBack, purgeBrain, startBrainReaper } from "./store.js";
 import { memorize, pin, unpin, forget } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
 
@@ -281,7 +281,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT) || 8788;
   // Garbage-collect expired auth codes / pending logins / tokens (they are only
   // pruned lazily on use otherwise). Unref'd so it never holds the process open.
-  setInterval(() => { sweepExpired(); sweepExpiredTokens(); }, 60_000).unref();
+  // Session end: when a user's last token expires, purge their plaintext working
+  // copy from the host so it doesn't linger after they disconnect.
+  setInterval(() => {
+    sweepExpired();
+    for (const dir of sweepExpiredTokens()) purgeBrain(dir);
+  }, 60_000).unref();
+
+  // Idle reaper: even on the prod RAM tmpfs, a live-host compromise can read every
+  // working copy still present, so we bound that to CONNECTOR_IDLE_PURGE_MS of
+  // inactivity (default 15m; 0 disables). A returning user is re-pulled
+  // transparently by ensureUserBrain, so a purge only costs a re-pull.
+  const idlePurgeMs = Number(process.env.CONNECTOR_IDLE_PURGE_MS ?? 900_000);
+  const purgeSweepMs = Number(process.env.CONNECTOR_PURGE_SWEEP_MS ?? 60_000);
+  if (startBrainReaper({ idleMs: idlePurgeMs, intervalMs: purgeSweepMs })) {
+    console.log(`  reaper: purging idle brain working copies after ${Math.round(idlePurgeMs / 1000)}s of inactivity`);
+  }
   // Bind to loopback only: the connector is reached via the local reverse proxy,
   // never directly from the network (defense in depth alongside the host firewall).
   const host = process.env.CONNECTOR_BIND_HOST || "127.0.0.1";

@@ -48,6 +48,98 @@ function markSynced(brainDir: string, checksum: string | null, now = Date.now())
   pullState.set(brainDir, { at: now, checksum, dirty: false });
 }
 
+// ---- Working-copy lifecycle / idle purge ---------------------------------
+//
+// A hosted connector keeps each connected user's brain as a PLAINTEXT working copy
+// on the host (re-pulled from brain-cloud). Left forever, a live-host compromise
+// would expose the cleartext memories of every user who ever connected. We bound
+// that exposure: track per-brainDir activity and reap copies that have been idle
+// past a TTL (and on session end — see auth.sweepExpiredTokens + server.ts). A
+// returning user is re-provisioned transparently by ensureUserBrain (a missing
+// brain forces a fresh pull), so purging is safe — it only costs a re-pull.
+const lastActivity = new Map<string, number>();
+
+/** Record that a brain working copy was just used (recall/write/login). */
+export function recordBrainActivity(brainDir: string, now = Date.now()): void {
+  lastActivity.set(brainDir, now);
+}
+
+/** Drop all in-memory state we hold for a brainDir (freshness + activity). */
+function clearBrainState(brainDir: string): void {
+  pullState.delete(brainDir);
+  lastActivity.delete(brainDir);
+}
+
+/**
+ * Remove a user's plaintext working copy from the host and forget our state for it.
+ * Symlink-safe: the `local` dev provider symlinks brainDir → the user's real
+ * ~/.brain, so we unlink the LINK only and never touch its target. Best-effort:
+ * never throws (a background reaper must not crash the server), but logs an
+ * unexpected failure since a copy that won't delete is a security concern.
+ */
+export function purgeBrain(brainDir: string): boolean {
+  let removed = false;
+  try {
+    const st = fs.lstatSync(brainDir);
+    if (st.isSymbolicLink()) fs.unlinkSync(brainDir); // remove the dev link, not its target
+    else fs.rmSync(brainDir, { recursive: true, force: true });
+    removed = true;
+  } catch (e: any) {
+    if (e?.code !== "ENOENT") {
+      console.error(`[connector] failed to purge working copy ${brainDir}: ${e?.message ?? e}`);
+    }
+  }
+  clearBrainState(brainDir);
+  // Drop the now-empty per-user parent (<base>/<userId>); harmless if non-empty/gone.
+  try { fs.rmdirSync(path.dirname(brainDir)); } catch { /* non-empty or already gone */ }
+  return removed;
+}
+
+/**
+ * Purge every working copy idle longer than `idleMs`. `keepAlive(brainDir)` may
+ * veto a purge (e.g. a still-live session). Returns the dirs actually removed.
+ */
+export function purgeIdleBrains(opts: {
+  idleMs: number;
+  now?: number;
+  keepAlive?: (brainDir: string) => boolean;
+}): string[] {
+  const now = opts.now ?? Date.now();
+  const purged: string[] = [];
+  // Snapshot first — purgeBrain mutates lastActivity as we go.
+  for (const [brainDir, at] of [...lastActivity]) {
+    if (now - at < opts.idleMs) continue;
+    if (opts.keepAlive?.(brainDir)) continue;
+    if (purgeBrain(brainDir)) purged.push(brainDir);
+  }
+  return purged;
+}
+
+/**
+ * Start the background idle reaper. Returns the timer (unref'd, so it never holds
+ * the process open) or null when disabled (idleMs <= 0).
+ */
+export function startBrainReaper(opts: {
+  idleMs: number;
+  intervalMs?: number;
+  keepAlive?: (brainDir: string) => boolean;
+}): ReturnType<typeof setInterval> | null {
+  if (!opts.idleMs || opts.idleMs <= 0) return null;
+  const intervalMs = opts.intervalMs && opts.intervalMs > 0 ? opts.intervalMs : 60_000;
+  const timer = setInterval(() => {
+    try {
+      const purged = purgeIdleBrains({ idleMs: opts.idleMs, keepAlive: opts.keepAlive });
+      if (purged.length) {
+        console.log(`[connector] reaped ${purged.length} idle brain working ${purged.length === 1 ? "copy" : "copies"}`);
+      }
+    } catch (e) {
+      console.error("[connector] brain reaper error:", (e as Error).message);
+    }
+  }, intervalMs);
+  timer.unref();
+  return timer;
+}
+
 // One brain ↔ one Google account. The connector serves the brain of whichever
 // Firebase (Google) identity signs in, so a hygiene signal tells the user when the
 // signed-in account doesn't map to the brain they expect:
@@ -118,6 +210,7 @@ function provider(opts: EnsureOpts): "brain-cloud" | "local" | "none" {
 
 export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: string; memoryCount: number; brainId?: string; identity?: IdentityInfo }> {
   const { brainDir } = opts;
+  recordBrainActivity(brainDir); // touch so the idle reaper keeps an in-use copy
   const kind = provider(opts);
   const hasBrain = () => fs.existsSync(path.join(brainDir, "index.json"));
   let source: string = kind;
@@ -165,6 +258,7 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
  * write already persisted in those cases.
  */
 export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string }> {
+  recordBrainActivity(opts.brainDir); // a write is activity — keep the copy alive
   if (!opts.brainId || !opts.idToken) return { pushed: false };
   // Pack into a private random temp dir (not a predictable /tmp name — defeats a
   // pre-planted-symlink swap on a shared host).
