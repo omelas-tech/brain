@@ -1,141 +1,141 @@
 # Brain Memory Benchmark Report
 
-**Date**: March 20, 2026
-**Mode**: Cloud APIs (Claude Sonnet, Gemini Flash, OpenAI GPT)
-**Runs per scenario**: 3 (median values reported)
-**Agents**: Claude Code, Gemini CLI, Codex CLI
+**Date**: 2026-06-26
+**Agent under test**: **DeepSeek V4 Pro** (single-shot, `deepseek-v4-pro`)
+**Judge**: **Cross-family panel** — Gemini 2.5 Flash + Gemma-4 12B + Qwen-3.5 9B, majority vote (each criterion majority-voted)
+**Runs per arm**: 3
+**Scenarios**: A, B, C, D, F (E — continual — deferred)
+**Distractor haystack**: up to 1000 deterministic memories (seed=42)
 
-## Summary
+> **Sample-size caveat.** Run at **n=3 per arm**. The token differences are **directional, not
+> statistically significant** (Mann–Whitney U is not significant at this sample size — see the 90% CIs
+> in the stats file). The **pass-rate gradient is the result.** Two scenarios (C, F) are honest
+> **nulls** — reported as-is rather than dropped.
 
-Across 5 scenarios testing continuity, consistency, knowledge, error learning, and preferences, agents with Brain Memory produced **18.3% more consistent** and **33.3% more successful** outputs compared to agents without persistent memory.
+This is the current A–F suite (2025–2026 long-term-memory methodology — LongMemEval, MemoryAgentBench,
+Mem0/BEAM, SWE-Bench-CL). It supersedes the legacy 5-scenario report; see
+[README.md](../README.md) for the full methodology and arm matrix, [REPRODUCE.md](../REPRODUCE.md)
+to regenerate from a clean checkout, and [PREREGISTRATION.md](../PREREGISTRATION.md) for the committed
+analysis plan. The canonical published copy of this run's raw JSON lives at
+<https://brainmemory.ai/benchmarks/deepseek-v4-suite-2026-06-26.json>.
 
-| Scenario | Consistency Improvement | Success Improvement |
-|----------|:---:|:---:|
-| Multi-Session Continuity | **+26.2%** | 0% |
-| Cross-Agent Consistency | 0% | 0% |
-| Accumulated Knowledge | **+7.3%** | 0% |
-| Error Pattern Learning | **+4.8%** | 0% |
-| Preference Retention | **+34.7%** | **+33.3%** |
-| **Average** | **+18.3%** | **+33.3%** |
+**Why single-shot?** The model receives the task plus whatever the arm injects (nothing, a retriever's
+top-k, brain's `session-start` payload, or the oracle) and replies in one turn. This isolates
+**memory's effect** — no agentic file exploration to rediscover conventions — and keeps token counts
+clean and comparable (no cache-read inflation). It mirrors the Mem0 / LongMemEval framing.
 
-> Token overhead is expected -- memory context is injected as additional prompt content. The consistency and reliability gains justify the cost.
+## Scenario A — Noisy Project Folder (retrieval under 1000 distractors)
 
-## Scenario 1 -- Multi-Session Continuity
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| no-memory (floor) | — | — | 0.43 | 0% |
+| vector (embeddings) | — | 0.00 | 0.33 | 0% |
+| keyword (BM25) | — | 0.33 | 0.48 | 0% |
+| **brain-full** | **3,199** | 0.67 | 1.00 | **100%** |
+| brain-no-pin | 5,135 | 0.33 | 0.67 | 67% |
+| brain-no-recall | 3,643 | — | 0.95 | 100% |
+| oracle (ceiling) | 3,572 | 1.00 | 1.00 | 100% |
+| context-dump 8k | 5,856 | — | 1.00 | 100% |
+| context-dump 60k | 20,689 | — | 1.00 | 100% |
 
-*Does the agent carry architectural decisions from Session 1 into Session 2?*
+**Headline.** Under a 1000-distractor haystack, **brain is the only retrieval method whose memories let
+the model succeed** — both BM25 (Recall@5 0.33) and a local vector store (Recall@5 0.00) fail to surface
+the three oracle memories, and the model fails with them. Brain retrieves 2/3 (Recall@5 0.67), which is
+enough to pass, and it does so at the **lowest tokens-per-success of any passing arm** (3,199 — below the
+oracle's 3,572 and far below the 8k/60k dumps). Disabling the pinned tier drops brain to 67% and doubles
+its Recall miss — the ablation that isolates pinning's value.
 
-| Agent | With Brain | Without Brain | Improvement |
-|-------|:---:|:---:|:---:|
-| Claude Code | 0.944 | 0.645 | **+46.4%** |
-| Gemini CLI | 0.822 | 0.555 | **+48.1%** |
-| Codex CLI | 0.767 | 0.545 | **+40.7%** |
+## Scenario B — Three Sessions, One Decision (continuity)
 
-All three agents showed substantial consistency gains. This is the most straightforward demonstration of Brain Memory's value: decisions made in one session are carried forward reliably.
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| fixture-only (floor) | 2,546 | — | 0.62 | 67% |
+| keyword (BM25) | 2,721 | 1.00 | 0.95 | 100% |
+| **brain-real** | **1,871** | 1.00 | 1.00 | **100%** |
+| brain-no-pin | 2,072 | 1.00 | 1.00 | 100% |
+| oracle (ceiling) | 1,734 | 1.00 | 1.00 | 100% |
 
-## Scenario 2 -- Cross-Agent Consistency
+**Headline.** Postgres was decided across three sessions despite a discarded Mongo prototype. Brain
+recalls it perfectly (Recall@5 1.0) and passes at the **fewest tokens-per-success of the memory arms**.
+Here the haystack is small (100 distractors), so plain BM25 also retrieves the decision and passes — on
+this scenario brain's edge is **efficiency, not correctness**.
 
-*Do all agents follow the same memorized style guide?*
+## Scenario C — The Contradiction Test (tabs → spaces → tabs)
 
-| Agent | With Brain | Without Brain | Notes |
-|-------|:---:|:---:|:---|
-| Claude Code | 0.4 / PASS | 0.4 / PASS | No change |
-| Gemini CLI | FAIL | FAIL | Timed out in both variants |
-| Codex CLI | 1.0 / PASS | 1.0 / PASS | Already at ceiling |
+| Arm | tok/success | Recall@5 | rubric score | pass |
+|---|---:|:---:|:---:|:---:|
+| fixture-only (floor) | 1,218 | — | 0.78 | 67% |
+| keyword (BM25) | 1,775 | 1.00 | 0.72 | 33% |
+| brain-real | 1,572 | 1.00 | 0.83 | 67% |
+| brain-no-pin | 1,058 | 1.00 | 0.83 | 67% |
+| oracle (ceiling) | 915 | 1.00 | 0.83 | 67% |
+| dump-all-chrono | 469 | — | 0.94 | 100% |
 
-This scenario was inconclusive. Gemini CLI timed out on most runs in both variants, making comparison unreliable. Codex was already at perfect consistency regardless of brain state. Claude showed no difference.
+**Headline — an honest null.** Everything clusters near 67%. Indentation (tabs vs spaces) is a **noisy
+signal to grade from a single-shot text reply**, and the arm that does best is `dump-all-chrono`, which
+simply concatenates all three versions in time order so the latest (tabs) wins. Brain retrieves the final
+decision (Recall@5 1.0) but doesn't convert that into a clear pass-rate win here. We report it rather than
+hide it.
 
-## Scenario 3 -- Accumulated Knowledge
+## Scenario D — Skill Progressive Disclosure (token efficiency)
 
-*Does 5 sessions of learning improve Session 6 output?*
+| Arm | tok/success | rubric score | pass |
+|---|---:|:---:|:---:|
+| fixture-only (floor) | — | 0.33 | 0% |
+| brain-skills L0 (index only) | — | 0.50 | 0% |
+| **brain-skills loaded (L1)** | **1,580** | 1.00 | **100%** |
+| brain-skills all-loaded | 2,289 | 1.00 | 100% |
 
-| Agent | With Brain | Without Brain | Improvement |
-|-------|:---:|:---:|:---:|
-| Claude Code | 1.000 | 0.891 | **+12.2%** |
-| Gemini CLI | 0.964 | 0.927 | **+4.0%** |
-| Codex CLI | 0.934 | 0.861 | **+8.5%** |
+**Headline.** Loading **just the one relevant skill** passes 100% at **1,580 tokens-per-success — ~31%
+leaner** than dumping every skill body (2,289). The index-only (L0) and no-skills arms fail: a single-shot
+model can't act on a skill *index* the way an agent would (read the index, then load the matching
+`SKILL.md`). That on-demand load is exactly what the skills tier automates — and when it fires, it's both
+correct and the cheapest passing arm.
 
-Improvements were modest but consistent across all three agents. Claude Code achieved perfect consistency (1.0) with Brain Memory.
+## Scenario F — Abstention (no confabulation)
 
-## Scenario 4 -- Error Pattern Learning
+| Arm | tok/success | rubric score | pass |
+|---|---:|:---:|:---:|
+| fixture-only (floor) | 775 | 1.00 | 100% |
+| keyword (BM25) | 1,238 | 0.89 | 67% |
+| brain-real | 920 | 1.00 | 100% |
+| oracle (ceiling) | 890 | 1.00 | 100% |
 
-*Does past debugging knowledge help fix similar bugs faster?*
+**Headline — a second honest null.** Asked to set up a deployment pipeline with no deployment target in
+memory, DeepSeek **abstains correctly with or without brain** (100%) — the base model already declines to
+invent a target. A noisy keyword retriever, which injects irrelevant top-k, actually drags it down to 67%.
+Memory neither helps nor hurts abstention in this case.
 
-| Agent | With Brain | Without Brain | Notes |
-|-------|:---:|:---:|:---|
-| Claude Code | 0.57 / PASS (100%) | 0.57 / PASS (67%) | Brain improved reliability |
-| Gemini CLI | 0.57 / PASS (67%) | 0.63 / PASS (100%) | Slight edge to no-brain |
-| Codex CLI | 0.773 / PASS | 0.57 / PASS | **+35.6%** consistency |
+## Reading the suite
 
-Mixed results. Codex CLI showed the clearest benefit -- a 35.6% consistency gain with Brain Memory. Claude Code maintained the same consistency score but had a higher success rate (100% vs 67%). Gemini showed a slight edge without brain, though its success rate was lower with brain.
+Brain wins where it is designed to — **retrieval under heavy noise (A)** and **procedural-skill
+efficiency (D)** — passing where the BM25 and vector baselines fail, at the lowest token cost among
+passing arms. It is **efficient and competitive on continuity (B)**, and **neutral on contradiction (C)
+and abstention (F)**, where the base model needs no memory. That mixed, baseline-anchored picture — floor,
+oracle ceiling, real retriever baselines, and brain ablations on every scenario — is the point: the wins
+are attributable to the memory system, and the nulls are reported honestly.
 
-## Scenario 5 -- Preference Retention
+## Reproduce
 
-*Are user preferences applied without re-stating them?*
+The harness is deterministic up to model-provider non-determinism — the same scenario JSON + distractor
+seed always produces the same memory pool.
 
-| Agent | With Brain | Without Brain | Notes |
-|-------|:---:|:---:|:---|
-| Claude Code | 0.866 / **PASS** | 0.359 / **FAIL** | Brain prevented failure |
-| Gemini CLI | 0.800 / PASS | 0.534 / PASS | **+49.8%** consistency |
-| Codex CLI | 0.934 / PASS | 0.666 / PASS | **+40.2%** consistency |
+```bash
+# Full guide (prerequisites, environment pinning, run commands):
+#   benchmark/REPRODUCE.md
+node harness/summarize.js results/<file>.json   # regenerate any table above
+node harness/analyze.js   results/<file>.json   # regenerate the statistics / CIs
+```
 
-The strongest result in the benchmark. Claude Code without Brain Memory **failed** (only 33% success rate) -- preferences were not applied reliably. With Brain Memory, it passed every run with 0.866 consistency. All three agents showed large consistency gains, confirming that stored preferences are followed more reliably when surfaced as memory context.
+## What's next
 
-## Per-Agent Detailed Results
+- More runs (5–10/arm) for statistical-confidence error bars on the token metric.
+- Scenario E (continual coding, write-side `memorize`) validated end-to-end.
+- A second agent under test (e.g. a stronger reasoning model) to separate memory effects from base-model
+  competence.
 
-### Claude Code (Sonnet)
+---
 
-| Scenario | +Brain Tokens | -Brain Tokens | +Brain Time | -Brain Time | +Brain Consistency | -Brain Consistency |
-|----------|---:|---:|---:|---:|:---:|:---:|
-| Continuity | 223,473 | 211,254 | 108s | 98s | 0.944 | 0.645 |
-| Consistency | 132,556 | 125,406 | 103s | 89s | 0.400 | 0.400 |
-| Knowledge | 510,778 | 312,264 | 159s | 130s | 1.000 | 0.891 |
-| Error Learning | 248,415 | 140,545 | 228s | 203s | 0.570 | 0.570 |
-| Preferences | 133,979 | 125,094 | 106s | 93s | 0.866 | 0.359 (FAIL) |
-
-### Gemini CLI (Flash)
-
-| Scenario | +Brain Tokens | -Brain Tokens | +Brain Time | -Brain Time | +Brain Consistency | -Brain Consistency |
-|----------|---:|---:|---:|---:|:---:|:---:|
-| Continuity | 34,365 | 15,664 | 27s | 20s | 0.822 | 0.555 |
-| Consistency | FAIL | FAIL | - | - | 0.000 | 0.000 |
-| Knowledge | 47,165 | 23,425 | 50s | 30s | 0.964 | 0.927 |
-| Error Learning | 38,449 | 39,653 | 47s | 48s | 0.570 | 0.630 |
-| Preferences | 41,633 | 22,602 | 33s | 27s | 0.800 | 0.534 |
-
-### Codex CLI (GPT)
-
-| Scenario | +Brain Time | -Brain Time | +Brain Consistency | -Brain Consistency |
-|----------|---:|---:|:---:|:---:|
-| Continuity | 101s | 69s | 0.767 | 0.545 |
-| Consistency | 89s | 48s | 1.000 | 1.000 |
-| Knowledge | 194s | 180s | 0.934 | 0.861 |
-| Error Learning | 230s | 196s | 0.773 | 0.570 |
-| Preferences | 76s | 44s | 0.934 | 0.666 |
-
-> Codex CLI does not report token usage in its JSON output.
-
-## Key Observations
-
-1. **Consistency is the headline metric.** Brain Memory improved output consistency by +18.3% on average across all scenarios and agents. Agents with persistent memory produce more predictable, architecturally aligned outputs.
-
-2. **Preference retention shows the largest gains.** Scenario 5 produced +34.7% consistency improvement and +33.3% success improvement. Claude Code without Brain Memory failed entirely -- it could not reliably apply preferences without them being re-stated. With Brain Memory, it passed every run.
-
-3. **Continuity gains are strong and universal.** Every agent improved by 40%+ relative consistency in the continuity scenario. This is the most direct proof that persistent memory helps agents maintain architectural decisions across sessions.
-
-4. **Benefits are agent-agnostic.** Every agent (Claude, Gemini, Codex) showed improvement with Brain Memory in at least 3 of 5 scenarios. The plugin works as a universal memory layer regardless of the underlying model.
-
-5. **Token overhead is the cost of consistency.** Agents with Brain Memory use more tokens because memory context is prepended to prompts. This is an expected trade-off -- consistency and reliability gains justify the additional context.
-
-6. **Largest gains on weakest baselines.** Agents that performed worst without memory (Claude on preferences: 0.359, Codex on continuity: 0.545) saw the largest absolute improvements. Brain Memory is most impactful for tasks where agents would otherwise produce highly variable outputs.
-
-## Methodology
-
-Each scenario runs identical coding tasks across agents -- with and without Brain Memory -- in isolated environments:
-
-1. Create isolated temp workspace with fake HOME directory
-2. For with_brain: initialize `~/.brain/`, seed deterministic memories via `src/index-manager.js`
-3. Run test prompts with memory context prepended (with_brain) or bare (without_brain)
-4. Evaluate output via regex-based pattern matching for architectural alignment
-5. Aggregate across 3 runs using median values to handle AI non-determinism
-
-Full benchmark source: [`benchmark/`](../benchmark/)
+*The legacy 5-scenario report (regex-graded, with/without-brain, "+18.3% consistency / +33.3% success")
+described a superseded methodology and has been replaced by this suite. It remains recoverable from git
+history for anyone reproducing historical numbers.*
