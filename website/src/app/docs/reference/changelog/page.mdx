@@ -1,4 +1,5 @@
 import Callout from "@/app/components/docs/Callout";
+import ChangelogTimeline from "@/app/components/docs/ChangelogTimeline";
 
 import { docMeta } from "@/lib/docs";
 
@@ -11,9 +12,9 @@ export const metadata = docMeta("/docs/reference/changelog", {
 
 # Changelog
 
-For the full changelog with detailed release notes, see the [GitHub Releases page](https://github.com/omelas-tech/brain/releases).
+Every release, newest first — auto-summarized from [`CHANGELOG.md`](https://github.com/omelas-tech/brain/blob/main/CHANGELOG.md) at build time. You can also browse the [GitHub Releases page](https://github.com/omelas-tech/brain/releases) or the [raw commit history](https://github.com/omelas-tech/brain/commits/main).
 
-You can also view the raw commit history on [GitHub](https://github.com/omelas-tech/brain/commits/main).
+<ChangelogTimeline />
 
 ## Staying Updated
 
