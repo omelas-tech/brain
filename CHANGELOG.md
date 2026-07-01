@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.31] - 2026-07-01
+
 ### Fixed
 
 - **Recall relevance is now calibrated in absolute terms.** BM25 relevance was

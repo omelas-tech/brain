@@ -1,5 +1,18 @@
 [
   {
+    "version": "0.1.0-beta.31",
+    "date": "2026-07-01",
+    "sections": [
+      {
+        "category": "Fixed",
+        "items": [
+          "**Recall relevance is now calibrated in absolute terms.** BM25 relevance was normalized per-query by the top score, so the best match for *any* query scored relevance 1.0 — a nonsense query's one weak term-match produced ten confident-looking results (top composite 0.679). Three coordinated changes fix the calibration: relevance is scaled by **IDF-weighted query coverage** (a memory matching one term of a four-term query can no longer score 1.0); explicit-query recall applies a **relevance floor** so zero-relevance memories can't pad the top-N on strength alone; and spreading-activation **sources are relevance-gated** in query mode, so a strong-but-irrelevant clique can't rescue itself past the floor (associates of genuinely relevant memories still surface — that's the feature). Context mode (`--context`, session-start) is exempt: topical padding is intended there. On a real 177-memory brain the same nonsense query now returns one result with honest relevance (0.213), and a 20-query retrieval probe improved from hit@1 90% / MRR 0.950 to **hit@1 100% / MRR 1.000** — coverage scaling also demotes partial-match distractors below full-coverage targets."
+        ]
+      }
+    ],
+    "note": null
+  },
+  {
     "version": "0.1.0-beta.30",
     "date": "2026-07-01",
     "sections": [
