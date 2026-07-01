@@ -15,6 +15,7 @@ export default function Footer() {
             <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer">npm</a>
             <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
             <a href="https://omelas.tech" target="_blank" rel="noopener noreferrer">Omelas</a>
           </div>
         </div>

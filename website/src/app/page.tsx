@@ -110,12 +110,12 @@ export default function Home() {
                 className="btn btn-ghost"
                 text="npm i -g brain-memory@beta"
               >
-                <span className="cmd">$</span> npm i -g brain-memory
+                <span className="cmd">$</span> npm i -g brain-memory@beta
               </CopyButton>
             </div>
             <div className="hero-badges">
               <span className="badge"><span className="k">npm</span><span className="v">beta</span></span>
-              <span className="badge"><span className="k">license</span><span className="v amber">MIT</span></span>
+              <span className="badge"><span className="k">license</span><span className="v">MIT</span></span>
               <span className="badge"><span className="k">deterministic</span><span className="v">recall</span></span>
             </div>
           </div>
