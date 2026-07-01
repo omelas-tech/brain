@@ -220,9 +220,10 @@ export default function PrivacyPage() {
               Service you asked for (to perform our contract with you), and on the basis of your
               consent where that applies. We do not sell your data and do not use it to train models.
             </p>
-            {/* TODO before launch (GDPR Art. 13 / NL e-Commerce art. 3:15d BW):
-                add the controller's postal/establishment address — a real address must be easily
-                and permanently accessible. */}
+            <p className="mt-3">
+              <strong className="text-[var(--text-primary)]">Registered address:</strong> Petrus
+              Dondersstraat&nbsp;80, 5614&nbsp;AJ Eindhoven, The Netherlands.
+            </p>
             <p className="mt-3">
               If you are in the EU/EEA, the GDPR gives you the right to:
             </p>

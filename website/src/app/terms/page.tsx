@@ -278,7 +278,8 @@ export default function TermsPage() {
               >
                 omelas.tech
               </a>
-              ), a sole proprietorship (eenmanszaak) established in the Netherlands · KvK&nbsp;98455303
+              ), a sole proprietorship (eenmanszaak) established in the Netherlands ·
+              Petrus&nbsp;Dondersstraat&nbsp;80, 5614&nbsp;AJ&nbsp;Eindhoven · KvK&nbsp;98455303
               · VAT&nbsp;NL005331814B35 ·{" "}
               <a
                 href="mailto:support@omelas.tech"
@@ -288,10 +289,6 @@ export default function TermsPage() {
               </a>
               .
             </p>
-            {/* TODO before launch (NL/EU e-Commerce — art. 3:15d BW / e-Commerce Directive art. 5):
-                add the registered business/establishment address above. A real postal address must
-                be easily, directly, and permanently accessible. Decide whether to name the natural
-                person behind the eenmanszaak (see counsel). */}
           </section>
         </div>
       </main>
