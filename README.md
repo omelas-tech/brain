@@ -406,6 +406,16 @@ score = 0.38 * relevance
 - **context_match** (0.14) — How similar the encoding context is to the current session
 - **salience** (0.08) — Emotional/motivational significance
 
+Relevance is **calibrated in absolute terms**: BM25 scores are scaled by
+IDF-weighted *query coverage*, so a memory matching one term of a four-term query
+cannot claim relevance 1.0 just for being the best available match. Explicit-query
+recall also applies a **relevance floor** — memories that are neither
+query-relevant nor activated by a relevant associate are excluded rather than
+padding the results on strength alone. A query about things the brain doesn't
+know returns few results with honestly low scores (or none), instead of
+confident-looking noise. Context-mode recall (session start) is exempt, where
+strength-ranked topical padding is the intended behavior.
+
 The agent then decides the response strategy:
 - **Single strong match** (top score > 0.7) → Return the full memory
 - **Multiple related** (2-5 candidates > 0.4) → Synthesize a consolidated response
@@ -688,6 +698,18 @@ Brain Memory ships with a controlled benchmark suite grounded in the 2025-2026 S
 **Methodology highlights** — agent under test is **DeepSeek V4 Pro** (single-shot), graded by a **cross-family judge panel** (Gemini + Gemma-4 + Qwen-3.5, majority vote — no judge shares the agent's family, [Preference Leakage 2502.01534](https://arxiv.org/abs/2502.01534), [PoLL 2404.18796](https://arxiv.org/abs/2404.18796)); deterministic distractor haystacks up to 1000 memories; real `brain session-start` / `brain recall` integration; tokens-per-successful-task as the headline efficiency metric; every scenario anchored by a no-memory floor and an oracle ceiling.
 
 > Results (DeepSeek V4 Pro, 3 runs/arm, June 2026). **Scenario A — retrieval under 1000 distractors:** `brain-full` is the only retriever whose memories let the model succeed — it passes **100%** while both **BM25 (0%)** and a **vector store (0%)** fail to surface the oracle memories — and it does so at the **leanest tokens-per-success (3,199)** of any passing arm. **Scenario D — skills:** loading only the relevant skill passes 100% at **1,580 tok/success, ~31% leaner** than dumping all skill bodies. Scenarios B (continuity) shows brain efficient-and-correct; C (contradiction) and F (abstention) are honest **nulls** — the base model handles them without memory. At n=3 the token gaps are directional, not yet significant; the pass-rate gradient is the result. Full tables: [brainmemory.ai/docs/benchmarks/results](https://brainmemory.ai/docs/benchmarks/results).
+
+**Retrieval calibration probe (in-vivo, July 2026).** Separate from the controlled
+suite: a 20-query retrieval probe on a real working brain (177 memories, 1,245
+association edges; tag-derived topical queries with known targets) measured the
+scoring-calibration fix shipped after beta.30. Before: hit@1 90%, MRR 0.950 — and a
+four-term nonsense control query still returned ten results, the top scoring a
+confident-looking 0.679. After query-coverage scaling and the relevance floor:
+**hit@1 100% / hit@3 100% / MRR 1.000**, the nonsense control returns a single result
+with honestly low relevance (0.213), and recall latency stays at ~46 ms (p50).
+*Caveats: n=20, single brain, tag-derived queries favor the index's tag field, not
+judge-graded — this is a calibration probe, not the controlled benchmark above.*
+Method and detail: [brainmemory.ai/docs/benchmarks/results](https://brainmemory.ai/docs/benchmarks/results).
 
 Run the benchmarks yourself:
 
