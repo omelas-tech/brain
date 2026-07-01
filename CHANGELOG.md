@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.30] - 2026-07-01
+
+### Security
+
+- **Connector purges plaintext working copies.** The hosted MCP connector already
+  kept per-user working copies in RAM only (tmpfs, never on disk); it now also
+  **wipes them proactively** — on an idle TTL, at session end, and via a dedicated
+  ephemeral working path — so a decrypted brain never lingers in memory longer than
+  an active session needs it. Local-only and Git/export use are unaffected. See
+  [SECURITY.md](SECURITY.md).
+
+### Added
+
+- **`memorize` tags each memory with its origin agent.** New memories record
+  `encoding_context.agent` — the detected host (`claude-code`, `gemini-cli`,
+  `codex`, `opencode`), a `BRAIN_AGENT` override, or `unknown` — in both frontmatter
+  and the index. This powers the Brain Cloud dashboard's "where your brain is used"
+  attribution. Existing memories are unaffected; the field is additive.
+
+### Fixed
+
+- **`forget` now actually clears a memory from recall.** `forget` sourced its
+  search index differently from `recall`, so a forgotten memory could keep surfacing
+  until the index was rebuilt out-of-band; it now sources the index via the same
+  TF-IDF path as `recall`, so forgetting takes effect immediately. Added CLI test
+  coverage for `recall` and `forget`, and de-flaked the stress-test performance gate.
+
+### Changed
+
+- **Website NL/EU compliance pass.** Privacy and Terms were revised for NL/EU law —
+  sub-processor list and EU data location, a cookies/browser-storage section,
+  retention periods, KMS-accurate at-rest-encryption language, the Omelas controller
+  identity, a VAT (EU OSS) clause, and the 14-day consumer right of withdrawal — plus
+  a site-wide transparency notice (not a consent CMP; the site sets no tracking
+  cookies).
+- **Brand asset set.** Added `assets/brand/` — light + dark firing-neuron tiles and
+  marks (SVG + PNG 64–1024), transparent marks, icon-centered LinkedIn covers
+  (6336×1584, no text), and a usage README — with a dependency-free regeneration
+  script. No behavior change.
+
+## [0.1.0-beta.29] - 2026-06-26
+
+Version marker only — no functional changes since beta.28.
+
 ## [0.1.0-beta.28] - 2026-06-26
 
 ### Fixed

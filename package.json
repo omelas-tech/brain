@@ -1,6 +1,6 @@
 {
   "name": "brain-memory",
-  "version": "0.1.0-beta.29",
+  "version": "0.1.0-beta.30",
   "description": "A brain-inspired hierarchical memory system for AI coding agents. Deep nested file structure that mimics human memory with time-decay and strength-based recall.",
   "keywords": [
     "claude-code",
