@@ -207,7 +207,7 @@
     "description": "Release history and version notes for the Brain Memory plugin.",
     "href": "/docs/reference/changelog",
     "category": "Reference",
-    "content": "Changelog For the full changelog with detailed release notes, see the GitHub Releases page. You can also view the raw commit history on GitHub. Staying Updated To update Brain Memory to the latest version: The first command updates the package and CLI tools. The second refreshes slash command prompts for your installed runtimes. Your memories in ~/.brain/ are never modified by updates. See the Installation page for more details on updating and managing your installation. Brain Memory follows semantic versioning. During the beta period, minor versions may include breaking changes to the command format or memory schema. Major version bumps will be reserved for post-beta releases."
+    "content": "Changelog Every release, newest first — auto-summarized from CHANGELOG.md at build time. You can also browse the GitHub Releases page or the raw commit history. Staying Updated To update Brain Memory to the latest version: The first command updates the package and CLI tools. The second refreshes slash command prompts for your installed runtimes. Your memories in ~/.brain/ are never modified by updates. See the Installation page for more details on updating and managing your installation. Brain Memory follows semantic versioning. During the beta period, minor versions may include breaking changes to the command format or memory schema. Major version bumps will be reserved for post-beta releases."
   },
   {
     "title": "Overview",
