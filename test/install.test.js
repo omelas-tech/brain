@@ -428,32 +428,35 @@ describe('initializeBrain', () => {
 describe('detectInstallations', () => {
   let savedDirs;
 
+  // Redirect EVERY runtime's paths into tmpDir, generically. A hand-maintained
+  // list drifts: antigravity was added to RUNTIMES but never to the redirect
+  // list, so its detection read the real ~/.gemini/skills and the repo-cwd
+  // .agents/skills — the suite then failed on any machine with a live install.
+  const PATH_FIELDS = ['localDir', 'globalDir', 'skillsLocalDir', 'skillsGlobalDir'];
+
   beforeEach(() => {
     setup();
-    savedDirs = {
-      claude: { local: RUNTIMES.claude.localDir, global: RUNTIMES.claude.globalDir },
-      openai: { local: RUNTIMES.openai.localDir, global: RUNTIMES.openai.globalDir, skillsLocal: RUNTIMES.openai.skillsLocalDir, skillsGlobal: RUNTIMES.openai.skillsGlobalDir },
-      opencode: { local: RUNTIMES.opencode.localDir, global: RUNTIMES.opencode.globalDir },
-    };
-    // Redirect both local and global to tmpDir subdirs for isolation
-    RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
-    RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
-    RUNTIMES.opencode.localDir = path.join(tmpDir, '.opencode');
-    RUNTIMES.openai.skillsLocalDir = path.join(tmpDir, '.agents', 'skills');
-    RUNTIMES.claude.globalDir = path.join(tmpDir, 'global', '.claude');
-    RUNTIMES.openai.globalDir = path.join(tmpDir, 'global', '.codex');
-    RUNTIMES.openai.skillsGlobalDir = path.join(tmpDir, 'global', '.agents', 'skills');
-    RUNTIMES.opencode.globalDir = path.join(tmpDir, 'global', '.config', 'opencode');
+    savedDirs = {};
+    for (const [runtime, config] of Object.entries(RUNTIMES)) {
+      savedDirs[runtime] = {};
+      for (const field of PATH_FIELDS) {
+        if (config[field] == null) continue;
+        savedDirs[runtime][field] = config[field];
+        // Local paths are cwd-relative ('.claude', '.agents/skills', '.') —
+        // re-root them at tmpDir. Global paths are homedir-based — re-root
+        // them at tmpDir/global, preserving the path under home.
+        config[field] = field.startsWith('local') || field === 'skillsLocalDir'
+          ? path.join(tmpDir, config[field])
+          : path.join(tmpDir, 'global', path.relative(os.homedir(), config[field]));
+      }
+    }
   });
   afterEach(() => {
-    RUNTIMES.claude.localDir = savedDirs.claude.local;
-    RUNTIMES.openai.localDir = savedDirs.openai.local;
-    RUNTIMES.opencode.localDir = savedDirs.opencode.local;
-    RUNTIMES.openai.skillsLocalDir = savedDirs.openai.skillsLocal;
-    RUNTIMES.claude.globalDir = savedDirs.claude.global;
-    RUNTIMES.openai.globalDir = savedDirs.openai.global;
-    RUNTIMES.openai.skillsGlobalDir = savedDirs.openai.skillsGlobal;
-    RUNTIMES.opencode.globalDir = savedDirs.opencode.global;
+    for (const [runtime, fields] of Object.entries(savedDirs)) {
+      for (const [field, value] of Object.entries(fields)) {
+        RUNTIMES[runtime][field] = value;
+      }
+    }
     teardown();
   });
 
