@@ -346,6 +346,22 @@ describe('bm25Search', () => {
   it('is deterministic', () => {
     assert.deepEqual(bm25Search(corpus(), 'database pooling'), bm25Search(corpus(), 'database pooling'));
   });
+
+  it('scales relevance by query coverage — one matched term of a mostly-unknown query cannot score 1.0', () => {
+    // Only 'pooling' exists in the corpus; the other three terms are unknown.
+    // Top-score normalization alone would report the best match at 1.0; the
+    // coverage scale keeps it near the share of query mass actually matched.
+    const scores = bm25Search(corpus(), 'quantum blockchain kubernetes pooling');
+    assert.ok(scores['mem_db'] > 0, 'the one weak match should still surface');
+    assert.ok(scores['mem_db'] < 0.5,
+      `single-term match of a 4-term query should score low, got ${scores['mem_db']}`);
+  });
+
+  it('keeps full-coverage matches at 1.0 while partial matches scale down', () => {
+    const scores = bm25Search(corpus(), 'database connection pooling');
+    assert.ok(Math.abs(scores['mem_db'] - 1) < 1e-9,
+      `doc matching every query term should keep 1.0, got ${scores['mem_db']}`);
+  });
 });
 
 // ===========================================================================

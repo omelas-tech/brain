@@ -359,6 +359,14 @@ function search(searchIndex, query) {
  * is preserved. Scores are normalized to 0..1 by the top score so they blend
  * cleanly into the scorer's recall formula (which expects relevance in [0,1]).
  *
+ * Top-score normalization alone is RELATIVE — the best match for a nonsense
+ * query would still get relevance 1.0. To keep scores honest in absolute
+ * terms, each normalized score is scaled by the doc's IDF-weighted QUERY
+ * COVERAGE (share of the query's informative mass the doc actually matched).
+ * A doc matching every informative term keeps its score; a doc matching one
+ * term of a four-term query is capped near 0.25 no matter how strong that
+ * single match is.
+ *
  * @param {Object} searchIndex - The search index
  * @param {string} query - The search query
  * @param {Object} [opts] - { k1 = 1.5, b = 0.75 }
@@ -388,29 +396,40 @@ function bm25Search(searchIndex, query, opts = {}) {
     idf[t] = Math.max(0, Math.log(1 + (N - df + 0.5) / (df + 0.5)));
   }
 
+  // Total informative mass of the query. Terms absent from the corpus (df=0)
+  // carry high IDF and can never be matched — a query mostly about things the
+  // brain doesn't know SHOULD yield low relevance everywhere.
+  let idfTotal = 0;
+  for (const t of qTerms) idfTotal += idf[t];
+
   const raw = {};
+  const coverage = {};
   let maxScore = 0;
   for (const [memoryId, doc] of Object.entries(searchIndex.documents)) {
     const dl = doc.length || 0;
     let score = 0;
+    let matchedIdf = 0;
     for (const t of qTerms) {
       const f = doc.tf[t] || 0;
       if (f === 0) continue;
       const denom = f + k1 * (1 - b + b * (avgdl > 0 ? dl / avgdl : 0));
       score += idf[t] * (f * (k1 + 1)) / denom;
+      matchedIdf += idf[t];
     }
     if (score > 0) {
       raw[memoryId] = score;
+      coverage[memoryId] = idfTotal > 0 ? matchedIdf / idfTotal : 0;
       if (score > maxScore) maxScore = score;
     }
   }
 
-  // Normalize to 0..1 by the top score — preserves ranking and keeps the [0,1]
-  // contract the recall scorer's relevance blend expects.
+  // Normalize to 0..1 by the top score (preserves ranking, keeps the [0,1]
+  // contract the recall scorer's relevance blend expects), then scale by
+  // query coverage so the absolute match quality survives normalization.
   const scores = {};
   if (maxScore > 0) {
     for (const [id, s] of Object.entries(raw)) {
-      scores[id] = Math.round((s / maxScore) * 1000) / 1000;
+      scores[id] = Math.round((s / maxScore) * coverage[id] * 1000) / 1000;
     }
   }
   return scores;

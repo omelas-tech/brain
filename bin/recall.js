@@ -39,6 +39,13 @@ const {
   rankMemories,
 } = require('../src/scorer');
 
+// Minimum relevance (or spreading bonus) for a memory to appear in explicit-
+// query results. Filters the zero/near-zero-relevance memories that would
+// otherwise pad the top-N purely on strength — an agent trusting those scores
+// injects noise into its context. Context mode (--context) is exempt: there
+// the query is just a topical hint and strength-ranked padding is intended.
+const RELEVANCE_FLOOR = 0.05;
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -127,6 +134,7 @@ function main() {
     {
       associations: associations || undefined,
       recallContext: Object.keys(recallContext).length > 0 ? recallContext : undefined,
+      relevanceFloor: args.context ? undefined : RELEVANCE_FLOOR,
     }
   );
 

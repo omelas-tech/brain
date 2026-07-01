@@ -548,6 +548,38 @@ describe('rankMemories', () => {
     const result = rankMemories([], () => 0.5);
     assert.deepEqual(result, []);
   });
+
+  it('relevanceFloor drops zero-relevance memories regardless of strength', () => {
+    const memories = [
+      mem('hit', 0.5, 30),
+      mem('strong_distractor', 1.0, 0, { salience: 1.0 }),
+    ];
+    const result = rankMemories(
+      memories,
+      (m) => (m.id === 'hit' ? 0.9 : 0),
+      { relevanceFloor: 0.05 }
+    );
+    assert.deepEqual(result.map((m) => m.id), ['hit']);
+  });
+
+  it('relevanceFloor keeps memories rescued by spreading activation', () => {
+    const memories = [mem('hit', 0.9, 1), mem('neighbor', 0.5, 5)];
+    const assoc = { edges: { hit: { neighbor: { weight: 0.8 } } } };
+    const result = rankMemories(
+      memories,
+      (m) => (m.id === 'hit' ? 0.9 : 0),
+      { associations: assoc, relevanceFloor: 0.05 }
+    );
+    const neighbor = result.find((m) => m.id === 'neighbor');
+    assert.ok(neighbor, 'associatively-linked memory should survive the floor');
+    assert.ok(neighbor.spreading_bonus >= 0.05);
+  });
+
+  it('without relevanceFloor zero-relevance memories still rank (backward compat)', () => {
+    const memories = [mem('a', 0.9, 1), mem('b', 0.8, 5)];
+    const result = rankMemories(memories, () => 0);
+    assert.equal(result.length, 2);
+  });
 });
 
 // ===========================================================================

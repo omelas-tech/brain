@@ -362,6 +362,12 @@ function computeSpreadingActivationBatch(scoredMemories, associations, maxDepth 
  * @param {Object} [options] - Optional scoring parameters
  * @param {Object} [options.associations] - Associations graph for spreading activation
  * @param {Object} [options.recallContext] - Current session context for context matching
+ * @param {number} [options.relevanceFloor] - Drop memories whose relevance AND
+ *   spreading_bonus are both below this floor. Without it, zero-relevance
+ *   memories pad the results purely on strength/recency/salience — a query
+ *   about things the brain doesn't know still returns confident-looking hits.
+ *   Memories rescued by spreading activation survive the floor (associative
+ *   recall of low-relevance neighbors is a feature, not noise).
  * @returns {Object[]} Scored and sorted memories (highest first)
  */
 function rankMemories(memories, relevanceFn, options = {}) {
@@ -393,7 +399,15 @@ function rankMemories(memories, relevanceFn, options = {}) {
 
   // Second pass: spreading activation (batch — single traversal for all memories)
   if (options.associations) {
-    const scoredSummary = scored.map((m) => ({
+    // With a relevanceFloor set (query mode), only query-relevant memories may
+    // act as activation SOURCES — matching the cognitive model (the cue
+    // activates matching memories, activation spreads along associations).
+    // Without it, a strong-but-irrelevant memory spreads on strength/recency
+    // alone and its whole clique rescues itself past the floor below.
+    const sources = options.relevanceFloor != null
+      ? scored.filter((m) => m.relevance >= options.relevanceFloor)
+      : scored;
+    const scoredSummary = sources.map((m) => ({
       id: m.id,
       score: 0.55 * m.relevance + 0.30 * m.decayed_strength + 0.15 * m.recency_bonus,
     }));
@@ -417,8 +431,15 @@ function rankMemories(memories, relevanceFn, options = {}) {
     }
   }
 
+  // Relevance floor: gate BEFORE final scoring so strength/salience can't
+  // carry an unrelated memory into the results (uses raw, unrounded terms).
+  const floor = options.relevanceFloor;
+  const gated = floor != null
+    ? scored.filter((mem) => mem.relevance >= floor || mem.spreading_bonus >= floor)
+    : scored;
+
   // Final score
-  return scored
+  return gated
     .map((mem) => {
       const extras = {};
       if (mem.spreading_bonus > 0) extras.spreadingBonus = mem.spreading_bonus;

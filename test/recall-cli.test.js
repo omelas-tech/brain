@@ -140,3 +140,39 @@ describe('recall CLI: ranked retrieval', () => {
     assert.match(r.json.error, /not initialized/i);
   });
 });
+
+describe('recall CLI: relevance floor', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('does not pad query results with unrelated memories', () => {
+    initBrain();
+    seed(THREE_MEMORIES);
+
+    // Only the database memory relates to this query — the auth and css
+    // memories must not ride along on strength/recency alone.
+    const r = recall(['database pooling', '--top', '10']);
+    assert.equal(r.status, 0);
+    assert.ok(r.json.length >= 1, 'the relevant memory should be returned');
+    const titles = r.json.map((m) => m.title);
+    assert.ok(!titles.includes('CSS flexbox layout'),
+      `unrelated memory padded the results: ${JSON.stringify(titles)}`);
+  });
+
+  it('returns an empty array for a query the brain knows nothing about', () => {
+    initBrain();
+    seed(THREE_MEMORIES);
+    const r = recall(['quantum blockchain yoga retreat']);
+    assert.equal(r.status, 0);
+    assert.deepEqual(r.json, [], 'no-match query should return no results, not strength-ranked padding');
+  });
+
+  it('context mode still returns strength-ranked memories without a matching query', () => {
+    initBrain();
+    seed(THREE_MEMORIES);
+    // --context builds a broad topical query; padding is intended there.
+    const r = recall(['--context', '--project', 'nonexistent-project']);
+    assert.equal(r.status, 0);
+    assert.equal(r.json.length, 3, 'context mode must not apply the relevance floor');
+  });
+});
