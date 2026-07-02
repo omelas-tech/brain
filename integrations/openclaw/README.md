@@ -6,7 +6,9 @@ single global `~/.brain/` with deterministic recall, spreading activation,
 spaced reinforcement, and model-driven capture. Works with NVIDIA NemoClaw
 sandboxes too.
 
-**Prerequisite for paths 1 and 2:** the `brain` CLI on the Gateway machine.
+**Prerequisites for paths 1 and 2:** the `brain` CLI on the Gateway machine,
+and **Node.js ≥ 22.19** — OpenClaw 2026.6+ refuses to start on older Node
+(`nvm install 22` gets a compatible version).
 
 ```bash
 npm install -g brain-memory

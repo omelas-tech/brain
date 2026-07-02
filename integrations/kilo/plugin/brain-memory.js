@@ -76,12 +76,26 @@ function resolveBrainDir(env, homedir) {
 
 function projectFromInput(input, fallbackCwd) {
   const record = isRecord(input) ? input : {};
-  const cwd =
-    (typeof record.worktree === "string" && record.worktree.trim() && record.worktree) ||
-    (typeof record.directory === "string" && record.directory.trim() && record.directory) ||
-    fallbackCwd;
-  const base = path.basename(String(cwd || "").replace(/[\\/]+$/, ""));
-  return base || "unknown";
+  const proj = isRecord(record.project) ? record.project : {};
+  // Kilo's PluginInput carries the workspace in several shapes across
+  // versions (top-level worktree/directory strings, or a project object).
+  // The plugin host's own cwd can be "/", so try every candidate and take
+  // the first that yields a real basename instead of stopping at the first
+  // non-empty string.
+  const candidates = [
+    record.worktree,
+    record.directory,
+    proj.worktree,
+    proj.directory,
+    proj.path,
+    fallbackCwd,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || !candidate.trim()) continue;
+    const base = path.basename(candidate.replace(/[\\/]+$/, ""));
+    if (base) return base;
+  }
+  return "unknown";
 }
 
 /* ------------------------------------------------------------------ *

@@ -1,8 +1,17 @@
-"""CLI commands for the Brain Memory provider.
+"""Standalone diagnostics CLI for the Brain Memory provider.
 
-Registered via ``register_cli(subparser)`` — commands appear under
-``hermes memory ...`` only when ``memory.provider: brain`` is active.
-Stdlib only; shells out to the ``brain`` CLI (brain-memory npm package).
+Hermes loads user-installed memory providers through its memory-discovery
+path, whose plugin context only accepts ``register_memory_provider`` — it has
+no CLI registration (that API belongs to regular, non-exclusive plugins). So
+these commands run as a plain module instead:
+
+    python3 ~/.hermes/plugins/brain/cli.py status
+    python3 ~/.hermes/plugins/brain/cli.py recall "what did we decide about X"
+
+``register_cli(subparser)`` is kept for a possible future in-tree bundling
+where a real CLI hook exists. Stdlib only; shells out to the ``brain`` CLI
+(brain-memory npm package). In-session, use the provider's ``brain_recall`` /
+``brain_memorize`` tools — the agent calls those itself.
 """
 
 from __future__ import annotations
@@ -85,9 +94,26 @@ def _dispatch(args) -> int:
 
 
 def register_cli(subparser) -> None:
-    """Attach brain subcommands to the `hermes memory` parser."""
+    """Attach brain subcommands to an argparse subparser (in-tree use only —
+    Hermes exposes no CLI hook to user-installed memory providers)."""
     subs = subparser.add_subparsers(dest="brain_command")
     subs.add_parser("status", help="Show Brain Memory store status")
     recall = subs.add_parser("recall", help="Recall memories from ~/.brain")
     recall.add_argument("query", nargs="+", help="What to recall")
     subparser.set_defaults(func=_dispatch)
+
+
+def main(argv=None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="brain-provider",
+        description="Brain Memory provider diagnostics (standalone)",
+    )
+    register_cli(parser)
+    args = parser.parse_args(argv)
+    return _dispatch(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

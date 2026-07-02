@@ -15,15 +15,22 @@ npm install -g brain-memory
 
 ### 1. Copilot CLI plugin — recommended
 
-One command installs the full ambient loop — skills plus lifecycle hooks:
+Install from the brain marketplace (this repo ships a
+`.github/plugin/marketplace.json`) — the full ambient loop, skills plus
+lifecycle hooks:
 
 ```bash
-copilot plugin install omelas-tech/brain:integrations/copilot/plugin
+copilot plugin marketplace add omelas-tech/brain
+copilot plugin install brain-memory@brain
 ```
 
-(Installing from a GitHub subdirectory uses the documented
-`OWNER/REPO:PATH/TO/PLUGIN` specification. From a local checkout:
-`copilot plugin install ./integrations/copilot/plugin`.)
+Direct installs work too, but Copilot has deprecated them in favor of
+marketplace installs:
+
+```bash
+copilot plugin install omelas-tech/brain:integrations/copilot/plugin   # subdir form
+copilot plugin install ./integrations/copilot/plugin                   # local checkout
+```
 
 What you get:
 

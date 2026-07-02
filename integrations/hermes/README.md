@@ -116,7 +116,7 @@ integrations/hermes/
 ├── plugins/memory/brain/   # the provider plugin (option A) — drop into ~/.hermes/plugins/ or in-tree
 │   ├── __init__.py         # register(ctx)
 │   ├── provider.py         # BrainMemoryProvider
-│   ├── cli.py              # `hermes memory status|recall`
+│   ├── cli.py              # standalone diagnostics: python3 cli.py status|recall
 │   ├── plugin.yaml
 │   └── README.md
 ├── agent-hooks/            # the hooks glue (option B)

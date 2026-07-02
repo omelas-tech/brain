@@ -6,6 +6,7 @@
  */
 
 import assert from "node:assert/strict";
+import { basename } from "node:path";
 import test from "node:test";
 
 import descriptor from "../plugin/brain-memory.js";
@@ -195,4 +196,32 @@ test("hook never throws on malformed hook payloads", async () => {
   await hooks["chat.message"](undefined, { message: null, parts: null });
   await hooks["event"]({});
   await hooks["event"]({ event: { type: 42 } });
+});
+
+test("project falls back to input.project.* and skips rootish candidates (live-found: plugin host cwd can be /)", async () => {
+  const cases = [
+    // Kilo passes the workspace as a project object; top-level fields absent.
+    { input: { project: { worktree: "/home/u/code/proj-from-object" } }, expected: "proj-from-object" },
+    // Plugin host cwd of "/" yields an empty basename — must fall through, not record "".
+    { input: { directory: "/", project: { path: "/home/u/code/from-path/" } }, expected: "from-path" },
+    // Nothing usable in the input → the process cwd basename is the fallback.
+    { input: {}, expected: basename(process.cwd()) },
+  ];
+  for (const { input, expected } of cases) {
+    const mock = makeExecFileMock((callback) => callback(null, JSON.stringify(AGGREGATOR_PAYLOAD), ""));
+    const hooks = await descriptor.server(input, {
+      env: {},
+      homedir: "/fake/home",
+      fsImpl: { existsSync: () => true },
+      execFileImpl: mock.impl,
+      warn: () => {},
+    });
+    await hooks["chat.message"]({ sessionID: "ses-p" }, chatOutput("ses-p"));
+    assert.equal(mock.calls.length, 1);
+    assert.deepEqual(
+      mock.calls[0].args,
+      ["session-start", "--project", expected],
+      `input ${JSON.stringify(input)} should derive project "${expected}"`,
+    );
+  }
 });

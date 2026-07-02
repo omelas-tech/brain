@@ -150,10 +150,11 @@ brain --antigravity --global  # Google Antigravity, global (experimental)
 brain --all --global       # All runtimes, global
 ```
 
-For the deepest Copilot CLI integration — deterministic session-start context injection via its `sessionStart` hook — install the [Copilot plugin](integrations/copilot/) on top:
+For the deepest Copilot CLI integration — deterministic session-start context injection via its `sessionStart` hook — install the [Copilot plugin](integrations/copilot/) from the brain marketplace:
 
 ```bash
-copilot plugin install omelas-tech/brain:integrations/copilot/plugin
+copilot plugin marketplace add omelas-tech/brain
+copilot plugin install brain-memory@brain
 ```
 
 Kilo gets the same treatment via its runtime plugin — deterministic session-start injection, session tracking, and `BRAIN_AGENT` labeling ([details](integrations/kilo/)):

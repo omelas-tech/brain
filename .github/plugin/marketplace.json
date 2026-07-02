@@ -1,0 +1,19 @@
+{
+  "name": "brain",
+  "owner": {
+    "name": "Omelas",
+    "email": "onur@omelas.tech"
+  },
+  "metadata": {
+    "description": "Brain Memory — neuroscience-inspired persistent memory for AI agents. One human-readable ~/.brain shared across Copilot, Claude Code, Codex, OpenCode, OpenClaw, Hermes, and Kilo.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "brain-memory",
+      "description": "Persistent cross-agent memory for Copilot CLI: deterministic session-start context injection (sessionStart hook), session tracking, and brain-remember / brain-memorize / brain-status skills backed by the brain CLI (~/.brain).",
+      "version": "0.1.0",
+      "source": "integrations/copilot/plugin"
+    }
+  ]
+}
