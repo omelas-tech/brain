@@ -12,7 +12,7 @@
 
 A hierarchical, file-system-based memory plugin for AI coding agents. Inspired by human neuroscience — memories are organized into deep nested life-domain categories, connected via associative networks, strengthened through spaced recall, and naturally decay over time.
 
-One hosted **MCP connector** reaches every major agent and chat app — **Claude Code**, **OpenAI Codex CLI**, **OpenCode**, the **Claude.ai** apps, **ChatGPT**, and **Google Antigravity** (Gemini CLI's successor). Prefer a free, local-first install? The native plugin runs entirely from `~/.brain/` on Claude Code, Codex, OpenCode, and Antigravity.
+One hosted **MCP connector** reaches every major agent and chat app — **Claude Code**, **OpenAI Codex CLI**, **OpenCode**, **GitHub Copilot CLI**, **Kilo**, the **Claude.ai** apps, **ChatGPT**, **Google Antigravity** (Gemini CLI's successor), **OpenClaw** / **NVIDIA NemoClaw**, **Hermes Agent**, and **Goose**. Prefer a free, local-first install? The native plugin runs entirely from `~/.brain/` on Claude Code, Codex, OpenCode, Copilot CLI, Kilo, and Antigravity — and dedicated [native integrations](integrations/) plug the same brain into OpenClaw and Hermes as their memory engine.
 
 ```
 ~/.brain/
@@ -56,8 +56,9 @@ There are two ways to give an agent its brain. They are complementary — most p
 
 | Path | Reaches | Storage | Cost | Best for |
 |------|---------|---------|------|----------|
-| **Hosted MCP connector** | Every MCP-capable host (Claude Code, Codex CLI, OpenCode, Claude.ai apps, ChatGPT, Antigravity) | Brain Cloud (hosted) | account | One connector, everywhere — including web & mobile chat |
-| **Local-first native plugin** | The current CLIs (Claude Code, Codex CLI, OpenCode, Antigravity) | `~/.brain/` on your machine | free | Zero-config ambient memory, no account, files you own |
+| **Hosted MCP connector** | Every MCP-capable host (Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, Claude.ai apps, ChatGPT, Antigravity, OpenClaw, Hermes, Goose) | Brain Cloud (hosted) | account | One connector, everywhere — including web & mobile chat |
+| **Local-first native plugin** | The current CLIs (Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, Antigravity) | `~/.brain/` on your machine | free | Zero-config ambient memory, no account, files you own |
+| **[Assistant integrations](integrations/)** | OpenClaw / NVIDIA NemoClaw (memory-slot plugin), Hermes Agent (memory provider) | `~/.brain/` on your machine | free | Your always-on personal assistant sharing one brain with your coding agents |
 
 ### 1. Universal path — the hosted MCP connector
 
@@ -89,6 +90,29 @@ codex mcp add brain --url https://mcp.brainmemory.ai/mcp
   ```
 - **Claude.ai / ChatGPT** — **Settings → Connectors → Add custom connector**, paste `https://mcp.brainmemory.ai/mcp`, and complete the OAuth sign-in. (ChatGPT requires a paid plan or Developer Mode.)
 - **Google Antigravity** — add to `mcp_config.json` under the `serverUrl` key. *(Legacy Gemini CLI used the `httpUrl` key in `settings.json`.)*
+- **GitHub Copilot CLI** — add to `~/.copilot/mcp-config.json` (OAuth via `/mcp auth brain` in-session):
+  ```json
+  {
+    "mcpServers": {
+      "brain-memory": { "type": "http", "url": "https://mcp.brainmemory.ai/mcp", "tools": ["*"] }
+    }
+  }
+  ```
+- **OpenClaw** — `openclaw mcp add brain-memory --url https://mcp.brainmemory.ai/mcp --auth oauth`, then `openclaw mcp login brain-memory`. (Inside NVIDIA NemoClaw, allowlist the endpoint first — see [integrations/openclaw](integrations/openclaw/).)
+- **Hermes Agent** — add to `~/.hermes/config.yaml`:
+  ```yaml
+  mcp_servers:
+    brain: { url: "https://mcp.brainmemory.ai/mcp", auth: oauth }
+  ```
+- **Goose** — add a remote extension (streamable-HTTP) pointing at `https://mcp.brainmemory.ai/mcp`.
+- **Kilo** — add to `kilo.jsonc` (OAuth starts automatically):
+  ```json
+  {
+    "mcp": {
+      "brain-memory": { "type": "remote", "url": "https://mcp.brainmemory.ai/mcp", "enabled": true }
+    }
+  }
+  ```
 
 </details>
 
@@ -110,6 +134,8 @@ The second command runs the setup wizard, which asks which runtime(s) to configu
 | **Claude Code** | `CLAUDE.md` | `~/.claude/commands/brain/` (plugin slash commands) |
 | **OpenAI Codex CLI** | `AGENTS.md` (`~/.codex/`) | `~/.agents/skills/<name>/SKILL.md` |
 | **OpenCode** | `AGENTS.md` | `~/.config/opencode/commands/` |
+| **GitHub Copilot CLI** | `copilot-instructions.md` (`~/.copilot/`), repo-local `AGENTS.md` | `~/.agents/skills/<name>/SKILL.md` (shared with Codex) |
+| **Kilo** | `rules/brain-memory.md` + `kilo.jsonc` `instructions` entry (`~/.config/kilo/`), repo-local `AGENTS.md` | `~/.config/kilo/commands/` |
 | **Google Antigravity** | `GEMINI.md` | `~/.gemini/skills/` *(experimental — verify paths against a live install)* |
 
 #### Non-interactive
@@ -118,9 +144,33 @@ The second command runs the setup wizard, which asks which runtime(s) to configu
 brain --claude --global    # Claude Code, global
 brain --codex --global     # OpenAI Codex CLI, global
 brain --opencode --global  # OpenCode, global
+brain --copilot --global   # GitHub Copilot CLI, global
+brain --kilo --global      # Kilo, global
 brain --antigravity --global  # Google Antigravity, global (experimental)
 brain --all --global       # All runtimes, global
 ```
+
+For the deepest Copilot CLI integration — deterministic session-start context injection via its `sessionStart` hook — install the [Copilot plugin](integrations/copilot/) on top:
+
+```bash
+copilot plugin install omelas-tech/brain:integrations/copilot/plugin
+```
+
+Kilo gets the same treatment via its runtime plugin — deterministic session-start injection, session tracking, and `BRAIN_AGENT` labeling ([details](integrations/kilo/)):
+
+```bash
+mkdir -p ~/.config/kilo/plugin
+cp integrations/kilo/plugin/brain-memory.js ~/.config/kilo/plugin/
+```
+
+### 3. Personal-assistant integrations — OpenClaw, NemoClaw, Hermes
+
+Always-on personal assistants get deeper, first-class integrations that make `~/.brain/` their actual memory engine — the same brain your coding agents read and write:
+
+- **[OpenClaw / NVIDIA NemoClaw](integrations/openclaw/)** — a native **memory-slot plugin** (`openclaw plugins install openclaw-brain-memory` + `plugins.slots.memory: "brain-memory"`) that replaces `memory-core` with deterministic brain recall, session-start context injection, and model-driven capture. Also ships a slot-neutral hook pack, a ClawHub skill, and a NemoClaw egress-policy preset.
+- **[Hermes Agent](integrations/hermes/)** — a native **memory provider** (`plugins/memory/brain/`) implementing the full `MemoryProvider` lifecycle: session-start prompt block, pre-turn prefetch, `brain_recall`/`brain_memorize`/`brain_reinforce` tools, and session-context logging. Plus lightweight hook-script glue if you keep another provider active.
+
+Both are backed by the same `brain` CLI the coding-agent installs use — one memory, every agent.
 
 ### Update
 

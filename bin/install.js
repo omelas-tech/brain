@@ -52,8 +52,12 @@ function resolveRuntimesFromFlags(flags) {
   if (flags.has('openai') || flags.has('codex')) runtimes.push('openai');
   if (flags.has('opencode')) runtimes.push('opencode');
   if (flags.has('antigravity')) runtimes.push('antigravity');
+  if (flags.has('copilot')) runtimes.push('copilot');
+  if (flags.has('kilo')) runtimes.push('kilo');
   // --all installs the verified CLIs. Antigravity stays opt-in (--antigravity)
   // because its native paths are experimental / pending live verification.
+  // Copilot's paths come from official GA docs but stay opt-in (--copilot)
+  // until confirmed against a live install.
   if (flags.has('all')) return ['claude', 'openai', 'opencode'];
   return runtimes;
 }
@@ -62,6 +66,19 @@ function resolveScopeFromFlags(flags) {
   if (flags.has('global')) return 'global';
   if (flags.has('local')) return 'local';
   return null;
+}
+
+// Kilo's global prompt must be listed in the `instructions` array of
+// kilo.jsonc; the installer only edits that file when it can do so safely
+// (strict JSON, no comments). Otherwise, tell the user the one manual step.
+function warnIfManualRegistration(result, config) {
+  const reg = result.promptRegistration;
+  if (reg && reg.manual) {
+    const configPath = `${config.globalDir}/${config.instructionsConfig}`;
+    const promptPath = `${config.globalDir}/${config.promptFile}`;
+    console.log(`    ⚠ Could not edit ${configPath} safely (${reg.reason}).`);
+    console.log(`      Add "${promptPath}" to its "instructions" array to activate the global prompt.`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -80,11 +97,13 @@ async function runInstall(flags) {
       console.log(' 1) Claude Code');
       console.log(' 2) OpenAI Codex CLI');
       console.log(' 3) OpenCode');
-      console.log(' 4) Google Antigravity (experimental)');
-      console.log(' 5) All current CLIs (Claude Code + Codex + OpenCode)');
+      console.log(' 4) GitHub Copilot CLI');
+      console.log(' 5) Kilo');
+      console.log(' 6) Google Antigravity (experimental)');
+      console.log(' 7) All current CLIs (Claude Code + Codex + OpenCode)');
       console.log('');
 
-      const choice = await ask(rl, ' Select (1/2/3/4/5): ');
+      const choice = await ask(rl, ' Select (1/2/3/4/5/6/7): ');
       switch (choice.trim()) {
         case '1':
           runtimes = ['claude'];
@@ -96,9 +115,15 @@ async function runInstall(flags) {
           runtimes = ['opencode'];
           break;
         case '4':
-          runtimes = ['antigravity'];
+          runtimes = ['copilot'];
           break;
         case '5':
+          runtimes = ['kilo'];
+          break;
+        case '6':
+          runtimes = ['antigravity'];
+          break;
+        case '7':
           runtimes = ['claude', 'openai', 'opencode'];
           break;
         default:
@@ -130,8 +155,9 @@ async function runInstall(flags) {
     for (const runtime of runtimes) {
       const config = RUNTIMES[runtime];
       console.log(`\n  Installing for ${config.name} (${scope})...`);
-      installForRuntime(runtime, scope);
+      const result = installForRuntime(runtime, scope) || {};
       console.log(`    Done!`);
+      warnIfManualRegistration(result, config);
     }
 
     // Initialize .brain if requested
@@ -210,8 +236,9 @@ async function runUpdate(flags) {
   console.log('\n  Updating...');
   for (const d of detections) {
     console.log(`\n  Updating ${d.runtimeName} (${d.scope})...`);
-    installForRuntime(d.runtime, d.scope);
+    const result = installForRuntime(d.runtime, d.scope) || {};
     console.log('    Done!');
+    warnIfManualRegistration(result, RUNTIMES[d.runtime]);
   }
 
   console.log(`\n  ✓ Updated to v${version}\n`);

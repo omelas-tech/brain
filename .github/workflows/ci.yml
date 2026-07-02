@@ -26,6 +26,24 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm test
 
+  # ─── Host-agent integrations (OpenClaw plugin, Hermes provider) ───
+  # Separate job: the OpenClaw TS plugin targets the Gateway's Node 22+
+  # runtime and the Hermes provider is Python — neither belongs in the
+  # core Node 18–24 matrix.
+  integrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm run test:integrations:openclaw
+      - run: npm ci --prefix integrations/openclaw/plugin
+      - run: npm run typecheck --prefix integrations/openclaw/plugin
+      - run: npm run test:integrations:copilot
+      - run: npm run test:integrations:kilo
+      - run: npm run test:integrations:hermes
+
   # ─── Deploy Website to Cloudflare Workers ─────────────────
   deploy-website:
     name: Deploy Website

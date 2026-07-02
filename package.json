@@ -45,7 +45,12 @@
   },
   "scripts": {
     "test": "node --test test/index-manager.test.js test/scorer.test.js test/tfidf.test.js test/recall.test.js test/recall-cli.test.js test/forget.test.js test/functional.test.js test/erasure.test.js test/stress.test.js test/crypto.test.js test/git-sync.test.js test/cloud-sync.test.js test/export-import.test.js test/install.test.js test/prompts.test.js test/session-start.test.js test/memorize.test.js test/pinning.test.js test/skills.test.js test/contradiction.test.js",
-    "prerelease": "npm test",
+    "test:integrations": "npm run test:integrations:openclaw && npm run test:integrations:copilot && npm run test:integrations:kilo && npm run test:integrations:hermes",
+    "test:integrations:openclaw": "node --test integrations/openclaw/test/*.test.mjs",
+    "test:integrations:copilot": "node --test integrations/copilot/test/*.test.mjs",
+    "test:integrations:kilo": "node --test integrations/kilo/test/*.test.mjs",
+    "test:integrations:hermes": "python3 -m unittest discover -s integrations/hermes/tests",
+    "prerelease": "npm test && npm run test:integrations",
     "changelog": "node scripts/release.mjs",
     "changelog:status": "node scripts/release.mjs status",
     "release:beta": "npm version prerelease --preid beta && npm publish --tag beta && npm dist-tag add brain-memory@$(node -p \"require('./package.json').version\") latest",

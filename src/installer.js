@@ -64,7 +64,49 @@ const RUNTIMES = {
     promptSource: 'opencode.md',
     commandStyle: 'flat',
   },
+  copilot: {
+    name: 'GitHub Copilot CLI',
+    globalDir: path.join(os.homedir(), '.copilot'),
+    localDir: '.copilot',
+    commandsSubdir: 'skills',
+    // Copilot reads the cross-tool ~/.agents/skills/ (same dir Codex uses) in
+    // addition to its own ~/.copilot/skills/ — reuse the shared location.
+    skillsGlobalDir: path.join(os.homedir(), '.agents', 'skills'),
+    skillsLocalDir: path.join('.agents', 'skills'),
+    // Copilot's GLOBAL instructions file is ~/.copilot/copilot-instructions.md
+    // but its repo-local file is AGENTS.md — the same root AGENTS.md the openai
+    // and opencode runtimes write locally. The marker-delimited section is
+    // shared: whichever runtime installed last owns it (the prompt bodies are
+    // near-identical, so this is by design, not a conflict).
+    promptFile: 'copilot-instructions.md',
+    localPromptFile: 'AGENTS.md',
+    promptSource: 'copilot.md',
+    commandStyle: 'skills',
+    skillName: true,
+  },
+  kilo: {
+    name: 'Kilo',
+    globalDir: path.join(os.homedir(), '.config', 'kilo'),
+    localDir: '.kilo',
+    commandsSubdir: 'commands',
+    // Kilo v7 is OpenCode-based: repo-root AGENTS.md is read natively (shared
+    // with the openai/opencode runtimes), but there is NO global markdown file
+    // read directly — the global prompt must be written to a file AND
+    // registered in the `instructions` array of ~/.config/kilo/kilo.jsonc
+    // (see instructionsConfig + ensureInstructionsEntry).
+    promptFile: path.join('rules', 'brain-memory.md'),
+    localPromptFile: 'AGENTS.md',
+    instructionsConfig: 'kilo.jsonc',
+    promptSource: 'kilo.md',
+    commandStyle: 'flat',
+  },
 };
+
+/** Prompt filename for a runtime+scope (Copilot's differs between scopes). */
+function promptFileFor(config, scope) {
+  if (scope === 'local' && config.localPromptFile) return config.localPromptFile;
+  return config.promptFile;
+}
 
 /** Where skills install for a runtime+scope (decoupled from the prompt target). */
 function skillsDestFor(config, scope) {
@@ -135,6 +177,9 @@ function injectPrompt(targetDir, promptFile, promptSource) {
   // must be created explicitly.
   fs.mkdirSync(targetDir, { recursive: true });
 
+  // promptFile may contain a subdirectory (e.g. Kilo's rules/brain-memory.md).
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+
   const wrappedContent = `\n${BRAIN_MARKER_START}\n${promptContent}\n${BRAIN_MARKER_END}\n`;
 
   if (fs.existsSync(targetPath)) {
@@ -153,13 +198,63 @@ function injectPrompt(targetDir, promptFile, promptSource) {
   }
 }
 
+/**
+ * Register a prompt file in a JSONC config's `instructions` array (Kilo reads
+ * no global markdown file directly). Conservative by design: creates a minimal
+ * config when none exists; edits only files that parse as strict JSON (JSONC
+ * comments or trailing commas fail JSON.parse, so a hand-commented config is
+ * never rewritten). When it can't edit safely it returns `manual: true` so the
+ * caller can print the one-line manual step instead.
+ */
+function ensureInstructionsEntry(configPath, entry) {
+  if (!fs.existsSync(configPath)) {
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify({ instructions: [entry] }, null, 2) + '\n');
+    return { registered: true, created: true };
+  }
+  const raw = fs.readFileSync(configPath, 'utf-8');
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch {
+    return { registered: false, manual: true, reason: 'not-strict-json' };
+  }
+  if (cfg === null || typeof cfg !== 'object' || Array.isArray(cfg)) {
+    return { registered: false, manual: true, reason: 'unexpected-shape' };
+  }
+  if (cfg.instructions === undefined) cfg.instructions = [];
+  if (!Array.isArray(cfg.instructions)) {
+    return { registered: false, manual: true, reason: 'instructions-not-array' };
+  }
+  if (cfg.instructions.includes(entry)) return { registered: true, already: true };
+  cfg.instructions.push(entry);
+  fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2) + '\n');
+  return { registered: true };
+}
+
+function removeInstructionsEntry(configPath, entry) {
+  if (!fs.existsSync(configPath)) return { removed: false, reason: 'file-not-found' };
+  let cfg;
+  try {
+    cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } catch {
+    return { removed: false, manual: true, reason: 'not-strict-json' };
+  }
+  if (!cfg || !Array.isArray(cfg.instructions)) return { removed: false, reason: 'no-instructions' };
+  const before = cfg.instructions.length;
+  cfg.instructions = cfg.instructions.filter((e) => e !== entry);
+  if (cfg.instructions.length === before) return { removed: false, reason: 'not-registered' };
+  fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2) + '\n');
+  return { removed: true };
+}
+
 function detectInstallations() {
   const results = [];
   for (const [runtime, config] of Object.entries(RUNTIMES)) {
     for (const scope of ['global', 'local']) {
       const targetDir = scope === 'global' ? config.globalDir : config.localDir;
       const promptTarget = scope === 'global' ? config.globalDir : '.';
-      const promptPath = path.join(promptTarget, config.promptFile);
+      const promptPath = path.join(promptTarget, promptFileFor(config, scope));
 
       // Check for command files/dirs
       let commandsFound = false;
@@ -262,12 +357,20 @@ function uninstallForRuntime(runtime, scope) {
   const config = RUNTIMES[runtime];
   const targetDir = scope === 'global' ? config.globalDir : config.localDir;
   const promptTarget = scope === 'global' ? config.globalDir : '.';
-  const promptPath = path.join(promptTarget, config.promptFile);
+  const promptPath = path.join(promptTarget, promptFileFor(config, scope));
 
   const removedCommands = removeCommands(targetDir, config, scope);
   const promptResult = removePromptSection(promptPath);
 
-  return { removedCommands, promptResult };
+  let promptRegistration;
+  if (scope === 'global' && config.instructionsConfig) {
+    promptRegistration = removeInstructionsEntry(
+      path.join(config.globalDir, config.instructionsConfig),
+      promptPath
+    );
+  }
+
+  return { removedCommands, promptResult, promptRegistration };
 }
 
 function installForRuntime(runtime, scope) {
@@ -304,7 +407,18 @@ function installForRuntime(runtime, scope) {
   }
 
   const promptTarget = scope === 'global' ? config.globalDir : '.';
-  injectPrompt(promptTarget, config.promptFile, config.promptSource);
+  const promptFile = promptFileFor(config, scope);
+  injectPrompt(promptTarget, promptFile, config.promptSource);
+
+  let promptRegistration;
+  if (scope === 'global' && config.instructionsConfig) {
+    promptRegistration = ensureInstructionsEntry(
+      path.join(config.globalDir, config.instructionsConfig),
+      path.join(promptTarget, promptFile)
+    );
+  }
+
+  return { promptRegistration };
 }
 
 function initializeBrain(overrideBase) {
@@ -435,6 +549,8 @@ module.exports = {
   copyDir,
   installSkills,
   injectPrompt,
+  ensureInstructionsEntry,
+  removeInstructionsEntry,
   installForRuntime,
   initializeBrain,
   detectInstallations,
