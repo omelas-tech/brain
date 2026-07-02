@@ -1,0 +1,73 @@
+{
+  "id": "brain-memory",
+  "name": "Memory (Brain)",
+  "description": "Neuroscience-inspired persistent memory backed by the brain-memory CLI (~/.brain): deterministic recall, spreading activation, spaced reinforcement, and model-driven capture.",
+  "kind": "memory",
+  "activation": {
+    "onStartup": false
+  },
+  "contracts": {
+    "tools": ["memory_search", "memory_get", "brain_memorize"]
+  },
+  "toolMetadata": {
+    "memory_get": {
+      "replaySafe": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "brainBin": {
+        "type": "string",
+        "description": "Path or name of the brain binary (defaults to \"brain\" on PATH, from the brain-memory npm package)."
+      },
+      "project": {
+        "type": "string",
+        "default": "openclaw",
+        "description": "Project label recorded on memory encoding contexts and used for context-dependent recall."
+      },
+      "topRecall": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 6,
+        "description": "Default number of memory_search results (and session-start context recall depth)."
+      },
+      "autoReinforce": {
+        "type": "boolean",
+        "default": true,
+        "description": "Run `brain reinforce` on memories returned by memory_search (spaced reinforcement + Hebbian co-retrieval)."
+      },
+      "syncOnMemorize": {
+        "type": "boolean",
+        "default": false,
+        "description": "Pass --sync to `brain memorize` so new memories push to Brain Cloud / the configured git remote."
+      }
+    }
+  },
+  "uiHints": {
+    "brainBin": {
+      "label": "Brain binary",
+      "advanced": true,
+      "placeholder": "brain",
+      "help": "Override when the brain-memory CLI is not on the Gateway's PATH."
+    },
+    "project": {
+      "label": "Project label",
+      "placeholder": "openclaw",
+      "help": "Used for context-dependent recall scoring."
+    },
+    "topRecall": {
+      "label": "Recall depth",
+      "placeholder": "6"
+    },
+    "autoReinforce": {
+      "label": "Auto-reinforce recalled memories"
+    },
+    "syncOnMemorize": {
+      "label": "Sync after memorize",
+      "advanced": true,
+      "help": "Requires brain sync to be configured (Brain Cloud or a git remote)."
+    }
+  }
+}

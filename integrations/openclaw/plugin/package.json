@@ -1,0 +1,54 @@
+{
+  "name": "openclaw-brain-memory",
+  "version": "0.1.0",
+  "description": "Brain Memory for OpenClaw — neuroscience-inspired persistent memory (deterministic recall, spreading activation, spaced reinforcement, model-driven capture) as the OpenClaw memory slot.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omelas-tech/brain.git",
+    "directory": "integrations/openclaw/plugin"
+  },
+  "homepage": "https://brainmemory.ai",
+  "bugs": {
+    "url": "https://github.com/omelas-tech/brain/issues"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "memory",
+    "brain-memory",
+    "ai-memory",
+    "nemoclaw"
+  ],
+  "files": [
+    "index.ts",
+    "src",
+    "types",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "openclaw": {
+    "plugin": "./openclaw.plugin.json",
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.6.11"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p ../hooks",
+    "test": "node --test ../test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

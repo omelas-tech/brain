@@ -1,0 +1,7 @@
+name: brain
+version: 1.0.0
+description: "Brain Memory — local-first, human-readable Markdown memory (~/.brain) with decay, spreading activation, and spaced reinforcement, shared across Hermes, Claude Code, Codex, OpenCode, and OpenClaw."
+hooks:
+  - on_session_end
+  - on_pre_compress
+  - on_memory_write

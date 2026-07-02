@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Python bytecode (Hermes integration tests)
+__pycache__/
+*.pyc
+
 # Environment & secrets
 .env
 .env.*
