@@ -35,6 +35,15 @@ rm -rf /opt/brain-connector/users 2>/dev/null || true
 chown -R root:root /opt/brain-connector/bin /opt/brain-connector/src /opt/brain-connector/connector 2>/dev/null || true
 if [ -f .env ]; then chown brainconn:brainconn .env && chmod 600 .env; fi
 
+# Encryption key for OAuth state at rest (Firebase refresh tokens inside
+# /var/lib/brain-connector) — generate once; keeping it in .env (a different
+# path from the data) means an exfiltrated state file alone is useless.
+if [ -f .env ] && ! grep -q '^CONNECTOR_STATE_KEY=' .env; then
+  echo "CONNECTOR_STATE_KEY=$(openssl rand -hex 32)" >> .env
+  chown brainconn:brainconn .env && chmod 600 .env
+  echo "generated CONNECTOR_STATE_KEY in .env"
+fi
+
 cp deploy/brain-connector.service /etc/systemd/system/brain-connector.service
 systemctl daemon-reload
 systemctl enable brain-connector >/dev/null 2>&1 || true

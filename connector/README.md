@@ -23,10 +23,17 @@ Two things to know in production:
   (Google)** identity signs in, so the brain must be pushed to *that* brain-cloud account. See
   [Identity & accounts](#identity--accounts) below for how the connector now surfaces a wrong /
   empty / multi-brain account instead of silently serving a phantom brain.
-- **Sync-back token window** — writes sync back using the Firebase token from login (~1 h); a write
-  after it expires persists locally but syncs on next login. Local CLI memories (`brain cloud push`)
-  now reach an active session automatically via a **TTL re-pull** (`CONNECTOR_REPULL_TTL_MS`, default
-  120s) — it re-pulls only when the cloud checksum changed and never over an unsynced local write.
+- **Sessions renew silently for ~a month** — access tokens live 1 h, but the token endpoint issues
+  **rotating refresh tokens** (OAuth 2.1: single-use, family-revoked on reuse) with a **sliding
+  30-day window** (`CONNECTOR_REFRESH_TTL_MS`), so an active user never sees the login page. Each
+  refresh also renews the **Firebase credential server-side** (securetoken API, from the refresh
+  token captured at login) — so sync-back and TTL re-pulls keep working far past the old ~1 h
+  Firebase ID-token window. Grants + the DCR client registry persist under `CONNECTOR_STATE_DIR`
+  (systemd `StateDirectory`; Firebase refresh tokens encrypted at rest via `CONNECTOR_STATE_KEY`,
+  our tokens stored hashed), so **deploys/restarts no longer log users out**. Local CLI memories
+  (`brain cloud push`) reach an active session automatically via a **TTL re-pull**
+  (`CONNECTOR_REPULL_TTL_MS`, default 120s) — it re-pulls only when the cloud checksum changed and
+  never over an unsynced local write.
 
 `npm test` typechecks and proves the whole path end-to-end **in one server** — the
 complete OAuth 2.1 handshake through to real scored recall (token request is **form-urlencoded**,

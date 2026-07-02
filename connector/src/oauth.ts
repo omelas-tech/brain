@@ -20,9 +20,24 @@ import { issueToken } from "./auth.js";
 import {
   isFirebaseConfigured,
   verifyFirebaseIdToken,
+  refreshFirebaseIdToken,
+  FirebaseRefreshError,
   loginPageHtml,
 } from "./firebase.js";
 import { ensureUserBrain } from "./store.js";
+import {
+  getClient,
+  putClient,
+  clientCount,
+  createRefreshGrant,
+  lookupGrant,
+  rotateGrant,
+  updateGrant,
+  revokeFamily,
+  sweepGrants,
+  refreshGraceMs,
+  type RefreshGrant,
+} from "./persist.js";
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest();
@@ -30,28 +45,34 @@ const rand = () => b64url(crypto.randomBytes(32));
 
 const SCOPES = ["brain.read", "brain.write"];
 const CODE_TTL_MS = 60_000;
+const ACCESS_TOKEN_TTL_S = 3600; // matches auth.TOKEN_TTL_MS; short is fine — clients refresh silently
 
-interface Client { redirectUris: string[]; name?: string; }
+// How long a login lives without use. Sliding window: every silent refresh
+// rotates the token and restarts the clock, so an active user never sees the
+// login page again; only ~a month of total inactivity does.
+const refreshTtlMs = () => Number(process.env.CONNECTOR_REFRESH_TTL_MS ?? 30 * 24 * 3600 * 1000);
+
 interface AuthCode {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; userId: string; scope: string; exp: number;
   brainId?: string; idToken?: string; // carried to the session for sync-back (Phase 2)
+  fbRefreshToken?: string; // Firebase refresh token — lets the OAuth refresh grant renew identity
   identityNote?: string; // carried to the session: login-time identity-hygiene hint
 }
 interface PendingLogin {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; scope: string; state?: string; exp: number;
 }
-const clients = new Map<string, Client>();
 const authCodes = new Map<string, AuthCode>();
 const pendingLogins = new Map<string, PendingLogin>(); // login_id → validated OAuth params
 const LOGIN_TTL_MS = 600_000;
 const MAX_CLIENTS = 50_000; // bound the open-DCR registry against memory exhaustion
 
-/** Drop expired auth codes and pending logins (they were only deleted on use). */
+/** Drop expired auth codes, pending logins, and refresh grants. */
 export function sweepExpired(now = Date.now()): void {
   for (const [k, v] of authCodes) if (v.exp < now) authCodes.delete(k);
   for (const [k, v] of pendingLogins) if (v.exp < now) pendingLogins.delete(k);
+  sweepGrants(now);
 }
 
 /** Build the OAuth callback URL back to the client (code + state + iss). */
@@ -63,7 +84,7 @@ function callbackUrl(redirectUri: string, issuer: string, params: Record<string,
   return u.toString();
 }
 
-function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge: string; resource: string; scope: string; userId: string; brainId?: string; idToken?: string; identityNote?: string }): string {
+function mintAuthCode(p: { clientId: string; redirectUri: string; codeChallenge: string; resource: string; scope: string; userId: string; brainId?: string; idToken?: string; fbRefreshToken?: string; identityNote?: string }): string {
   const code = "code_" + rand();
   authCodes.set(code, { ...p, exp: Date.now() + CODE_TTL_MS });
   return code;
@@ -108,7 +129,7 @@ export function registerOAuthRoutes(app: Express): void {
       registration_endpoint: `${issuer}/register`,
       scopes_supported: SCOPES,
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"], // public client + PKCE
       authorization_response_iss_parameter_supported: true, // RFC 9207
@@ -122,19 +143,19 @@ export function registerOAuthRoutes(app: Express): void {
       res.status(400).json({ error: "invalid_redirect_uri", error_description: "redirect_uris required" });
       return;
     }
-    if (clients.size >= MAX_CLIENTS) {
+    if (clientCount() >= MAX_CLIENTS) {
       res.status(503).json({ error: "temporarily_unavailable", error_description: "client registry full" });
       return;
     }
     const clientId = "client_" + rand();
     const name = typeof req.body?.client_name === "string" ? req.body.client_name : undefined;
-    clients.set(clientId, { redirectUris, name });
+    putClient(clientId, { redirectUris, name });
     res.status(201).json({
       client_id: clientId,
       client_id_issued_at: Math.floor(Date.now() / 1000),
       redirect_uris: redirectUris,
       token_endpoint_auth_method: "none",
-      grant_types: ["authorization_code"],
+      grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
     });
   });
@@ -143,7 +164,7 @@ export function registerOAuthRoutes(app: Express): void {
   app.get("/authorize", (req: Request, res: Response) => {
     const issuer = issuerOf(req);
     const q = req.query as Record<string, string>;
-    const client = clients.get(q.client_id);
+    const client = getClient(q.client_id);
     if (!client || !client.redirectUris.includes(q.redirect_uri)) {
       res.status(400).json({ error: "invalid_request", error_description: "unknown client_id or redirect_uri" });
       return;
@@ -195,7 +216,7 @@ export function registerOAuthRoutes(app: Express): void {
   // mint the auth code, and hand the client-callback URL back to the page.
   app.post("/authorize/complete", async (req: Request, res: Response) => {
     const issuer = issuerOf(req);
-    const { login_id, id_token } = req.body ?? {};
+    const { login_id, id_token, refresh_token } = req.body ?? {};
     const login = pendingLogins.get(login_id);
     pendingLogins.delete(login_id); // single-use
     if (!login || login.exp < Date.now()) {
@@ -223,14 +244,17 @@ export function registerOAuthRoutes(app: Express): void {
       clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
       resource: login.resource, scope: login.scope, userId,
       brainId: store.brainId, idToken: id_token, // carry to session for write sync-back
+      fbRefreshToken: typeof refresh_token === "string" && refresh_token ? refresh_token : undefined,
       identityNote: store.identity?.note, // surfaced to the user by the MCP tools
     });
     res.json({ redirect: callbackUrl(login.redirectUri, issuer, { code }, login.state) });
   });
 
-  // Token endpoint (authorization_code + PKCE verify + audience binding)
-  app.post("/token", (req: Request, res: Response) => {
+  // Token endpoint — authorization_code (PKCE + audience binding) and
+  // refresh_token (silent renewal — the reason users don't re-login hourly).
+  app.post("/token", async (req: Request, res: Response) => {
     const b = req.body ?? {};
+    if (b.grant_type === "refresh_token") return handleRefreshGrant(b, res);
     if (b.grant_type !== "authorization_code") {
       res.status(400).json({ error: "unsupported_grant_type" });
       return;
@@ -259,6 +283,124 @@ export function registerOAuthRoutes(app: Express): void {
       brainId: entry.brainId, idToken: entry.idToken, // for write sync-back
       identityNote: entry.identityNote, // login-time identity-hygiene hint
     });
-    res.json({ access_token, token_type: "Bearer", expires_in: 3600, scope: entry.scope });
+    const now = Date.now();
+    const refresh_token = createRefreshGrant({
+      familyId: "fam_" + rand(),
+      clientId: entry.clientId, userId: entry.userId, scope: entry.scope, aud: entry.resource,
+      brainId: entry.brainId, identityNote: entry.identityNote, fbRefreshToken: entry.fbRefreshToken,
+      exp: now + refreshTtlMs(), createdAt: now, lastUsedAt: now,
+    });
+    res.json({ access_token, token_type: "Bearer", expires_in: ACCESS_TOKEN_TTL_S, refresh_token, scope: entry.scope });
   });
+}
+
+/**
+ * The refresh_token grant. Renews the whole credential chain with no user present:
+ *   ① validate + rotate our refresh token (OAuth 2.1: single-use, family-revoked
+ *     on reuse — a replayed token means theft, so every sibling dies with it.
+ *     Exception: inside a short grace window a replay is a benign burst race —
+ *     concurrent refreshes or a retry after a lost response — and gets the SAME
+ *     successor token back instead of a family kill);
+ *   ② renew the FIREBASE credential from the stored Firebase refresh token, so
+ *     the new session can still pull/sync-back against brain-cloud (the 1-hour
+ *     Firebase ID token from login is long dead by now);
+ *   ③ re-provision the brain working copy if it was purged, and mint the access
+ *     token. Transient failures return 503 — the client keeps its refresh token
+ *     and retries; only a real revocation invalidates the grant.
+ */
+async function handleRefreshGrant(b: Record<string, string>, res: Response): Promise<void> {
+  const invalid = (desc: string) =>
+    void res.status(400).json({ error: "invalid_grant", error_description: desc });
+
+  const found = typeof b.refresh_token === "string" && b.refresh_token ? lookupGrant(b.refresh_token) : null;
+  if (!found) return invalid("unknown or expired refresh token");
+  const { hash, grant } = found;
+  const now = Date.now();
+  if (grant.revoked) return invalid("refresh token revoked");
+  if (grant.exp < now) return invalid("refresh token expired — please reconnect");
+  if (b.client_id !== grant.clientId) return invalid("client mismatch");
+  if (b.resource && b.resource !== grant.aud) {
+    res.status(400).json({ error: "invalid_target", error_description: "resource mismatch" });
+    return;
+  }
+  if (grant.rotatedTo) {
+    // Replay of an already-rotated token. Within the grace window, answer with
+    // the SAME successor (burst race — see rotateGrant); past it, theft: kill
+    // the family. The successor must itself still be pristine.
+    const inGrace = grant.successorToken != null && grant.rotatedAt != null && now - grant.rotatedAt <= refreshGraceMs();
+    const succ = inGrace ? lookupGrant(grant.successorToken!) : null;
+    if (succ && !succ.grant.revoked && !succ.grant.rotatedTo && succ.grant.exp > now) {
+      return renewSession(succ.hash, succ.grant, { rotate: false, presentedToken: grant.successorToken! }, res);
+    }
+    const n = revokeFamily(grant.familyId);
+    console.error(`[connector] refresh-token reuse detected for ${grant.userId} — revoked ${n} grant(s) in family`);
+    return invalid("refresh token reuse detected — all sessions for this login were revoked");
+  }
+  return renewSession(hash, grant, { rotate: true, presentedToken: b.refresh_token }, res);
+}
+
+/** Steps ②+③ of the refresh grant: renew identity, re-provision, mint tokens. */
+async function renewSession(
+  hash: string,
+  grant: RefreshGrant,
+  opts: { rotate: boolean; presentedToken: string },
+  res: Response,
+): Promise<void> {
+  const invalid = (desc: string) =>
+    void res.status(400).json({ error: "invalid_grant", error_description: desc });
+  const now = Date.now();
+
+  // Renew the Google credential. A grant minted with Firebase configured but no
+  // refresh token can't renew identity — fail closed rather than silently serving
+  // an empty brain.
+  let idToken: string | undefined;
+  let fbRefreshToken = grant.fbRefreshToken;
+  if (isFirebaseConfigured()) {
+    if (!fbRefreshToken) return invalid("session cannot be renewed — please reconnect");
+    try {
+      const renewed = await refreshFirebaseIdToken(fbRefreshToken);
+      idToken = renewed.idToken;
+      fbRefreshToken = renewed.refreshToken;
+    } catch (e) {
+      if (e instanceof FirebaseRefreshError && !e.permanent) {
+        res.status(503).json({ error: "temporarily_unavailable", error_description: "identity provider unreachable — retry" });
+        return;
+      }
+      // Google refused the credential (account revoked/disabled) → the login is over.
+      revokeFamily(grant.familyId);
+      console.log(`[connector] refresh for ${grant.userId} refused by identity provider — family revoked`);
+      return invalid("login expired — please reconnect");
+    }
+  }
+
+  // Re-provision the working copy (it may have been purged since the last call).
+  const brainDir = resolveBrainDir(grant.userId);
+  const store = await ensureUserBrain({ userId: grant.userId, brainDir, idToken });
+  if (store.source.includes("(failed:")) {
+    // brain-cloud outage mid-refresh: issuing a token now would serve an empty
+    // brain. Let the client retry — it keeps both its tokens.
+    res.status(503).json({ error: "temporarily_unavailable", error_description: "brain store unreachable — retry" });
+    return;
+  }
+  const brainId = store.brainId ?? grant.brainId;
+  const identityNote = store.identity?.note ?? grant.identityNote;
+
+  let refresh_token: string;
+  if (opts.rotate) {
+    refresh_token = rotateGrant(hash, {
+      ...grant,
+      brainId, identityNote, fbRefreshToken,
+      exp: now + refreshTtlMs(), // sliding window restarts on every use
+      lastUsedAt: now,
+    });
+  } else {
+    // Grace replay: hand back the SAME successor token; just keep its grant current
+    // (Google may have rotated the Firebase refresh token underneath us).
+    refresh_token = opts.presentedToken;
+    updateGrant(hash, { brainId, identityNote, fbRefreshToken, lastUsedAt: now });
+  }
+  const access_token = issueToken(grant.userId, brainDir, {
+    scope: grant.scope, aud: grant.aud, brainId, idToken, identityNote,
+  });
+  res.json({ access_token, token_type: "Bearer", expires_in: ACCESS_TOKEN_TTL_S, refresh_token, scope: grant.scope });
 }

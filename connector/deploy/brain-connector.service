@@ -23,6 +23,14 @@ Environment=NODE_ENV=production
 RuntimeDirectory=brain-connector
 RuntimeDirectoryMode=0700
 Environment=CONNECTOR_BRAIN_BASE=/run/brain-connector
+# Login continuity: refresh-token grants + the DCR client registry persist here
+# so a deploy/restart doesn't log every connected user out. This holds CREDENTIALS
+# (our refresh tokens hashed; Firebase refresh tokens encrypted with
+# CONNECTOR_STATE_KEY from .env), never memories — memories stay on the tmpfs.
+# StateDirectory stays writable despite ProtectSystem=strict.
+StateDirectory=brain-connector
+StateDirectoryMode=0700
+Environment=CONNECTOR_STATE_DIR=/var/lib/brain-connector
 
 # --- Sandbox hardening -----------------------------------------------------
 # The service handles user-supplied brain bundles (tar). Even with the in-app

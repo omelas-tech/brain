@@ -53,6 +53,48 @@ export interface FirebaseIdentity {
   name?: string;
 }
 
+/**
+ * Renew a Firebase ID token from a Firebase REFRESH token (securetoken API).
+ * This is what lets a connector session outlive the 1-hour ID token: the OAuth
+ * refresh grant renews the Google credential server-side, with no user present.
+ * `permanent: true` means the credential itself was refused (revoked / disabled
+ * account) — the caller must kill the session; anything else is a retryable
+ * outage and must NOT invalidate the user's grant.
+ */
+export class FirebaseRefreshError extends Error {
+  permanent: boolean;
+  constructor(message: string, permanent: boolean) {
+    super(message);
+    this.permanent = permanent;
+  }
+}
+
+export async function refreshFirebaseIdToken(refreshToken: string): Promise<{ idToken: string; refreshToken: string }> {
+  const cfg = firebaseConfig();
+  if (!cfg) throw new FirebaseRefreshError("Firebase not configured", true);
+  let res: Response;
+  try {
+    res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${cfg.apiKey}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
+    });
+  } catch (e) {
+    throw new FirebaseRefreshError(`securetoken unreachable: ${(e as Error).message}`, false);
+  }
+  if (!res.ok) {
+    // 400 = the token itself is bad (TOKEN_EXPIRED / USER_DISABLED / USER_NOT_FOUND /
+    // INVALID_REFRESH_TOKEN) — Google revoked the credential, so the session ends.
+    // 5xx / anything else is Google having a moment; the caller retries later.
+    let detail = `${res.status}`;
+    try { detail = ((await res.json()) as any)?.error?.message ?? detail; } catch { /* body optional */ }
+    throw new FirebaseRefreshError(`identity refresh refused: ${detail}`, res.status === 400);
+  }
+  const d = (await res.json()) as { id_token?: string; refresh_token?: string };
+  if (!d.id_token) throw new FirebaseRefreshError("identity refresh returned no token", false);
+  return { idToken: d.id_token, refreshToken: d.refresh_token ?? refreshToken };
+}
+
 /** Verify a Firebase ID token (RS256, against Google's certs) and return the identity. */
 export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseIdentity> {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -441,9 +483,11 @@ btn.addEventListener('click', async () => {
     const cred = await signInWithPopup(auth, new GoogleAuthProvider());
     const id_token = await cred.user.getIdToken();
     msg.textContent = 'Verifying with the connector…';
+    // The Firebase REFRESH token lets the connector renew the (1-hour) ID token
+    // server-side, so the session doesn't force a new Google login every hour.
     const res = await fetch(${JSON.stringify(opts.action)}, {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ login_id: ${JSON.stringify(opts.loginId ?? null)}, id_token })
+      body: JSON.stringify({ login_id: ${JSON.stringify(opts.loginId ?? null)}, id_token, refresh_token: cred.user.refreshToken })
     });
     const data = await res.json();
     if (data.redirect) { msg.textContent = 'Connected — redirecting…'; window.location = data.redirect; return; }

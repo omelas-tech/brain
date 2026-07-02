@@ -21,6 +21,7 @@ import {
   type Session,
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
+import { initOAuthState } from "./persist.js";
 import { isFirebaseConfigured } from "./firebase.js";
 import { ensureUserBrain, syncBack, purgeBrain, startBrainReaper } from "./store.js";
 import { memorize, pin, unpin, forget } from "./write.js";
@@ -279,6 +280,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const port = Number(process.env.PORT) || 8788;
+  // Login continuity: refresh grants + the DCR client registry persist under
+  // CONNECTOR_STATE_DIR so a deploy/restart doesn't log every user out.
+  const state = initOAuthState();
+  if (state.persistent) {
+    console.log(`  oauth state: persisted in ${state.dir}`);
+  } else if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[connector] WARNING: CONNECTOR_STATE_DIR is not set — refresh grants and " +
+        "client registrations are memory-only, so every restart forces every user " +
+        "to log in again.",
+    );
+  }
   // Garbage-collect expired auth codes / pending logins / tokens (they are only
   // pruned lazily on use otherwise). Unref'd so it never holds the process open.
   // Session end: when a user's last token expires, purge their plaintext working
