@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "node ./session-start.mjs",
+        "powershell": "node ./session-start.mjs",
+        "cwd": "${PLUGIN_ROOT}/hooks",
+        "timeoutSec": 15
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "node ./session-end.mjs",
+        "powershell": "node ./session-end.mjs",
+        "cwd": "${PLUGIN_ROOT}/hooks",
+        "timeoutSec": 15
+      }
+    ]
+  }
+}

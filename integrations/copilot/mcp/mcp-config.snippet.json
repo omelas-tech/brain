@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "brain-memory": {
+      "type": "http",
+      "url": "https://mcp.brainmemory.ai/mcp",
+      "tools": ["*"]
+    }
+  }
+}

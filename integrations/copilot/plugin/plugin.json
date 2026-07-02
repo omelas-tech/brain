@@ -1,0 +1,16 @@
+{
+  "name": "brain-memory",
+  "description": "Persistent, neuroscience-inspired memory for GitHub Copilot CLI. A sessionStart hook injects a budget-bounded context payload (pinned facts, relevant memories, procedural skills index) from the user's global ~/.brain; a sessionEnd hook records session boundaries for context-dependent recall; bundled agent skills teach Copilot deterministic recall (brain-remember), classified storage (brain-memorize), and a health dashboard (brain-status). Requires the brain CLI: npm install -g brain-memory.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Omelas",
+    "url": "https://omelas.tech"
+  },
+  "homepage": "https://brainmemory.ai",
+  "repository": "https://github.com/omelas-tech/brain",
+  "license": "MIT",
+  "keywords": ["memory", "recall", "agent-memory", "cross-session", "brain"],
+  "category": "productivity",
+  "skills": "skills/",
+  "hooks": "hooks.json"
+}
