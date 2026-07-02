@@ -1,0 +1,6 @@
+{
+  "name": "brain-memory-kilo-plugin",
+  "private": true,
+  "type": "module",
+  "description": "Brain Memory runtime plugin for Kilo — single-file, dependency-free (brain-memory.js is the artifact; this manifest only marks the directory as ESM for tests)."
+}

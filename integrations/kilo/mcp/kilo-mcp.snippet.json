@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "brain-memory": {
+      "type": "remote",
+      "url": "https://mcp.brainmemory.ai/mcp",
+      "enabled": true
+    }
+  }
+}
