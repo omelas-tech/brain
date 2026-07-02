@@ -15,7 +15,7 @@ const FAQ = [
   },
   {
     q: "Which AI agents does Brain Memory support?",
-    a: "The universal path is the hosted MCP connector (https://mcp.brainmemory.ai/mcp) — one connector reaches Claude Code, OpenAI Codex CLI, OpenCode, the Claude.ai apps, ChatGPT, and Google Antigravity. There's also a free local-first native plugin for Claude Code, Codex, OpenCode, and Antigravity (experimental). A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
+    a: "The universal path is the hosted MCP connector (https://mcp.brainmemory.ai/mcp) — one connector reaches Claude Code, OpenAI Codex CLI, OpenCode, GitHub Copilot CLI, Kilo, the Claude.ai apps, ChatGPT, Google Antigravity, OpenClaw, and Hermes Agent. There's also a free local-first native plugin for Claude Code, Codex, OpenCode, Copilot CLI, Kilo, and Antigravity (experimental), plus dedicated memory-engine integrations for OpenClaw and Hermes. A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
   },
   {
     q: "Is Brain Memory free and open source?",
@@ -97,7 +97,7 @@ export default function Home() {
               A hierarchical, file-system memory that{" "}
               <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
               and consolidates during sleep. One hosted MCP connector reaches Claude&nbsp;Code,
-              Codex&nbsp;CLI, OpenCode, Antigravity, and the Claude &amp; ChatGPT apps — <b>one brain, any model, every agent.</b>
+              Codex&nbsp;CLI, OpenCode, Copilot&nbsp;CLI, Kilo, Antigravity, and the Claude &amp; ChatGPT apps — <b>one brain, any model, every agent.</b>
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#quickstart">
@@ -476,7 +476,7 @@ const features = [
   { title: "Associative network", icon: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3 9M17 8l-4 8"/>', body: "Weighted edges link related memories. Recalling one activates its neighbours via spreading activation." },
   { title: "Spaced reinforcement", icon: '<path d="M4 18V8m6 10V5m6 13v-7"/><circle cx="4" cy="6" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="16" cy="9" r="1.5"/>', body: "Longer intervals between recalls produce larger, more durable boosts. The spacing effect, by design." },
   { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
-  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Codex CLI, OpenCode, and Antigravity share one store — plus the Claude and ChatGPT apps via the hosted MCP connector, and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
+  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, and Antigravity share one store — plus the Claude and ChatGPT apps via the hosted MCP connector, OpenClaw and Hermes as native memory engines, and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
   { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
   { title: "Sync your way — no lock-in", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Plain files in a folder. Point BRAIN_DIR at Google Drive, Dropbox, or iCloud — or sync via git or encrypted export. No account required." },
 ];
@@ -513,6 +513,8 @@ const connectorHosts = [
   { name: "Claude Code", vendor: "Anthropic", setup: "claude mcp add --transport http brain …/mcp" },
   { name: "Codex CLI", vendor: "OpenAI", setup: "codex mcp add brain --url …/mcp" },
   { name: "OpenCode", vendor: "Any model", setup: "opencode.json → mcp remote url" },
+  { name: "Copilot CLI", vendor: "GitHub", setup: "mcp-config.json → type http + url" },
+  { name: "Kilo", vendor: "Any model", setup: "kilo.jsonc → mcp remote url" },
   { name: "Claude apps", vendor: "Anthropic", setup: "Settings → Connectors → Add (URL + OAuth)" },
   { name: "ChatGPT", vendor: "OpenAI", setup: "Settings → Connectors → custom (paid / Dev Mode)" },
   { name: "Antigravity", vendor: "Google", setup: "mcp_config.json → serverUrl" },
@@ -523,6 +525,8 @@ const nativeHosts = [
   { name: "Claude Code", vendor: "Anthropic", flag: "--claude" },
   { name: "Codex CLI", vendor: "OpenAI", flag: "--codex" },
   { name: "OpenCode", vendor: "Any model", flag: "--opencode" },
+  { name: "Copilot CLI", vendor: "GitHub", flag: "--copilot" },
+  { name: "Kilo", vendor: "Any model", flag: "--kilo" },
   { name: "Antigravity", vendor: "Google", flag: "--antigravity", experimental: true },
 ];
 

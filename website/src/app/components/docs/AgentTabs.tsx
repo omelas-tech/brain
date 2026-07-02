@@ -7,6 +7,8 @@ const agents = [
   { id: "claude", label: "Claude Code" },
   { id: "codex", label: "Codex CLI" },
   { id: "opencode", label: "OpenCode" },
+  { id: "copilot", label: "Copilot CLI" },
+  { id: "kilo", label: "Kilo" },
   { id: "antigravity", label: "Antigravity" },
 ] as const;
 
