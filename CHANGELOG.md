@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.33] - 2026-07-04
+
+_Covers everything since v0.1.0-beta.31, including the changes first shipped in the changelog-less 0.1.0-beta.32._
+
+### Added
+
+- **Recall receipts — memory that visibly fires.** Every memory returned by
+  `brain recall` and `brain session-start` now carries an engine-minted
+  `receipt` line (`◉ memory: "<title>" (<type>, <age>)`). Hosts end a response
+  with the receipts of the memories that actually shaped it — max 3, copied
+  verbatim, pinned facts only when decisive, none when none were used. A
+  receipt can only exist if the engine returned that memory, so receipts
+  cannot be hallucinated.
+- **Four new agent hosts.** Native integrations under `integrations/` for
+  **OpenClaw / NVIDIA NemoClaw** (memory-slot plugin `openclaw-brain-memory`
+  replacing `memory-core`, slot-neutral hook pack, ClawHub skill, NemoClaw
+  egress-policy preset — all live-verified), **Hermes Agent** (full
+  `MemoryProvider` plugin, shipped standalone as the `hermes-brain-memory`
+  pip package per upstream policy), **GitHub Copilot CLI** (plugin with
+  `sessionStart` context injection + skills; the repo is now a Copilot plugin
+  marketplace via `.github/plugin/marketplace.json` — install with
+  `copilot plugin install brain-memory@brain`), and **Kilo** (runtime plugin
+  with chat-message injection, session tracking, and `BRAIN_AGENT` labeling).
+- **Two new installer runtimes.** `brain --copilot` (global prompt at
+  `~/.copilot/copilot-instructions.md`, skills in the cross-tool
+  `~/.agents/skills/`) and `brain --kilo` (prompt registered in the
+  `kilo.jsonc` `instructions` array via a safe strict-JSON editor; repo-local
+  `AGENTS.md` shared with Codex/OpenCode).
+
+### Fixed
+
+- Kilo plugin derives the project label from `input.project` as well, so a
+  plugin host running with cwd `/` no longer records sessions as project
+  `"unknown"`.
+- Hermes `cli.py` is a standalone diagnostics tool (`python3 cli.py
+  status|recall`) — Hermes exposes no CLI hook to user-installed memory
+  providers, so the previously documented `hermes memory recall` never
+  existed.
+- Every `npm publish` now runs the full test suite via `prepublishOnly` —
+  the old `prerelease` script was a no-op vestige no release path invoked.
+
 ## [0.1.0-beta.31] - 2026-07-01
 
 ### Fixed
