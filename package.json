@@ -50,7 +50,7 @@
     "test:integrations:copilot": "node --test integrations/copilot/test/*.test.mjs",
     "test:integrations:kilo": "node --test integrations/kilo/test/*.test.mjs",
     "test:integrations:hermes": "python3 -m unittest discover -s integrations/hermes/tests",
-    "prerelease": "npm test && npm run test:integrations",
+    "prepublishOnly": "npm test && npm run test:integrations",
     "changelog": "node scripts/release.mjs",
     "changelog:status": "node scripts/release.mjs status",
     "release:beta": "npm version prerelease --preid beta && npm publish --tag beta && npm dist-tag add brain-memory@$(node -p \"require('./package.json').version\") latest",
