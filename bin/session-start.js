@@ -42,6 +42,7 @@ const {
 
 const { rankMemories } = require('../src/scorer');
 const { advertisedSummaries } = require('../src/skills');
+const { receiptFor } = require('../src/receipt');
 
 function parseArgs(argv) {
   const args = { project: null, topics: null, task: null, top: 5 };
@@ -61,6 +62,11 @@ function parseArgs(argv) {
 function estimateTokens(entry) {
   if (typeof entry.token_estimate === 'number') return entry.token_estimate;
   return Math.ceil(((entry.title || '').length + 8) / 4);
+}
+
+/** chars/4 token estimate for a minted receipt line (counted against budgets). */
+function receiptTokens(receipt) {
+  return receipt ? Math.ceil(receipt.length / 4) : 0;
 }
 
 /**
@@ -186,7 +192,8 @@ function computeSessionStart(projectRoot, args = {}) {
   let pinnedExcluded = 0;
   const pinCap = Math.min(config.pin_budget_tokens, cap);
   for (const c of pinnedCandidates) {
-    const est = estimateTokens(c.entry);
+    const receipt = receiptFor(c.entry);
+    const est = estimateTokens(c.entry) + receiptTokens(receipt);
     if (pinnedTokens + est > pinCap && pinned.length > 0) { pinnedExcluded++; continue; }
     pinned.push({
       id: c.id,
@@ -195,6 +202,7 @@ function computeSessionStart(projectRoot, args = {}) {
       scope: c.scope,
       priority: c.priority,
       tokens: est,
+      receipt,
     });
     pinnedTokens += est;
   }
@@ -220,18 +228,21 @@ function computeSessionStart(projectRoot, args = {}) {
   let excluded = 0;
   for (const mem of ranked.slice(0, top)) {
     if (pinnedIds.has(mem.id)) continue; // already presented in the pinned tier
-    const est = estimateTokens(mem);
+    const title = mem.title || path.basename(mem.path || '', '.md');
+    const receipt = receiptFor({ ...mem, title });
+    const est = estimateTokens(mem) + receiptTokens(receipt);
     if (used + est > recallCap && context_recall.length > 0) {
       excluded++;
       continue;
     }
     context_recall.push({
       id: mem.id,
-      title: mem.title || path.basename(mem.path || '', '.md'),
+      title,
       path: mem.path,
       type: mem.type,
       score: mem.score,
       token_estimate: est,
+      receipt,
     });
     used += est;
   }

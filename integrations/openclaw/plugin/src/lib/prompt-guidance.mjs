@@ -29,6 +29,8 @@ export function buildBrainPromptSection({ availableTools }) {
   if (hasSearch) {
     lines.push(
       "- Recall first: before answering anything about prior conversations, decisions, dates, people, preferences, routines, or todos, run memory_search. Scoring is deterministic (relevance + decayed strength + context match + spreading activation); recalled memories are automatically reinforced.",
+      '- Recall receipts: when a recalled memory materially shaped your answer, end the response with its `receipt` line (`◉ memory: "…" (type, age)`) copied verbatim — max 3 lines, at the very end.',
+      "- No memory used → no receipt line. Never invent a receipt — only lines provided in `receipt` fields.",
     );
   }
   if (hasGet) {

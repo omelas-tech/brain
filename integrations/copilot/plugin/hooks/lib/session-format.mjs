@@ -7,9 +7,9 @@
  * The payload shape (produced by the brain CLI, already budget-bounded on its
  * side):
  *   {
- *     memory_count, pinned: [{id,title,content,scope,priority,tokens}],
+ *     memory_count, pinned: [{id,title,content,scope,priority,tokens,receipt}],
  *     skills_index: [{name,description}],
- *     context_recall: [{id,title,path,type,score,token_estimate}],
+ *     context_recall: [{id,title,path,type,score,token_estimate,receipt}],
  *     due_for_review, low_confidence_alerts, budget
  *   }
  */
@@ -91,6 +91,9 @@ export function formatSessionStartBlock(rawPayload, options = {}) {
       "## Brain memory — session context" + projectLabel,
       `Brain active: ${memoryCount} memories, ${recall.length} relevant to this context. ` +
         "Internalize the facts below silently — do not recite them to the user.",
+      "When a memory below materially shapes an answer, end that response with its receipt " +
+        "line (the `◉ memory: …` string) copied verbatim — max 3; pinned facts only when " +
+        "decisive. No memory used → no receipt; never invent one.",
       "",
     ],
   });
@@ -101,7 +104,8 @@ export function formatSessionStartBlock(rawPayload, options = {}) {
       if (!isRecord(pin)) continue;
       const title = String(pin.title || pin.id || "pinned memory");
       const content = typeof pin.content === "string" ? pin.content.trim() : "";
-      lines.push(content ? `- **${title}**: ${content}` : `- **${title}**`);
+      const receipt = typeof pin.receipt === "string" && pin.receipt ? ` — receipt: ${pin.receipt}` : "";
+      lines.push((content ? `- **${title}**: ${content}` : `- **${title}**`) + receipt);
     }
     lines.push("");
     chunks.push({ priority: 1, lines, listStart: 1 });
@@ -116,7 +120,13 @@ export function formatSessionStartBlock(rawPayload, options = {}) {
       const score = typeof mem.score === "number" ? mem.score.toFixed(2) : undefined;
       const path = mem.path ? String(mem.path) : undefined;
       const scorePart = score ? `, score ${score}` : "";
-      lines.push(`- ${title} (${type}${scorePart})${path ? ` — ${path}` : ""}`);
+      const receipt = typeof mem.receipt === "string" && mem.receipt ? mem.receipt : undefined;
+      // Engine-minted receipts render verbatim so the model can copy them.
+      lines.push(
+        receipt
+          ? `- ${receipt}${score ? ` score ${score}` : ""}${path ? ` — ${path}` : ""}`
+          : `- ${title} (${type}${scorePart})${path ? ` — ${path}` : ""}`,
+      );
     }
     lines.push("");
     chunks.push({ priority: 2, lines, listStart: 1 });

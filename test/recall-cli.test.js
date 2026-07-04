@@ -111,6 +111,8 @@ describe('recall CLI: ranked retrieval', () => {
     for (const res of r.json) {
       assert.ok(typeof res.score === 'number');
       assert.ok(res.id && res.title);
+      // ...and an engine-minted recall receipt (freshly seeded → age "today").
+      assert.equal(res.receipt, `◉ memory: "${res.title}" (${res.type}, today)`);
     }
     // ...and the list is sorted by score, non-increasing.
     for (let i = 1; i < r.json.length; i++) {

@@ -39,7 +39,7 @@ If the brain-memory package is installed globally, use:
 brain recall "$ARGUMENTS" --project "<project>" --task "<task_type>" --top 10
 ```
 
-The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, and salience using the v4 formula. All scoring is deterministic — same query always produces the same ranking.
+The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, and salience using the v4 formula. All scoring is deterministic — same query always produces the same ranking. Each result also carries a pre-minted `receipt` line (`◉ memory: "<title>" (<type>, <age>)`) — keep it for step 6.
 
 ### 3. Read Top Memories
 
@@ -100,6 +100,7 @@ Format the output clearly. Include confidence indicators for low-confidence memo
 
 ---
 *Memory reinforced — strength updated, decay improved*
+◉ memory: "<title>" (<type>, <age>)
 ```
 
 For consolidated responses (Case B):
@@ -116,4 +117,10 @@ For consolidated responses (Case B):
 
 ---
 *<N> memories reinforced, association links strengthened*
+◉ memory: "<title>" (<type>, <age>)
+◉ memory: "<title>" (<type>, <age>)
 ```
+
+### 7. End With Receipts
+
+End the reply with the `receipt` lines of the memories you actually presented, copied **verbatim** from the engine's `receipt` field — max 3, at the very end (as in the templates above). Never compose a receipt yourself: only lines the engine returned.

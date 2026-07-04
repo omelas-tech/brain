@@ -13,7 +13,14 @@ import descriptor from "../plugin/brain-memory.js";
 
 const AGGREGATOR_PAYLOAD = {
   memory_count: 12,
-  pinned: [{ id: "mem-1", title: "Ship on main", content: "No PRs; commit directly to main." }],
+  pinned: [
+    {
+      id: "mem-1",
+      title: "Ship on main",
+      content: "No PRs; commit directly to main.",
+      receipt: '◉ memory: "Ship on main" (decision, 2mo ago)',
+    },
+  ],
   skills_index: [{ name: "release-flow", description: "How releases are cut" }],
   context_recall: [
     {
@@ -22,6 +29,7 @@ const AGGREGATOR_PAYLOAD = {
       path: "professional/projects/foo/api.md",
       type: "decision",
       score: 0.81,
+      receipt: '◉ memory: "API pagination decision" (decision, 3d ago)',
     },
   ],
   due_for_review: 2,
@@ -82,6 +90,45 @@ test("first message of a session: runs the aggregator and appends a synthetic pa
   assert.ok(part.text.includes("12 memories"), "status line present");
   assert.ok(part.text.includes("due for review"), "review alert present");
   assert.deepEqual(warnings, []);
+});
+
+test("engine-minted receipts surface verbatim, with the surfacing convention", async () => {
+  const { hooks } = await makeHooks({});
+  const output = chatOutput("ses-r");
+  await hooks["chat.message"]({ sessionID: "ses-r" }, output);
+
+  const text = output.parts[0].text;
+  // Recall receipts render verbatim so the model can copy them.
+  assert.ok(
+    text.includes('◉ memory: "API pagination decision" (decision, 3d ago)'),
+    "context-recall receipt rendered verbatim",
+  );
+  assert.ok(
+    text.includes('◉ memory: "Ship on main" (decision, 2mo ago)'),
+    "pinned receipt rendered verbatim",
+  );
+  // The convention lines ride in the header chunk.
+  assert.ok(text.includes("copied verbatim"), "verbatim rule present");
+  assert.ok(text.includes("never invent one"), "no-fabrication rule present");
+});
+
+test("payloads without receipt fields (older CLI) fall back to the plain line format", async () => {
+  const legacy = {
+    ...AGGREGATOR_PAYLOAD,
+    pinned: [{ id: "mem-1", title: "Ship on main", content: "No PRs." }],
+    context_recall: [
+      { id: "mem-2", title: "API pagination decision", path: "p/api.md", type: "decision", score: 0.81 },
+    ],
+  };
+  const { hooks } = await makeHooks({ respond: (callback) => callback(null, JSON.stringify(legacy), "") });
+  const output = chatOutput("ses-l");
+  await hooks["chat.message"]({ sessionID: "ses-l" }, output);
+
+  const text = output.parts[0].text;
+  assert.ok(text.includes("- API pagination decision (decision, score 0.81) — p/api.md"));
+  // The guidance mentions `◉ memory: …` generically, but no concrete receipt
+  // line (◉ memory: "<title>" …) may be fabricated for a receipt-less payload.
+  assert.ok(!text.includes('◉ memory: "'), "no fabricated receipt lines");
 });
 
 test("second message of the same session: no re-injection, no spawn", async () => {

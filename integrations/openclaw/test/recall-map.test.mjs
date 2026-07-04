@@ -15,6 +15,7 @@ const rows = [
     spreading_bonus: 0.1,
     confidence: 0.9,
     tags: ["api", "auth"],
+    receipt: '◉ memory: "API auth decision" (decision, 3d ago)',
   },
   {
     id: "mem-2",
@@ -61,6 +62,22 @@ test("minScore filters and maxResults caps", () => {
   assert.deepEqual(results.map((r) => r.id), ["mem-1", "mem-2"]);
   const capped = mapRecallResults(rows, { maxResults: 1 });
   assert.deepEqual(capped.results.map((r) => r.id), ["mem-1"]);
+});
+
+test("engine-minted receipts pass through verbatim; rows without one get a local mint only when timestamps exist", () => {
+  const { results } = mapRecallResults(rows);
+  // mem-1 carries a CLI-minted receipt → passed through untouched.
+  assert.equal(results[0].receipt, '◉ memory: "API auth decision" (decision, 3d ago)');
+  // mem-2/mem-3 have neither receipt nor timestamps → no fabricated line.
+  assert.equal(results[1].receipt, undefined);
+  assert.equal(results[2].receipt, undefined);
+
+  // An older-CLI row without `receipt` but with `created` gets a local mint.
+  const created = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  const local = mapRecallResults([
+    { id: "mem-4", title: "Old CLI row", path: "p.md", type: "learning", score: 0.5, created },
+  ]);
+  assert.equal(local.results[0].receipt, '◉ memory: "Old CLI row" (learning, 3d ago)');
 });
 
 test("low-confidence memories are flagged", () => {

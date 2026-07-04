@@ -22,6 +22,7 @@ def recall_results():
             "spreading_bonus": 0.1,
             "confidence": 0.9,
             "tags": ["fitness"],
+            "receipt": '◉ memory: "Marathon training plan" (goal, 3d ago)',
         },
         {
             "id": "mem_b",
@@ -55,6 +56,15 @@ class TestRecallMapping(BrainTestCase):
         self.assertIn("Knee pain flare-up", out)
         self.assertIn("low confidence", out)  # 0.3 < 0.5 flagged
         self.assertIn("~/.brain/personal/fitness/marathon-plan.md", out)
+
+    def test_receipt_passed_through_verbatim_never_invented(self):
+        provider = self.make_provider()
+        out = provider.handle_tool_call("brain_recall", {"query": "marathon"})
+
+        # mem_a carries a CLI-minted receipt → surfaced verbatim.
+        self.assertIn('receipt: ◉ memory: "Marathon training plan" (goal, 3d ago)', out)
+        # mem_b has no receipt field (older CLI shape) → no fabricated line.
+        self.assertEqual(out.count("◉ memory:"), 1)
 
     def test_recall_cli_invocation(self):
         provider = self.make_provider(project="life-admin", top_recall=4)

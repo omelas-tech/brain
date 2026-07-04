@@ -28,10 +28,24 @@ function makeExecFileMock(respond) {
 
 const AGGREGATOR_PAYLOAD = {
   memory_count: 12,
-  pinned: [{ id: "mem-1", title: "Ship on main", content: "No PRs; commit directly to main." }],
+  pinned: [
+    {
+      id: "mem-1",
+      title: "Ship on main",
+      content: "No PRs; commit directly to main.",
+      receipt: '◉ memory: "Ship on main" (decision, 2mo ago)',
+    },
+  ],
   skills_index: [{ name: "release-flow", description: "How releases are cut" }],
   context_recall: [
-    { id: "mem-2", title: "API pagination decision", path: "professional/projects/foo/api.md", type: "decision", score: 0.81 },
+    {
+      id: "mem-2",
+      title: "API pagination decision",
+      path: "professional/projects/foo/api.md",
+      type: "decision",
+      score: 0.81,
+      receipt: '◉ memory: "API pagination decision" (decision, 3d ago)',
+    },
   ],
   due_for_review: 2,
   low_confidence_alerts: [],
@@ -67,6 +81,59 @@ test("happy path: runs the aggregator and emits additionalContext", async () => 
   assert.ok(output.additionalContext.includes("12 memories"), "status line present");
   assert.ok(output.additionalContext.includes("due for review"), "review alert present");
   assert.deepEqual(warnings, []);
+});
+
+test("engine-minted receipts surface verbatim, with the surfacing convention", async () => {
+  resetUnavailableWarnings();
+  const { impl } = makeExecFileMock((callback) =>
+    callback(null, JSON.stringify(AGGREGATOR_PAYLOAD), ""),
+  );
+  const output = await handleSessionStart(HOOK_INPUT, {
+    env: { BRAIN_AGENT: undefined },
+    homedir: "/fake/home",
+    fsImpl: FAKE_FS_WITH_BRAIN,
+    execFileImpl: impl,
+    warn: () => {},
+  });
+
+  const text = output.additionalContext;
+  // Recall receipts render verbatim so the model can copy them.
+  assert.ok(
+    text.includes('◉ memory: "API pagination decision" (decision, 3d ago)'),
+    "context-recall receipt rendered verbatim",
+  );
+  assert.ok(
+    text.includes('◉ memory: "Ship on main" (decision, 2mo ago)'),
+    "pinned receipt rendered verbatim",
+  );
+  // The convention lines ride in the header chunk.
+  assert.ok(text.includes("copied verbatim"), "verbatim rule present");
+  assert.ok(text.includes("never invent one"), "no-fabrication rule present");
+});
+
+test("payloads without receipt fields (older CLI) fall back to the plain line format", async () => {
+  resetUnavailableWarnings();
+  const legacy = {
+    ...AGGREGATOR_PAYLOAD,
+    pinned: [{ id: "mem-1", title: "Ship on main", content: "No PRs." }],
+    context_recall: [
+      { id: "mem-2", title: "API pagination decision", path: "p/api.md", type: "decision", score: 0.81 },
+    ],
+  };
+  const { impl } = makeExecFileMock((callback) => callback(null, JSON.stringify(legacy), ""));
+  const output = await handleSessionStart(HOOK_INPUT, {
+    env: { BRAIN_AGENT: undefined },
+    homedir: "/fake/home",
+    fsImpl: FAKE_FS_WITH_BRAIN,
+    execFileImpl: impl,
+    warn: () => {},
+  });
+
+  const text = output.additionalContext;
+  assert.ok(text.includes("- API pagination decision (decision, score 0.81) — p/api.md"));
+  // The guidance mentions `◉ memory: …` generically, but no concrete receipt
+  // line (◉ memory: "<title>" …) may be fabricated for a receipt-less payload.
+  assert.ok(!text.includes('◉ memory: "'), "no fabricated receipt lines");
 });
 
 test("BRAIN_BIN overrides the binary; explicit BRAIN_AGENT wins", async () => {

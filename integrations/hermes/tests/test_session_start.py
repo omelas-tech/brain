@@ -74,6 +74,10 @@ class TestSessionStartFormatting(BrainTestCase):
         self.assertIn("brain_recall", block)
         self.assertIn("professional/", block)
         self.assertIn("family/", block)
+        # Recall-receipt surfacing convention
+        self.assertIn("Recall receipts", block)
+        self.assertIn("copied verbatim", block)
+        self.assertIn("never invent a receipt", block)
 
     def test_cli_invocation_shape(self):
         self.fake_run.responses["session-start"] = json.dumps(make_payload())

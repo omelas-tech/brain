@@ -147,6 +147,25 @@ describe('Prompt source files — session lifecycle sections', () => {
         );
       });
 
+      it('contains Recall Receipts section with the verbatim-copy rule', () => {
+        assert.ok(
+          content.includes('## Recall Receipts'),
+          `${file} missing "## Recall Receipts"`
+        );
+        assert.ok(
+          content.includes('◉ memory: "<title>" (<type>, <age>)'),
+          `${file} missing the receipt format`
+        );
+        assert.ok(
+          content.includes('copied **verbatim** — max 3'),
+          `${file} missing the verbatim/max-3 rule`
+        );
+        assert.ok(
+          content.includes('Never fabricate a receipt'),
+          `${file} missing the no-fabrication rule`
+        );
+      });
+
       it('lists the six-verb core and omits every removed command', () => {
         // The refactor's intent, asserted directly: the survivors are advertised
         // and the six removed/folded commands no longer appear AS COMMANDS.
@@ -181,6 +200,7 @@ describe('Prompt content consistency across runtimes', () => {
       '## Session Start Behavior',
       '## Session End Behavior',
       '## When Recalling Memories',
+      '## Recall Receipts',
       '## Portable Sync',
     ];
 

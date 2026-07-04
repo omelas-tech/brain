@@ -178,6 +178,9 @@ function formatSessionStartBlock(rawPayload, { project } = {}) {
       "## Brain memory — session context" + projectLabel,
       `Brain active: ${memoryCount} memories, ${recall.length} relevant to this context. ` +
         "Internalize the facts below silently — do not recite them to the user.",
+      "When a memory below materially shapes an answer, end that response with its receipt " +
+        "line (the `◉ memory: …` string) copied verbatim — max 3; pinned facts only when " +
+        "decisive. No memory used → no receipt; never invent one.",
       "",
     ],
   });
@@ -188,7 +191,8 @@ function formatSessionStartBlock(rawPayload, { project } = {}) {
       if (!isRecord(pin)) continue;
       const title = String(pin.title || pin.id || "pinned memory");
       const content = typeof pin.content === "string" ? pin.content.trim() : "";
-      lines.push(content ? `- **${title}**: ${content}` : `- **${title}**`);
+      const receipt = typeof pin.receipt === "string" && pin.receipt ? ` — receipt: ${pin.receipt}` : "";
+      lines.push((content ? `- **${title}**: ${content}` : `- **${title}**`) + receipt);
     }
     lines.push("");
     chunks.push({ priority: 1, lines, listStart: 1 });
@@ -202,7 +206,13 @@ function formatSessionStartBlock(rawPayload, { project } = {}) {
       const type = mem.type ? String(mem.type) : "memory";
       const score = typeof mem.score === "number" ? mem.score.toFixed(2) : undefined;
       const memPath = mem.path ? String(mem.path) : undefined;
-      lines.push(`- ${title} (${type}${score ? `, score ${score}` : ""})${memPath ? ` — ${memPath}` : ""}`);
+      const receipt = typeof mem.receipt === "string" && mem.receipt ? mem.receipt : undefined;
+      // Engine-minted receipts render verbatim so the model can copy them.
+      lines.push(
+        receipt
+          ? `- ${receipt}${score ? ` score ${score}` : ""}${memPath ? ` — ${memPath}` : ""}`
+          : `- ${title} (${type}${score ? `, score ${score}` : ""})${memPath ? ` — ${memPath}` : ""}`,
+      );
     }
     lines.push("");
     chunks.push({ priority: 2, lines, listStart: 1 });

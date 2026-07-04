@@ -124,6 +124,10 @@ describe('computeSessionStart', () => {
     assert.ok(p.context_recall.length > 0);
     assert.ok(p.budget.used <= p.budget.cap, 'never exceeds working-memory cap');
     assert.ok(p.budget.used <= p.budget.recall_cap, 'recall stays within recall cap');
+    // Every recall entry carries an engine-minted receipt (seeded now → "today").
+    for (const mem of p.context_recall) {
+      assert.equal(mem.receipt, `◉ memory: "${mem.title}" (${mem.type}, today)`);
+    }
   });
 
   it('rebuilds a STALE search index (drift), not just an absent one', () => {
@@ -149,8 +153,9 @@ describe('computeSessionStart', () => {
   });
 
   it('enforces the recall token budget and reports overflow', () => {
-    // recall_cap = 30, each memory ~25 tokens → first fits, rest excluded
-    writeConfig({ recall_budget_tokens: 30 }, tmpDir);
+    // recall_cap = 42, each memory ~25 tokens + ~8 for its minted receipt
+    // (receipts are counted against the budget) → first fits, rest excluded.
+    writeConfig({ recall_budget_tokens: 42 }, tmpDir);
     seed({
       mem_a: entry({ title: 'A', path: 'a.md', token_estimate: 25 }),
       mem_b: entry({ title: 'B', path: 'b.md', token_estimate: 25 }),
@@ -159,7 +164,7 @@ describe('computeSessionStart', () => {
     const p = computeSessionStart(tmpDir, { top: 5 });
     assert.equal(p.budget.included, 1);
     assert.equal(p.budget.excluded, 2);
-    assert.ok(p.budget.used <= 30, `used ${p.budget.used} must be <= recall cap 30`);
+    assert.ok(p.budget.used <= 42, `used ${p.budget.used} must be <= recall cap 42`);
   });
 
   it('flags low-confidence, frequently-used memories', () => {
@@ -212,10 +217,15 @@ describe('computeSessionStart pinned tier', () => {
       mine: entry({ title: 'Mine', pinned: true, pin_scope: 'project:myapp', path: 'mine.md' }),
       other: entry({ title: 'Other', pinned: true, pin_scope: 'project:other', path: 'other.md' }),
     });
-    const ids = computeSessionStart(tmpDir, { project: 'myapp' }).pinned.map((p) => p.id);
+    const pinned = computeSessionStart(tmpDir, { project: 'myapp' }).pinned;
+    const ids = pinned.map((p) => p.id);
     assert.ok(ids.includes('g'));
     assert.ok(ids.includes('mine'));
     assert.ok(!ids.includes('other'), 'out-of-project pin excluded');
+    // Pinned entries carry engine-minted receipts too (seeded now → "today").
+    for (const pin of pinned) {
+      assert.equal(pin.receipt, `◉ memory: "${pin.title}" (learning, today)`);
+    }
   });
 
   it('drops all project-scoped pins when no project is supplied', () => {

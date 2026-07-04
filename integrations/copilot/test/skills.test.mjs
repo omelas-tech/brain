@@ -57,6 +57,14 @@ test("brain-remember teaches the recall → reinforce loop with the agent label"
   assert.ok(body.includes("BRAIN_AGENT=copilot-cli"), "records the host agent");
 });
 
+test("brain-remember teaches recall receipts (verbatim, capped, never invented)", () => {
+  const { body } = readFrontmatter(path.join(SKILLS_DIR, "brain-remember", "SKILL.md"));
+  assert.ok(body.includes("`receipt`"), "documents the receipt field");
+  assert.ok(body.includes('◉ memory: "<title>" (<type>, <age>)'), "shows the receipt format");
+  assert.ok(body.includes("max 3"), "caps receipts per reply");
+  assert.ok(body.includes("never compose a receipt yourself"), "no-fabrication rule");
+});
+
 test("brain-memorize teaches the stdin JSON contract", () => {
   const { body } = readFrontmatter(path.join(SKILLS_DIR, "brain-memorize", "SKILL.md"));
   assert.ok(body.includes("brain memorize"), "pipes to brain memorize");

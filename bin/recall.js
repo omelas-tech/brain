@@ -39,6 +39,8 @@ const {
   rankMemories,
 } = require('../src/scorer');
 
+const { receiptFor } = require('../src/receipt');
+
 // Minimum relevance (or spreading bonus) for a memory to appear in explicit-
 // query results. Filters the zero/near-zero-relevance memories that would
 // otherwise pad the top-N purely on strength — an agent trusting those scores
@@ -140,19 +142,25 @@ function main() {
 
   // Return top N
   const top = args.top || 10;
-  const results = ranked.slice(0, top).map((mem) => ({
-    id: mem.id,
-    title: mem.title || path.basename(mem.path, '.md'),
-    path: mem.path,
-    type: mem.type,
-    score: mem.score,
-    relevance: mem.relevance,
-    decayed_strength: mem.decayed_strength,
-    context_match: mem.context_match,
-    spreading_bonus: mem.spreading_bonus,
-    confidence: mem.confidence,
-    tags: mem.tags,
-  }));
+  const results = ranked.slice(0, top).map((mem) => {
+    const title = mem.title || path.basename(mem.path, '.md');
+    return {
+      id: mem.id,
+      title,
+      path: mem.path,
+      type: mem.type,
+      score: mem.score,
+      relevance: mem.relevance,
+      decayed_strength: mem.decayed_strength,
+      context_match: mem.context_match,
+      spreading_bonus: mem.spreading_bonus,
+      confidence: mem.confidence,
+      tags: mem.tags,
+      // Recall receipt — the engine mints it, agents copy it verbatim when
+      // this memory materially shapes an answer (so it can't be hallucinated).
+      receipt: receiptFor({ ...mem, title }),
+    };
+  });
 
   console.log(JSON.stringify(results, null, 2));
 }

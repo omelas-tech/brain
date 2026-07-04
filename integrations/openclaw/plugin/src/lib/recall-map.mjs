@@ -5,8 +5,10 @@
  *
  * brain recall rows look like:
  *   {id, title, path, type, score, relevance, decayed_strength,
- *    context_match, spreading_bonus, confidence, tags}
+ *    context_match, spreading_bonus, confidence, tags, receipt}
  */
+
+import { receiptFor } from "./receipt.mjs";
 
 /**
  * @param {unknown} raw           Parsed JSON from `brain recall`.
@@ -44,6 +46,11 @@ export function mapRecallResults(raw, options = {}) {
       // Extra brain-specific scoring detail, useful for the model's judgment.
       confidence,
       tags: Array.isArray(record.tags) ? record.tags.filter((t) => typeof t === "string") : [],
+      // Engine-minted recall receipt, passed through verbatim so the model
+      // can end receipts-worthy answers with it. Older CLIs don't emit it —
+      // mint locally when the row carries timestamps, else omit (never a
+      // fabricated line for a memory the engine didn't describe).
+      receipt: buildReceipt(record),
     };
     results.push(result);
     if (id) {
@@ -53,6 +60,13 @@ export function mapRecallResults(raw, options = {}) {
     if (maxResults !== undefined && results.length >= maxResults) break;
   }
   return { results, ids, lowConfidenceIds };
+}
+
+/** @param {Record<string, any>} record */
+function buildReceipt(record) {
+  if (typeof record.receipt === "string" && record.receipt) return record.receipt;
+  if (record.created || record.last_accessed) return receiptFor(record);
+  return undefined;
 }
 
 /** @param {Record<string, any>} record */

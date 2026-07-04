@@ -210,7 +210,11 @@ professional/projects/acme/launch-decision.md.
 knowledge), procedural (skills/workflows).
 - Prefer a few high-value memories over many noisy ones. Never store \
 secrets, credentials, or trivia. When the session wraps up, consider \
-whether notable decisions, learnings, or preferences remain unstored."""
+whether notable decisions, learnings, or preferences remain unstored.
+- **Recall receipts** — when a recalled memory materially shapes an answer, \
+end that response with its `receipt` line (`◉ memory: "…" (type, age)`) \
+copied verbatim from the brain_recall output — max 3, at the very end. No \
+memory used → no receipt; never invent a receipt line."""
 
 PRE_COMPRESS_REMINDER = (
     "[brain memory] Context is about to be compressed and older messages will be "
@@ -1153,6 +1157,12 @@ class BrainMemoryProvider(MemoryProvider):
             head = f"### {i}. {title}  ({mtype}, {score_txt})"
             body = self._read_memory_body(rel_path)
             lines = [head, f"path: ~/.brain/{rel_path}"]
+            # Engine-minted recall receipt — passed through verbatim so the
+            # model can end receipt-worthy answers with it (never composed
+            # here; older CLIs simply don't emit one).
+            receipt = item.get("receipt")
+            if isinstance(receipt, str) and receipt:
+                lines.append(f"receipt: {receipt}")
             if isinstance(confidence, (int, float)) and confidence < 0.5:
                 lines.append(f"⚠️ low confidence ({confidence:.2f}) — verify before relying on this")
             if body:

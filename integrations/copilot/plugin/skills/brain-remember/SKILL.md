@@ -28,9 +28,10 @@ so recalls record their host agent.
    `debugging|implementing|designing|reviewing|discussing|learning` as
    `<task_type>`. The engine returns a scored JSON array (`id`, `title`,
    `path`, `type`, `score`, `relevance`, `decayed_strength`, `context_match`,
-   `confidence`, `tags`). Scoring combines TF-IDF relevance, decayed strength,
-   spreading activation, context match, and salience — the same ranking on
-   every agent.
+   `confidence`, `tags`, `receipt`). Scoring combines TF-IDF relevance,
+   decayed strength, spreading activation, context match, and salience — the
+   same ranking on every agent. The `receipt` field is a pre-minted line
+   (`◉ memory: "<title>" (<type>, <age>)`) — keep it for step 6.
 
 2. **Read the memory bodies** for the top results (score > 0.3) from
    `~/.brain/<path>`.
@@ -56,6 +57,11 @@ so recalls record their host agent.
 
 5. **Flag low-confidence memories** (`confidence < 0.5`) as unverified when
    presenting them.
+
+6. **End the reply with recall receipts.** Copy the `receipt` line of each
+   memory you actually presented, verbatim from the engine's output — max 3,
+   at the very end of the reply. Only receipt memories that shaped the answer;
+   never compose a receipt yourself — only lines the engine returned.
 
 If the `brain` command is not found, tell the user once:
 install with `npm install -g brain-memory`.

@@ -40,6 +40,7 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Human-inspectable** — Browse your "brain" in any file explorer
 - **Git-friendly** — Full version history of how memories evolve
 - **Strength + decay** — Recalled memories get stronger, forgotten ones fade. Just like your brain
+- **Recall receipts** — Memory that visibly fires: every answer shaped by a memory ends with a one-line attributable receipt (`◉ memory: "<title>" (<type>, <age>)`), minted by the engine so it can't be hallucinated
 - **Associative network** — Memories link to each other with weighted connections. Recalling one activates related ones automatically
 - **Context-dependent recall** — Memories encoded in a similar context to the current session are scored higher
 - **Spaced reinforcement** — Memories recalled after longer intervals get bigger boosts, cramming produces diminishing returns
