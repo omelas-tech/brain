@@ -60,6 +60,19 @@ describe('Metrics', () => {
     assert.equal(m.prompts[0].label, 'p1');
   });
 
+  it('recordPrompt accumulates the cached-input split (and tolerates its absence)', () => {
+    const m = createRunMetrics();
+    assert.equal(m.tokens.input_cached, 0);
+    recordPrompt(m, { tokens: { input: 4511, output: 16, input_cached: 0 }, time_ms: 100 }, 'cold');
+    recordPrompt(m, { tokens: { input: 4511, output: 16, input_cached: 4480 }, time_ms: 100 }, 'warm');
+    // Legacy result without the field must not produce NaN
+    recordPrompt(m, { tokens: { input: 10, output: 5 }, time_ms: 10 }, 'legacy');
+
+    assert.equal(m.tokens.input, 9032);
+    assert.equal(m.tokens.input_cached, 4480);
+    assert.ok(!Number.isNaN(m.tokens.input_cached));
+  });
+
   it('totalTokens sums input and output', () => {
     assert.equal(totalTokens({ input: 100, output: 50 }), 150);
     assert.equal(totalTokens({ input: 0, output: 0 }), 0);
@@ -146,6 +159,61 @@ describe('Metrics', () => {
     assert.equal(summary.success_improvement_pct, 40);
     assert.equal(summary.consistency_improvement_pct, 45);
     assert.equal(summary.time_reduction_pct, 40);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Cache-honest token accounting (deepseek-direct.normalizeUsage)
+// ─────────────────────────────────────────────────────────
+
+describe('Cache-honest usage normalization', () => {
+  const { normalizeUsage } = require('../harness/agents/deepseek-direct');
+
+  it('cold call (no cache) counts the full prompt', () => {
+    // Verbatim shape from DeepSeek /anthropic, first call (probe 2026-07-05)
+    const t = normalizeUsage({
+      input_tokens: 4511, cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0, output_tokens: 16, service_tier: 'standard',
+    });
+    assert.deepEqual(t, { input: 4511, output: 16, input_cached: 0 });
+  });
+
+  it('warm call: cache_read tokens are ADDED back into input (a token is a token)', () => {
+    // Verbatim shape from DeepSeek /anthropic, repeat call — input_tokens holds
+    // only the cache-miss slice; the cached prefix moves to cache_read_input_tokens.
+    const t = normalizeUsage({
+      input_tokens: 31, cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 4480, output_tokens: 16, service_tier: 'standard',
+    });
+    assert.equal(t.input, 4511);        // 31 miss + 4480 cached = full prompt
+    assert.equal(t.input_cached, 4480); // split preserved for $-cost analysis
+    assert.equal(t.output, 16);
+  });
+
+  it('counts cache_creation_input_tokens as real input too', () => {
+    const t = normalizeUsage({
+      input_tokens: 100, cache_creation_input_tokens: 900,
+      cache_read_input_tokens: 0, output_tokens: 5,
+    });
+    assert.equal(t.input, 1000);
+    assert.equal(t.input_cached, 0);
+  });
+
+  it('handles DeepSeek-native OpenAI-style hit/miss fields', () => {
+    const t = normalizeUsage({
+      prompt_cache_hit_tokens: 4480, prompt_cache_miss_tokens: 31,
+      completion_tokens: 16,
+    });
+    assert.equal(t.input, 4511);
+    assert.equal(t.input_cached, 4480);
+    assert.equal(t.output, 16);
+  });
+
+  it('falls back to prompt_tokens and tolerates empty/missing usage', () => {
+    assert.deepEqual(normalizeUsage({ prompt_tokens: 123, completion_tokens: 7 }),
+      { input: 123, output: 7, input_cached: 0 });
+    assert.deepEqual(normalizeUsage({}), { input: 0, output: 0, input_cached: 0 });
+    assert.deepEqual(normalizeUsage(), { input: 0, output: 0, input_cached: 0 });
   });
 });
 

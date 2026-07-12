@@ -106,15 +106,16 @@
   "judge": {
     "family": null,
     "question": "Add a paginated 'comments' feature (backend endpoint + frontend Vue composable) to the aurora-cms project, following its established conventions.",
-    "oracle_answer": "Backend uses Redis caching with key `aurora:comments:list:<page>` and a 60s TTL, invalidates on write. Pagination is cursor-based with base64-encoded cursor, returning `{ data, next_cursor, has_more }`. Frontend exposes a `useComments` composable in src/composables/useComments.(ts|js) returning `{ data, error, loading, refresh }` and does not call fetch from a .vue file.",
+    "oracle_answer": "Backend uses Redis caching (ioredis) with key `aurora:comments:list:<page>` and a 60s TTL, invalidates on write (DEL). Pagination is cursor-based with base64-encoded cursor, returning `{ data, next_cursor, has_more }`. Frontend exposes a `useComments` composable in src/composables/useComments.(ts|js) returning `{ data, error, loading, refresh }` and does not call fetch from a .vue file.",
+    "_rubric_note": "Tightened 2026-07-05: every criterion names a concrete needle fact from one of the 3 oracle memories, so a pass REQUIRES recalled memory content — generic best-practice answers must fail. Previously `brain-no-recall` passed 3/3 and `keyword` with R@5=0.33 passed 2/3 on generally-plausible answers.",
     "rubric": [
-      "Backend endpoint imports/uses Redis (ioredis or equivalent) for caching",
-      "Cache key follows the `aurora:comments:...` namespace convention",
-      "Pagination is cursor-based (request param `cursor`, response field `next_cursor`), not offset/page-number",
-      "Response includes `has_more` boolean (or equivalent next-cursor presence check)",
-      "A Vue composable file exists matching `useComments` (in src/composables/ or similar)",
-      "Composable returns reactive state including loading + error (e.g. {data, error, loading} or refs)",
-      "Composable encapsulates pagination — components do not call fetch directly"
+      "Backend caching uses Redis (ioredis or equivalent) AND a 60-second TTL for the comments list — both Redis and the ~60s TTL must appear; a different/absent TTL fails",
+      "Cache key follows the `aurora:comments:...` namespace convention (e.g. `aurora:comments:list:<page-or-cursor>`) — a key not starting with `aurora:` fails",
+      "Cache is explicitly invalidated on write (e.g. DEL of comments keys on create/update/delete)",
+      "Pagination is cursor-based with an opaque/base64 `cursor` request param — offset or page-number pagination fails",
+      "List response contains ALL THREE fields `data`, `next_cursor`, and `has_more` — any missing field fails",
+      "A Vue composable named `useComments` returns `{ data, error, loading, refresh }` — the `refresh` member must be present, not just data/error/loading",
+      "The composable encapsulates fetching and cursor pagination — no direct fetch() calls from .vue components"
     ]
   }
 }

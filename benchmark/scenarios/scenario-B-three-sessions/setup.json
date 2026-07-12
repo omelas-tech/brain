@@ -181,15 +181,15 @@
   "judge": {
     "family": null,
     "question": "Add an 'accounts' resource (repository + migration) to ledger-svc using the project's storage conventions.",
-    "oracle_answer": "Implementation uses Postgres via the `pg` driver (or the project's existing pg wrapper). Migration is a SQL file under db/migrations/. The repository uses parameterized SQL queries and a pooled client. It does NOT introduce Mongo, Mongoose, SQLite, or any non-Postgres storage.",
+    "oracle_answer": "Implementation uses Postgres via the `pg` driver with the project's 10-connection pool convention (Pool max: 10, per the ratified 2026-02-03 decision). Migration is a SQL file under db/migrations/. The repository uses parameterized SQL queries and a pooled client. It does NOT introduce Mongo, Mongoose, SQLite, or any non-Postgres storage.",
+    "_rubric_note": "Tightened 2026-07-05: fixture-only (zero memory) passed 2/3 on 2026-06-26 because 'Postgres for a ledger' is guessable and the rest was generic best practice. Criteria 2 and 6 are needle facts only present in the oracle memory; with 6 criteria a pass needs 5, so the generic ones can no longer carry it.",
     "rubric": [
-      "Uses Postgres (imports pg, uses Pool/Client, or matches existing db helpers)",
-      "Migration is a SQL file (extension .sql) under db/migrations/",
-      "Migration includes both schema creation and at minimum an id + created_at column",
-      "Repository uses parameterized queries (e.g. $1 placeholders), not string interpolation",
+      "Storage is Postgres accessed via the `pg` driver (require('pg'), Pool/Client) — any other database or driver fails",
+      "References the project's 10-connection pool convention (a pg Pool configured with max: 10, or an explicit note of the project's 10-connection pool)",
+      "Migration is a SQL file (.sql) under db/migrations/ creating the accounts table with at least id and created_at columns",
+      "Repository uses parameterized queries ($1 placeholders — no string interpolation) and exports list/get/create methods (or equivalent)",
       "Does NOT introduce Mongo, Mongoose, MongoClient, or SQLite anywhere",
-      "Repository exports list/get/create methods (or equivalent)",
-      "Code is consistent with existing fixture style (CommonJS, async/await)"
+      "Treats Postgres as the established, final project decision — references the existing convention/decision rather than presenting the database choice as a fresh recommendation"
     ]
   }
 }

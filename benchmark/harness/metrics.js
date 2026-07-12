@@ -11,7 +11,10 @@
  */
 function createRunMetrics() {
   return {
-    tokens: { input: 0, output: 0 },
+    // `input` is CACHE-HONEST: the full prompt size (cache hits + misses).
+    // `input_cached` records how much of it the provider served from cache —
+    // kept separately so cost-in-dollars analysis remains possible.
+    tokens: { input: 0, output: 0, input_cached: 0 },
     time_ms: 0,
     prompts: [],
   };
@@ -33,6 +36,7 @@ function recordPrompt(metrics, result, promptLabel) {
 
   metrics.tokens.input += result.tokens.input;
   metrics.tokens.output += result.tokens.output;
+  metrics.tokens.input_cached += result.tokens.input_cached || 0;
   metrics.time_ms += result.time_ms;
   metrics.prompts.push(entry);
 }

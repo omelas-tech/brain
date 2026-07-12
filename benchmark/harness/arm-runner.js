@@ -104,9 +104,10 @@ async function runArms(ctx) {
             `passed=${result.tasks.filter((t) => t.success).length}/${result.tasks.length}\n`
           );
         } else {
+          const cached = result.tokens.input_cached || 0;
           process.stdout.write(
             `        run ${i + 1}/${runsPerArm}: ` +
-            `tokens=${tokens} ` +
+            `tokens=${tokens}${cached ? ` (${cached} cached)` : ''} ` +
             `R@5=${formatRecall(result.retrieval, 5)} ` +
             `${result.success ? 'PASS' : 'FAIL'}\n`
           );
@@ -691,6 +692,7 @@ function aggregateArm(runs) {
 
   const inputs = metricsRuns.map((r) => r.tokens.input || 0);
   const outputs = metricsRuns.map((r) => r.tokens.output || 0);
+  const cachedInputs = metricsRuns.map((r) => r.tokens.input_cached || 0);
   const times = metricsRuns.map((r) => r.time_ms || 0);
   const tokenTotals = metricsRuns.map((r) => (r.tokens.input || 0) + (r.tokens.output || 0));
 
@@ -710,7 +712,10 @@ function aggregateArm(runs) {
   }
 
   return {
-    tokens: { input: med(inputs), output: med(outputs) },
+    // tokens are CACHE-HONEST: `input` = full prompt (cache hits + misses).
+    // `input_cached` is the median provider-cached slice; `cached_token_samples`
+    // keeps the raw per-run split so $-cost analysis stays possible.
+    tokens: { input: med(inputs), output: med(outputs), input_cached: med(cachedInputs) },
     time_ms: med(times),
     runs: runs.length,
     ...outcomes, // total, passes, completed, no_completion, completion_rate, success_rate, no_completion_rate
@@ -719,6 +724,7 @@ function aggregateArm(runs) {
     judge_pass_rate: outcomes.success_rate,        // back-compat
     median_tokens: med(tokenTotals),
     token_samples: tokenTotals,                    // raw, for stats.js bootstrap CI
+    cached_token_samples: cachedInputs,            // raw per-run cached-input split
     tokens_per_success: tokensPerSuccess,
     retrieval: Object.keys(recallByK).length > 0 ? { recall: recallByK } : null,
     criteria_pass_rate: computeCriteriaPassRate(runs),
@@ -788,6 +794,7 @@ function aggregateContinualArm(runs) {
     tokens: {
       input: Math.round(runs.reduce((s, r) => s + (r.tokens?.input || 0), 0) / totalRuns),
       output: Math.round(runs.reduce((s, r) => s + (r.tokens?.output || 0), 0) / totalRuns),
+      input_cached: Math.round(runs.reduce((s, r) => s + (r.tokens?.input_cached || 0), 0) / totalRuns),
     },
     time_ms: Math.round(totalTime / totalRuns),
     runs: totalRuns,

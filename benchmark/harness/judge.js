@@ -292,19 +292,20 @@ async function callJudge(family, prompt) {
 function callJudgeSpec(spec, prompt) {
   if (typeof spec === 'string') return callJudge(spec, prompt);
   switch (spec.provider) {
-    case 'claude':   return callAnthropic(prompt);
-    case 'gemini':   return callGemini(prompt);
+    case 'claude':   return callAnthropic(prompt, spec.model);
+    case 'gemini':   return callGemini(prompt, spec.model);
     case 'deepseek': return callDeepseek(prompt, spec.model);
     case 'ollama':   return callOllama(prompt, spec.model);
+    case 'openai':   return callOpenAI(prompt, spec.model);
     default: throw new Error(`Unknown judge provider: ${spec.provider}`);
   }
 }
 
-function callAnthropic(prompt) {
+function callAnthropic(prompt, model) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY not set — judge cannot run');
   const body = JSON.stringify({
-    model: ANTHROPIC_MODEL,
+    model: model || ANTHROPIC_MODEL,
     max_tokens: JUDGE_MAX_TOKENS,
     temperature: 0,
     messages: [{ role: 'user', content: prompt }],
@@ -327,7 +328,7 @@ function callAnthropic(prompt) {
   });
 }
 
-function callGemini(prompt) {
+function callGemini(prompt, model) {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY not set — judge cannot run');
   const body = JSON.stringify({
@@ -336,7 +337,7 @@ function callGemini(prompt) {
   });
   return httpsJson({
     hostname: 'generativelanguage.googleapis.com',
-    path: `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
+    path: `/v1beta/models/${model || GEMINI_MODEL}:generateContent?key=${key}`,
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -345,6 +346,33 @@ function callGemini(prompt) {
   }, body).then((res) => {
     const text = res?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
     if (!text) throw new Error(`Gemini judge unexpected response: ${JSON.stringify(res).slice(0, 200)}`);
+    return text.trim();
+  });
+}
+
+// OpenAI chat completions (Bearer OPENAI_API_KEY). Newer OpenAI models
+// reject non-default temperature and want max_completion_tokens, so we send
+// neither temperature nor legacy max_tokens.
+function callOpenAI(prompt, model) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not set — openai judge cannot run');
+  const body = JSON.stringify({
+    model: model || 'gpt-5-mini',
+    max_completion_tokens: JUDGE_MAX_TOKENS,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return httpsJson({
+    hostname: 'api.openai.com',
+    path: '/v1/chat/completions',
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${key}`,
+      'content-length': Buffer.byteLength(body),
+    },
+  }, body).then((res) => {
+    const text = res?.choices?.[0]?.message?.content || '';
+    if (!text) throw new Error(`OpenAI judge unexpected response: ${JSON.stringify(res).slice(0, 200)}`);
     return text.trim();
   });
 }

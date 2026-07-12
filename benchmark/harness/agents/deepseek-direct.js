@@ -25,6 +25,53 @@ function isAvailable() {
   return Promise.resolve(!!process.env.DEEPSEEK_API_KEY);
 }
 
+/**
+ * Cache-honest usage normalization.
+ *
+ * DeepSeek's context caching is AUTOMATIC: a repeated prompt prefix is served
+ * from cache and, on the /anthropic endpoint, `usage.input_tokens` counts ONLY
+ * the non-cached slice — the cached prefix moves to `cache_read_input_tokens`
+ * (verified empirically 2026-07-05: identical prompt twice → call 1
+ * {input_tokens: 4511, cache_read_input_tokens: 0}, call 2
+ * {input_tokens: 31, cache_read_input_tokens: 4480}). Reading `input_tokens`
+ * alone therefore undercounts repeat runs ~20x. For the benchmark, a token is
+ * a token whether or not the provider discounted it: `input` is the FULL
+ * prompt size (miss + cached + cache-creation), and the cache split is kept in
+ * `input_cached` so cost-in-dollars analysis stays possible.
+ *
+ * Also handles DeepSeek's native OpenAI-style fields
+ * (`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`, which partition the
+ * full prompt) in case the endpoint or provider version changes.
+ *
+ * @param {Object} u - provider `usage` object
+ * @returns {{input:number, output:number, input_cached:number}}
+ */
+function normalizeUsage(u = {}) {
+  const cacheRead = u.cache_read_input_tokens || 0;
+  const cacheCreation = u.cache_creation_input_tokens || 0;
+  const hit = u.prompt_cache_hit_tokens || 0;
+  const miss = u.prompt_cache_miss_tokens || 0;
+
+  let input, cached;
+  if (u.input_tokens != null) {
+    // Anthropic-style: input_tokens EXCLUDES the cached prefix.
+    input = (u.input_tokens || 0) + cacheRead + cacheCreation;
+    cached = cacheRead;
+  } else if (hit || miss) {
+    // DeepSeek-native OpenAI-style: hit + miss = full prompt.
+    input = hit + miss;
+    cached = hit;
+  } else {
+    input = u.prompt_tokens || 0;
+    cached = 0;
+  }
+  return {
+    input,
+    output: u.output_tokens != null ? (u.output_tokens || 0) : (u.completion_tokens || 0),
+    input_cached: cached,
+  };
+}
+
 function run(prompt, { timeout = 300000 } = {}) {
   return new Promise((resolve, reject) => {
     const key = process.env.DEEPSEEK_API_KEY;
@@ -64,7 +111,7 @@ function run(prompt, { timeout = 300000 } = {}) {
           resolve({
             output: text,
             raw: j,
-            tokens: { input: j.usage?.input_tokens || 0, output: j.usage?.output_tokens || 0 },
+            tokens: normalizeUsage(j.usage),
             time_ms,
           });
         } catch (e) {
@@ -80,4 +127,4 @@ function run(prompt, { timeout = 300000 } = {}) {
   });
 }
 
-module.exports = { name: AGENT_NAME, isAvailable, run, get model() { return model(); } };
+module.exports = { name: AGENT_NAME, isAvailable, run, normalizeUsage, get model() { return model(); } };

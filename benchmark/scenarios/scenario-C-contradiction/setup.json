@@ -178,13 +178,14 @@
     "family": null,
     "question": "Create src/routes/health.js in kestrel-api following the project's current indentation style.",
     "oracle_answer": "The file uses TAB indentation (not spaces). The project's final indentation decision (effective 2026-05-21) is tabs, indent_size=4. The handler is a minimal Express route returning { status: 'ok', uptime: <number> } on GET /health.",
+    "_rubric_note": "Tightened 2026-07-05: fixture-only (zero memory) passed 2/3 on 2026-06-26 because 5 of 6 criteria were free (restated from the task prompt). The needle — tabs win the v1-tabs/v2-spaces/v3-tabs contradiction — now spans 3 criteria (1, 2, 6), so a spaces answer caps at 3/6 and fails; a pass requires 5/6.",
     "rubric": [
-      "Indentation in the generated file uses TAB characters, not spaces",
-      "File is created at src/routes/health.js (exact path)",
-      "Exports an Express route or handler (router.get('/health', ...) or app.get equivalent)",
+      "Indentation in the generated file uses TAB characters (\\t), not spaces",
+      "The response treats TABS as the project's current/final indentation style (the most recent decision) — an answer that presents spaces as current, or hedges without committing to tabs, fails",
+      "File is created at src/routes/health.js (exact path) and exports an Express route or handler for GET /health",
       "Returns JSON containing 'status' = 'ok'",
       "Returns JSON containing 'uptime' from process.uptime() (or equivalent)",
-      "No conflicting comments like '// using spaces because…' or stale style notes"
+      "Does not use 2-space indentation anywhere in the generated file and contains no stale style notes claiming spaces are the convention"
     ]
   }
 }
