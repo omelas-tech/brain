@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **Memory provenance — every write is now labelled by origin.** Each memory
+  carries an `origin` (`user`, `agent-inferred`, `tool-output`, `external`)
+  recording *where the content came from*, which is a different question from
+  how much the agent believes it. Origin decides what a memory may claim:
+  non-user origins are capped below the 0.7 prune-exempt salience threshold,
+  capped on confidence so they stay flagged as uncertain at recall, may not
+  raise their own base strength, and decay faster — so a fact absorbed from
+  untrusted content fades and loses to a genuine one over time. Defaults to
+  `agent-inferred` when absent (the safe direction). Downgrades are never
+  silent: `brain memorize` reports every value it lowered under
+  `provenance_clamps`. Mitigates OWASP ASI06 (memory poisoning); see
+  MemGhost, [arXiv:2607.05189](https://arxiv.org/abs/2607.05189).
+- **Append-only provenance log** at `~/.brain/audit.log` — one JSON object per
+  write, recorded before the caller sees success, so a fact that later proves
+  to be planted can be traced to the write that introduced it even if the
+  memory was since edited, consolidated, or deleted.
+
+### Changed
+
+- **Breaking (CLI):** born-pinning through `brain memorize` now requires
+  `origin: "user"`. Entrenchment — `pinned` (loaded into every session) and
+  `stable` (exempt from decay) — is a capability rather than a magnitude, so a
+  request from any other origin is refused with a non-zero exit rather than
+  quietly capped. Pin deliberately afterwards with `brain pin <id>` instead.
+  Only affects callers that drive the CLI directly; `/brain:memorize` already
+  proposed rather than assumed pinning.
+
 ## [0.1.0-beta.33] - 2026-07-04
 
 _Covers everything since v0.1.0-beta.31, including the changes first shipped in the changelog-less 0.1.0-beta.32._

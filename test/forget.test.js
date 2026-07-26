@@ -108,7 +108,9 @@ describe('forget CLI: archive + cleanup', () => {
 
   it('refuses to archive a high-salience memory without --force, then archives with it', () => {
     initBrain();
-    const id = seed([baseMem({ salience: 0.9 })]).stored[0].id;
+    // Salience >= 0.7 is prune-exempt, so only a user-origin memory may claim
+    // it — an agent-inferred one is capped below the threshold on write.
+    const id = seed([baseMem({ origin: 'user', salience: 0.9 })]).stored[0].id;
 
     const blocked = forget([id]);
     assert.equal(blocked.status, 1);

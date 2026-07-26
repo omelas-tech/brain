@@ -125,7 +125,9 @@ describe('memorize: happy path', () => {
 
   it('registers a born-pinned memory in pinned.json and its frontmatter', () => {
     initBrain();
-    const r = run({ memories: [baseMem({ pinned: true, pin_scope: 'project:app', pin_priority: 4 })] });
+    // Born-pinning entrenches a memory in every future session, so it is only
+    // reachable from an explicit user origin (see the provenance suite below).
+    const r = run({ memories: [baseMem({ origin: 'user', pinned: true, pin_scope: 'project:app', pin_priority: 4 })] });
     const id = r.json.stored[0].id;
     const pins = readPinned(tmpDir).pins;
     assert.equal(pins.length, 1);
@@ -217,5 +219,129 @@ describe('memorize: resilience & sync', () => {
     initBrain();
     const r = run({ memories: [baseMem()], auto_sync: true });
     assert.equal(r.json.sync.method, 'none');
+  });
+});
+
+// --- Provenance (OWASP ASI06: memory poisoning) ---
+//
+// Threat model: content the agent *read* — an email, a web page, a tool result —
+// persuades it to write a fact, and that fact then entrenches itself as pinned,
+// decay-exempt and prune-exempt. See MemGhost (arXiv:2607.05189).
+
+describe('memorize: provenance policy', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  const fmOf = (p = 'professional/notes/learn.md') =>
+    fs.readFileSync(path.join(getBrainDir(tmpDir), p), 'utf-8');
+
+  it('defaults to the weaker origin when the caller does not assert one', () => {
+    initBrain();
+    const r = run({ memories: [baseMem()] });
+    assert.equal(r.json.stored[0].origin, 'agent-inferred');
+    assert.ok(fmOf().includes('origin: "agent-inferred"'));
+  });
+
+  it('records the origin on the index entry so recall can weigh it', () => {
+    initBrain();
+    const r = run({ memories: [baseMem({ origin: 'external' })] });
+    const entry = readIndex(tmpDir).memories[r.json.stored[0].id];
+    assert.equal(entry.origin, 'external');
+  });
+
+  it('rejects an unknown origin instead of silently trusting it', () => {
+    initBrain();
+    const r = run({ memories: [baseMem({ origin: 'trusted-honest-really' })] });
+    assert.equal(r.status, 1);
+    assert.match(r.json.error, /Unknown origin/);
+  });
+
+  for (const origin of ['agent-inferred', 'tool-output', 'external']) {
+    it(`refuses to let origin "${origin}" pin a memory into every session`, () => {
+      initBrain();
+      const r = run({ memories: [baseMem({ origin, pinned: true })] });
+      assert.equal(r.status, 1);
+      assert.match(r.json.error, /may not set pinned/);
+      assert.equal(readPinned(tmpDir).pins.length, 0);
+    });
+
+    it(`refuses to let origin "${origin}" mark a memory decay-exempt`, () => {
+      initBrain();
+      const r = run({ memories: [baseMem({ origin, stable: true })] });
+      assert.equal(r.status, 1);
+      assert.match(r.json.error, /may not set stable/);
+    });
+  }
+
+  it('keeps a non-user memory below the prune-exempt salience threshold', () => {
+    initBrain();
+    const r = run({ memories: [baseMem({ origin: 'external', salience: 1.0 })] });
+    assert.ok(r.json.stored[0].salience < 0.7,
+      `salience ${r.json.stored[0].salience} would be exempt from auto-pruning`);
+  });
+
+  it('reports an explicit over-ask rather than downgrading it silently', () => {
+    initBrain();
+    const r = run({ memories: [baseMem({ origin: 'external', salience: 1.0, confidence: 1.0 })] });
+    const fields = r.json.provenance_clamps.map((c) => c.field).sort();
+    assert.deepEqual(fields, ['confidence', 'salience']);
+    assert.equal(r.json.provenance_clamps[0].requested, 1.0);
+  });
+
+  it('applies the ceiling to an unstated value without reporting a clamp', () => {
+    initBrain();
+    // The 0.7 default confidence still exceeds what "external" may claim.
+    const r = run({ memories: [baseMem({ origin: 'external' })] });
+    assert.ok(r.json.stored[0].confidence <= 0.4);
+    assert.equal(r.json.provenance_clamps, undefined);
+  });
+
+  it('does not let a non-user origin inflate base strength', () => {
+    initBrain();
+    const boosted = run({ memories: [baseMem({ origin: 'tool-output', strength_adjustment: 0.5 })] });
+    const plain = run({ memories: [baseMem({ origin: 'tool-output', path: 'professional/notes/b.md' })] });
+    assert.equal(boosted.json.stored[0].strength, plain.json.stored[0].strength);
+  });
+
+  it('still allows a non-user origin to lower its own strength', () => {
+    initBrain();
+    const lowered = run({ memories: [baseMem({ origin: 'external', strength_adjustment: -0.2 })] });
+    const plain = run({ memories: [baseMem({ origin: 'external', path: 'professional/notes/b.md' })] });
+    assert.ok(lowered.json.stored[0].strength < plain.json.stored[0].strength);
+  });
+
+  it('makes untrusted-origin memory fade faster than user-origin memory', () => {
+    initBrain();
+    const user = run({ memories: [baseMem({ origin: 'user' })] });
+    const ext = run({ memories: [baseMem({ origin: 'external', path: 'professional/notes/b.md' })] });
+    assert.ok(ext.json.stored[0].decay_rate < user.json.stored[0].decay_rate,
+      'an externally-sourced memory must lose to a genuine one over time');
+  });
+
+  it('lets an explicit user origin entrench a memory', () => {
+    initBrain();
+    const r = run({ memories: [baseMem({ origin: 'user', pinned: true, stable: true, salience: 1.0 })] });
+    assert.equal(r.status, 0);
+    assert.equal(r.json.stored[0].salience, 1.0);
+    assert.equal(readPinned(tmpDir).pins.length, 1);
+  });
+
+  it('appends one audit line per stored memory', () => {
+    initBrain();
+    run({ memories: [baseMem({ origin: 'external' }), baseMem({ path: 'professional/notes/b.md' })] });
+    const lines = fs.readFileSync(path.join(getBrainDir(tmpDir), 'audit.log'), 'utf-8')
+      .trim().split('\n').map((l) => JSON.parse(l));
+    assert.equal(lines.length, 2);
+    assert.equal(lines[0].origin, 'external');
+    assert.equal(lines[0].event, 'memorize');
+    assert.equal(lines[1].origin, 'agent-inferred');
+  });
+
+  it('keeps the audit log append-only across separate invocations', () => {
+    initBrain();
+    run({ memories: [baseMem()] });
+    run({ memories: [baseMem({ path: 'professional/notes/b.md' })] });
+    const lines = fs.readFileSync(path.join(getBrainDir(tmpDir), 'audit.log'), 'utf-8').trim().split('\n');
+    assert.equal(lines.length, 2, 'a later write must not truncate the earlier trail');
   });
 });

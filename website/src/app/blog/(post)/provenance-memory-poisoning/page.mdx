@@ -1,0 +1,139 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/provenance-memory-poisoning", {
+  title: "Provenance, not filtering: hardening brain against memory poisoning",
+  description:
+    "A single email can plant a false memory in an AI agent and keep it there. Here is the attack, where brain was exposed, and the write-path gate we shipped in response.",
+  publishedTime: "2026-07-26",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Security</span> · 26 July 2026 · 8 min
+</div>
+
+# Provenance, not filtering
+
+Earlier this month a team published [MemGhost](https://arxiv.org/abs/2607.05189) — a method for planting a false memory in a persistent AI agent using a single email. Not a jailbreak that lasts one turn. A fact the agent writes down, hides having written, and then relies on days later, in a different session, as if the user had told it.
+
+The success rates are the uncomfortable part:
+
+| Target | Success |
+|---|---|
+| OpenClaw (GPT-5.4) | 87.5% |
+| Claude Code SDK agent (Sonnet 4.6) | 71.4% |
+| Two other agent frameworks | above 80% |
+| Same attack, vector store instead of files | above 80% |
+
+An input filter built to catch these emails missed them more than nine times in ten. A model specifically hardened to ignore instructions arriving by email still followed the planted one about half the time.
+
+Brain is a persistent memory system for coding agents. That second row is our deployment surface. This post is what we found when we went looking, and what we changed.
+
+## It is not a file-format problem
+
+The coverage framed this as an attack on plain-text memory — `AGENTS.md`, `MEMORY.md`, the kind of thing brain writes. That framing is wrong, and it is worth correcting before anyone reaches for the wrong fix.
+
+The researchers swapped the plain files for a vector store and the attack stayed above 80%. It also cleared two other agent frameworks. What is being exploited is not a storage format. It is the **write path** — the moment an agent decides that something it just read is a fact worth keeping.
+
+Two things follow. Nobody escapes this by changing databases. And brain is not uniquely exposed for being file-based.
+
+But we were exposed for a different reason, and it was worse.
+
+## Where brain was exposed
+
+Every memory brain writes goes through one place: `bin/memorize.js`. The agent sends JSON, the CLI writes the file and updates the index. Having a single chokepoint is a good position to defend from — much better than agents free-hand editing markdown.
+
+The problem was what that chokepoint accepted. Every trust-bearing field came straight from the caller, unvalidated:
+
+- `salience: 1.0` — memories at or above 0.7 are exempt from auto-pruning
+- `confidence: 1.0` — suppresses the low-confidence warning shown at recall
+- `pinned: true` — loads the memory into **every** future session, forever
+- `stable: true` — exempt from decay, so it never fades
+- `strength_adjustment` — inflates base strength
+
+Chain them and one poisoned write produces a permanent, decay-exempt, prune-exempt, never-flagged fact injected at the top of every session as an active constraint.
+
+That is worse than the configuration MemGhost measured at 71.4%. Their attack had to survive ordinary recall — competing with other memories for retrieval. Brain's pinning tier is purpose-built to skip that competition. Our most useful feature was also our largest blast radius.
+
+<Callout type="warning" title="the honest version">
+We had a rule against exactly this. The `/brain:memorize` prompt has always said to propose pinning and only set it if the user agrees. It was a sentence in a prompt. MemGhost is, specifically, an attack that talks agents out of sentences in prompts.
+</Callout>
+
+## What we shipped
+
+Every memory now carries an **origin** — where the content came from, which is a different question from how much the agent believes it:
+
+| origin | Meaning |
+|---|---|
+| `user` | The user stated it or asked for it to be remembered |
+| `agent-inferred` | The agent concluded it from the session (**default**) |
+| `tool-output` | A file read, command output, or MCP response |
+| `external` | Email, web page, issue text — authored outside the session |
+
+Origin decides what a memory is allowed to claim.
+
+**Entrenchment requires a user origin.** Pinning and decay-exemption are capabilities, not magnitudes — there is no benign reason for an inbound email to request them. So this is refused loudly rather than quietly capped:
+
+```console
+$ brain memorize <<< '{ ..., "origin": "external", "pinned": true }'
+
+{"error": "Origin \"external\" may not set pinned.
+  Entrenching a memory requires origin \"user\" — or pin
+  it deliberately afterwards with `brain pin <id>`."}
+```
+
+**Everything else gets a ceiling.** Non-user origins are capped below the 0.7 prune-exempt salience threshold, so an unattended poisoned memory always remains collectable. Confidence is capped too, so it stays flagged as uncertain at recall. And untrusted origins decay faster — the same fact written from an email loses roughly three times as much strength per day as one the user stated:
+
+```console
+$ brain memorize <<< '{ ..., "origin": "external", "salience": 1.0 }'
+
+  "origin":     "external",
+  "salience":   0.4,       # requested 1.0
+  "confidence": 0.4,       # requested 1.0
+  "decay_rate": 0.98505    # vs 0.995 from the user
+```
+
+That last line is the part we think matters most, and it is the part that falls out of brain's existing design rather than being bolted on. Brain already models memory the way memory actually works — strength decaying over time, reinforcement on recall, salience deciding what survives pruning. Feeding provenance into that model means a planted fact **fades on its own**, outcompeted by genuine memories, whether or not anything ever identifies it as an attack. An audit log tells you a write happened. Only a decay model makes the bad write lose.
+
+Downgrades are never silent. The CLI reports every value it lowered, and the agent is instructed to tell you.
+
+**Every write is logged.** `~/.brain/audit.log` is append-only, one JSON object per line, written before the caller sees success — so a fact that later turns out to be planted can be traced back to the write that introduced it, even if the memory itself was since edited, consolidated by a sleep cycle, or deleted.
+
+```json
+{"ts": "2026-07-26T07:55:40.355Z", "event": "memorize",
+ "id": "mem_20260726_ec2468", "origin": "external",
+ "agent": "claude-code", "salience": 0.4, "confidence": 0.4,
+ "decay_rate": 0.98505, "entrenched": false,
+ "clamped": ["salience", "confidence"]}
+```
+
+## What this does not do
+
+<Callout type="danger" title="limits, stated plainly">
+Origin is **asserted by the agent**. A fully compromised agent can label an email `user` and walk through the front door. This is not a solution to memory poisoning and we are not going to claim it is one.
+</Callout>
+
+What it does cover is worth being precise about.
+
+The dominant real case is not a hostile agent. It is an **honest agent that has been deceived** — it read something persuasive and faithfully wrote down what it now believes. That agent labels the origin correctly, because it is not lying about where the text came from. There, the ceilings and the decay curve apply, and they work.
+
+For the adversarial case, the control that holds regardless of what the caller claims is the structural one: entrenchment is simply not reachable from the write path. Pinning requires a separate, deliberate `brain pin` invocation. An attacker who lies about origin still gets a memory that decays, that can be pruned, and that leaves a line in the audit log.
+
+That is a meaningfully smaller blast radius. It is not immunity.
+
+Also worth saying: none of this is novel research on our part. It follows work that already exists — [MemLineage](https://arxiv.org/abs/2605.14421) on lineage-guided enforcement, and [OWASP ASI06](https://genai.owasp.org/) on memory poisoning, whose [Agent Memory Guard](https://owasp.org/www-project-agent-memory-guard/) is a good general-purpose reference implementation and worth looking at if you are defending a different stack.
+
+## What is next
+
+Recall-side weighting is the obvious gap. Origin now travels with the index entry, but the scorer does not yet use it — a `tool-output` memory and a `user` memory with equal relevance still rank equally. They should not.
+
+Beyond that: origin propagation through consolidation (a memory merged during a sleep cycle should inherit the weakest origin of its parents, not the strongest), and surfacing provenance in recall receipts so you can see where a memory came from at the moment it fires.
+
+<Callout type="tip" title="upgrading">
+No action needed. Existing memories keep working; `origin` defaults to `agent-inferred` when absent, which is the safe direction. The one behaviour change: born-pinning through `brain memorize` now requires `origin: "user"`. If you script against the CLI, that is the line to check.
+</Callout>
+
+---
+
+Brain is open source. The write path described here is [`bin/memorize.js`](https://github.com/omelas-tech/brain), and the provenance policy is a table at the top of that file — deliberately, so it can be read and argued with in about thirty seconds. If you think a ceiling is wrong, [open an issue](https://github.com/omelas-tech/brain/issues).

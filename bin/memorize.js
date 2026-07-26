@@ -71,6 +71,38 @@ const COGNITIVE_ADJUSTMENTS = {
   procedural: { strength_delta: -0.10, decay_multiplier: 1.003 },
 };
 
+// --- Provenance (OWASP ASI06: memory poisoning) ---
+//
+// Where a memory came from decides how much it is allowed to entrench itself.
+// The failure mode this defends against: content the agent *read* (an email, a
+// web page, a tool result) persuades it to write a fact, and that fact then
+// hardens — pinned into every session, exempt from decay, immune to pruning,
+// and never flagged as uncertain. See MemGhost (arXiv:2607.05189).
+//
+// `origin` is asserted by the caller, so it does not defend against a fully
+// hostile agent — but the dominant real case is an *honest* agent relaying
+// poisoned content, and there it holds. The pin/stable restriction is the part
+// that holds regardless: entrenchment is simply not reachable from this path
+// without an explicit user origin.
+const ORIGIN_POLICY = {
+  // The user asked for this directly, in-session.
+  user: { max_salience: 1.0, max_confidence: 1.0, allow_entrench: true, decay_multiplier: 1.0 },
+  // The agent inferred or summarized it from session context. Default.
+  'agent-inferred': { max_salience: 0.6, max_confidence: 0.8, allow_entrench: false, decay_multiplier: 1.0 },
+  // Derived from tool output — file reads, command results, MCP responses.
+  'tool-output': { max_salience: 0.5, max_confidence: 0.6, allow_entrench: false, decay_multiplier: 0.997 },
+  // Derived from untrusted external content — email, web pages, issue text.
+  external: { max_salience: 0.4, max_confidence: 0.4, allow_entrench: false, decay_multiplier: 0.99 },
+};
+
+// Absent origin means the agent didn't tell us — assume the weaker claim, never
+// the stronger one. A memory that deserves `user` is one keystroke away.
+const DEFAULT_ORIGIN = 'agent-inferred';
+
+// Salience >= 0.7 is exempt from auto-pruning, so every non-user ceiling sits
+// below it: an unattended poisoned memory must remain collectable.
+const PRUNE_EXEMPT_SALIENCE = 0.7;
+
 // --- Args ---
 
 function parseArgs(argv) {
@@ -83,7 +115,61 @@ function parseArgs(argv) {
 
 // --- Helpers ---
 
-function computeStrengthAndDecay(type, cognitiveType, strengthAdjustment = 0) {
+/**
+ * Resolve a memory's origin and clamp its trust-bearing fields to what that
+ * origin is permitted to claim.
+ *
+ * Returns `{ origin, policy, mem, clamps }` where `mem` is a sanitized copy and
+ * `clamps` lists every explicit over-ask the policy lowered — surfaced in the
+ * CLI output so a downgrade is never silent. Returns `{ error }` for requests
+ * that have no benign reading.
+ */
+function applyOriginPolicy(mem) {
+  const origin = mem.origin || DEFAULT_ORIGIN;
+  const policy = ORIGIN_POLICY[origin];
+  if (!policy) {
+    return { error: `Unknown origin "${origin}" (expected one of: ${Object.keys(ORIGIN_POLICY).join(', ')})` };
+  }
+
+  // Entrenchment — loading into every session, or exemption from decay — is a
+  // capability, not a magnitude. Tool output and inbound email have no benign
+  // reason to request it, so this is refused loudly rather than quietly capped.
+  if (!policy.allow_entrench && (mem.pinned || mem.stable)) {
+    const asked = [mem.pinned && 'pinned', mem.stable && 'stable'].filter(Boolean).join(' + ');
+    return {
+      error: `Origin "${origin}" may not set ${asked}. Entrenching a memory requires origin ` +
+             `"user" — or pin it deliberately afterwards with \`brain pin <id>\`.`,
+    };
+  }
+
+  const clamps = [];
+  const clamp = (field, requested, fallback, max) => {
+    const value = requested ?? fallback;
+    if (value <= max) return value;
+    // Only report a downgrade the caller actually asked for. A lowered default
+    // is the policy working as designed, not a rejected claim.
+    if (requested != null) clamps.push({ field, requested, allowed: max, origin });
+    return max;
+  };
+
+  return {
+    origin,
+    policy,
+    clamps,
+    mem: {
+      ...mem,
+      salience: clamp('salience', mem.salience, 0.5, policy.max_salience),
+      confidence: clamp('confidence', mem.confidence, 0.7, policy.max_confidence),
+      // A non-user origin may lower a memory's base strength but never raise it.
+      strength_adjustment: clamp(
+        'strength_adjustment', mem.strength_adjustment, 0,
+        policy.allow_entrench ? Infinity : 0
+      ),
+    },
+  };
+}
+
+function computeStrengthAndDecay(type, cognitiveType, strengthAdjustment = 0, originDecayMultiplier = 1.0) {
   const typeDefaults = TYPE_DEFAULTS[type] || TYPE_DEFAULTS.observation;
   const cogAdj = COGNITIVE_ADJUSTMENTS[cognitiveType] || COGNITIVE_ADJUSTMENTS.semantic;
 
@@ -95,14 +181,20 @@ function computeStrengthAndDecay(type, cognitiveType, strengthAdjustment = 0) {
   // over time (strength * decay_rate^days) — inverted decay. 0.9999/day is
   // "extremely slow" (a memory loses ~3% of its strength per year) without ever
   // inverting.
-  const decay_rate = Math.min(0.9999, typeDefaults.decay_rate * cogAdj.decay_multiplier);
+  // The origin multiplier rides on top: memory sourced from untrusted content
+  // fades faster, so a planted fact loses to a genuine one over time even if
+  // nothing ever detects it as an attack.
+  const decay_rate = Math.min(
+    0.9999,
+    typeDefaults.decay_rate * cogAdj.decay_multiplier * originDecayMultiplier
+  );
 
   return { strength: Math.round(strength * 100) / 100, decay_rate };
 }
 
-function buildMemoryFileContent(mem, id, now) {
+function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier) {
   const { strength, decay_rate } = computeStrengthAndDecay(
-    mem.type, mem.cognitive_type, mem.strength_adjustment
+    mem.type, mem.cognitive_type, mem.strength_adjustment, originDecayMultiplier
   );
 
   const fmLines = [
@@ -130,6 +222,7 @@ function buildMemoryFileContent(mem, id, now) {
   fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
+    `origin: "${origin}"`,
     `source: "${mem.source || ''}"`,
     `encoding_context:`,
     `  project: "${(mem.encoding_context && mem.encoding_context.project) || ''}"`,
@@ -144,7 +237,7 @@ function buildMemoryFileContent(mem, id, now) {
   return { fileContent: frontmatter + mem.content + '\n', strength, decay_rate };
 }
 
-function buildIndexEntry(mem, id, strength, decayRate, now) {
+function buildIndexEntry(mem, id, strength, decayRate, now, origin) {
   const entry = {
     title: mem.title,
     path: mem.path,
@@ -155,6 +248,9 @@ function buildIndexEntry(mem, id, strength, decayRate, now) {
     access_count: 0,
     strength,
     decay_rate: decayRate,
+    // Provenance travels with the index entry so recall can weigh and flag it
+    // without having to open every memory file.
+    origin,
     salience: mem.salience ?? 0.5,
     confidence: mem.confidence ?? 0.7,
     tags: mem.tags || [],
@@ -171,6 +267,22 @@ function buildIndexEntry(mem, id, strength, decayRate, now) {
   }
   if (mem.stable) entry.stable = true;
   return entry;
+}
+
+/**
+ * Append-only provenance log, one JSON object per line.
+ *
+ * Written for every memory that reaches disk, including ones the policy
+ * downgraded, so a fact that later turns out to be planted can be traced to the
+ * write that introduced it — even if the memory file itself was since edited,
+ * consolidated by a sleep cycle, or deleted.
+ */
+function appendAuditLog(brainDir, record) {
+  fs.appendFileSync(
+    path.join(brainDir, 'audit.log'),
+    JSON.stringify(record) + '\n',
+    { mode: 0o600 }
+  );
 }
 
 function updateMetaFiles(brainDir, memPath) {
@@ -327,27 +439,42 @@ async function main() {
   const results = [];
   const newIds = [];
   const pinnedToAdd = [];
+  const clampsReported = [];
+  const auditErrors = [];
 
-  for (const mem of input.memories) {
+  for (const rawMem of input.memories) {
     // Validate required fields
-    if (!mem.title || !mem.type || !mem.path || !mem.content) {
+    if (!rawMem.title || !rawMem.type || !rawMem.path || !rawMem.content) {
       console.error(JSON.stringify({
-        error: `Memory missing required fields (title, type, path, content): ${JSON.stringify(mem.title || 'untitled')}`,
+        error: `Memory missing required fields (title, type, path, content): ${JSON.stringify(rawMem.title || 'untitled')}`,
       }));
       process.exit(1);
     }
 
-    if (!TYPE_DEFAULTS[mem.type]) {
-      console.error(JSON.stringify({ error: `Unknown memory type: ${mem.type}` }));
+    if (!TYPE_DEFAULTS[rawMem.type]) {
+      console.error(JSON.stringify({ error: `Unknown memory type: ${rawMem.type}` }));
       process.exit(1);
     }
+
+    // Provenance gate (ASI06) — decide what this origin is allowed to claim
+    // before anything reaches disk.
+    const policy = applyOriginPolicy(rawMem);
+    if (policy.error) {
+      console.error(JSON.stringify({ error: `${policy.error} — memory: ${JSON.stringify(rawMem.title)}` }));
+      process.exit(1);
+    }
+    const { origin } = policy;
+    const mem = policy.mem;
+    for (const c of policy.clamps) clampsReported.push({ ...c, title: rawMem.title });
 
     // Generate ID
     const id = generateId();
     newIds.push(id);
 
     // Compute strength/decay
-    const { fileContent, strength, decay_rate } = buildMemoryFileContent(mem, id, now);
+    const { fileContent, strength, decay_rate } = buildMemoryFileContent(
+      mem, id, now, origin, policy.policy.decay_multiplier
+    );
 
     // Create directories
     const fullPath = path.join(brainDir, mem.path);
@@ -357,8 +484,31 @@ async function main() {
     // Write memory file
     atomicWriteSync(fullPath, fileContent);
 
+    // Record the write before reporting success. An audit failure is surfaced
+    // rather than thrown: the memory is already on disk, and silently dropping
+    // the trail would be the worse outcome of the two.
+    try {
+      appendAuditLog(brainDir, {
+        ts: now,
+        event: 'memorize',
+        id,
+        origin,
+        agent: HOST_AGENT,
+        type: mem.type,
+        path: mem.path,
+        title: mem.title,
+        salience: mem.salience ?? 0.5,
+        confidence: mem.confidence ?? 0.7,
+        decay_rate,
+        entrenched: Boolean(mem.pinned || mem.stable),
+        clamped: policy.clamps.map((c) => c.field),
+      });
+    } catch (err) {
+      auditErrors.push({ id, error: err.message });
+    }
+
     // Update index
-    const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now);
+    const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now, origin);
     addMemory(index, id, indexEntry);
 
     // CoALA Phase 1: register a born-pinned memory in the pinned manifest
@@ -413,6 +563,7 @@ async function main() {
       cognitive_type: mem.cognitive_type || 'semantic',
       strength,
       decay_rate,
+      origin,
       salience: mem.salience ?? 0.5,
       confidence: mem.confidence ?? 0.7,
       tags: mem.tags || [],
@@ -441,6 +592,10 @@ async function main() {
     stored: results,
     total: results.length,
     index_count: index.memory_count,
+    // Only present when the provenance policy actually lowered something, so
+    // the agent can tell the user a claim was downgraded and why.
+    ...(clampsReported.length ? { provenance_clamps: clampsReported } : {}),
+    ...(auditErrors.length ? { audit_errors: auditErrors } : {}),
   };
 
   // Sync if requested
