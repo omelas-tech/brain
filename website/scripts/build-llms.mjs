@@ -5,7 +5,15 @@ import {
   categoryOrder,
   SITE_URL,
 } from "../src/lib/docs-data.mjs";
-import { extractContent, mdxPathForPage, publicDir } from "./mdx-extract.mjs";
+import { getAllBlogPosts } from "../src/lib/blog-data.mjs";
+import {
+  extractContent,
+  mdxPathForPage,
+  mdxPathForBlogPost,
+  publicDir,
+} from "./mdx-extract.mjs";
+
+const blogPosts = getAllBlogPosts();
 
 const SUMMARY =
   "A hierarchical, file-system-based memory system for AI coding agents, inspired by human neuroscience — memories decay on an Ebbinghaus curve, strengthen through recall, connect via associative networks, and consolidate during a sleep cycle. A deterministic recall engine gives identical scoring across Claude Code, Gemini CLI, OpenAI Codex CLI, and OpenCode: one brain, any model, every agent.";
@@ -53,6 +61,15 @@ function buildLlmsTxt() {
     lines.push("");
   }
 
+  if (blogPosts.length > 0) {
+    lines.push("## Blog");
+    lines.push("");
+    for (const post of blogPosts) {
+      lines.push(`- [${post.title}](${SITE_URL}${post.href}) (${post.date}): ${post.description}`);
+    }
+    lines.push("");
+  }
+
   lines.push("## Optional");
   lines.push("");
   lines.push("- [GitHub repository](https://github.com/omelas-tech/brain): source code and issues");
@@ -87,6 +104,20 @@ function buildLlmsFullTxt() {
     sections.push("");
   }
 
+  for (const post of blogPosts) {
+    const body = extractContent(mdxPathForBlogPost(post), 0);
+    sections.push("---");
+    sections.push("");
+    sections.push(`# ${post.title}`);
+    sections.push("");
+    sections.push(`URL: ${SITE_URL}${post.href}`);
+    sections.push(`Category: Blog`);
+    sections.push(`Published: ${post.date}`);
+    sections.push("");
+    sections.push(body || post.description);
+    sections.push("");
+  }
+
   return sections.join("\n");
 }
 
@@ -97,7 +128,7 @@ writeFileSync(join(publicDir, "llms.txt"), llmsTxt, "utf-8");
 writeFileSync(join(publicDir, "llms-full.txt"), llmsFullTxt, "utf-8");
 
 console.log(
-  `llms.txt built: ${docPages.length} links → public/llms.txt (${llmsTxt.length} bytes)`
+  `llms.txt built: ${docPages.length} doc links + ${blogPosts.length} blog posts → public/llms.txt (${llmsTxt.length} bytes)`
 );
 console.log(
   `llms-full.txt built: full corpus → public/llms-full.txt (${llmsFullTxt.length} bytes)`

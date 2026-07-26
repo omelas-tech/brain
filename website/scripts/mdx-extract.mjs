@@ -5,6 +5,7 @@ import { dirForPage } from "../src/lib/docs-data.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const docsDir = join(root, "src", "app", "docs");
+export const blogDir = join(root, "src", "app", "blog");
 export const publicDir = join(root, "public");
 
 /**
@@ -47,4 +48,18 @@ export function mdxPathForPage(page) {
   return dir === ""
     ? join(docsDir, "page.mdx")
     : join(docsDir, dir, "page.mdx");
+}
+
+/**
+ * Resolve the MDX file path for a blog post.
+ *
+ * Posts live behind a `(post)` route group, which Next strips from the URL —
+ * so `/blog/<slug>` maps to `blog/(post)/<slug>/page.mdx`, not
+ * `blog/<slug>/page.mdx`. The group exists so prose styling applies to post
+ * bodies without leaking into the post index.
+ * @param {{ href: string }} post
+ */
+export function mdxPathForBlogPost(post) {
+  const slug = post.href.replace(/^\/blog\/?/, "");
+  return join(blogDir, "(post)", slug, "page.mdx");
 }

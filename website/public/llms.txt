@@ -56,6 +56,11 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Scenarios](https://brainmemory.ai/docs/benchmarks/scenarios): The six benchmark scenarios — each describable in one sentence — with project fixtures, rubrics, and arm matrices.
 - [Results](https://brainmemory.ai/docs/benchmarks/results): Current measurements from the benchmark suite, with raw JSON downloads.
 
+## Blog
+
+- [Introducing Brain Memory: a memory system that forgets on purpose](https://brainmemory.ai/blog/introducing-brain-memory) (2026-07-26): AI agents start every session at zero. The usual fixes treat memory as storage plus search. Brain models it the way remembering actually works — decay, reinforcement, association — in plain files you can read.
+- [Provenance, not filtering: hardening brain against memory poisoning](https://brainmemory.ai/blog/provenance-memory-poisoning) (2026-07-26): A single email can plant a false memory in an AI agent and keep it there. Here is the attack, where brain was exposed, and the write-path gate we shipped in response.
+
 ## Optional
 
 - [GitHub repository](https://github.com/omelas-tech/brain): source code and issues
