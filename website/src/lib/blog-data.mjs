@@ -13,6 +13,15 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "Introducing Brain Memory: a memory system that forgets on purpose",
+    description:
+      "AI agents start every session at zero. The usual fixes treat memory as storage plus search. Brain models it the way remembering actually works — decay, reinforcement, association — in plain files you can read.",
+    href: "/blog/introducing-brain-memory",
+    date: "2026-07-26",
+    readingTime: "9 min",
+    tag: "Introduction",
+  },
+  {
     title: "Provenance, not filtering: hardening brain against memory poisoning",
     description:
       "A single email can plant a false memory in an AI agent and keep it there. Here is the attack, where brain was exposed, and the write-path gate we shipped in response.",

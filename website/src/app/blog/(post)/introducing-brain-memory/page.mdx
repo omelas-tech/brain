@@ -1,0 +1,141 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/introducing-brain-memory", {
+  title: "Introducing Brain Memory: a memory system that forgets on purpose",
+  description:
+    "AI agents start every session at zero. The usual fixes treat memory as storage plus search. Brain models it the way remembering actually works — decay, reinforcement, association — in plain files you can read.",
+  publishedTime: "2026-07-26",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Introduction</span> · 26 July 2026 · 9 min
+</div>
+
+# Memory that forgets on purpose
+
+Your coding agent is good at its job and has no idea who you are. Every session starts at zero. You re-explain that the project uses Postgres, that you commit straight to main, that the Mongo prototype was abandoned in March and please stop suggesting it.
+
+There are two standard fixes. Put more in the context window — expensive, and it degrades as the window fills. Or bolt on a vector database — a flat store where every fact is equally true, equally permanent, and equally likely to surface, ranked by cosine similarity to your phrasing.
+
+Both treat memory as **storage plus search**. That is not what remembering is.
+
+Human memory decays unless it's used. It gets stronger each time you retrieve it, and stronger still if the gap since the last retrieval was long. Recalling one thing drags associated things along with it. What matters resists forgetting; what doesn't, fades. **Forgetting is not the failure mode — it's the ranking function.**
+
+Brain Memory models that, in plain files.
+
+## What it actually is
+
+A directory tree in `~/.brain/`. Every memory is a Markdown file with YAML frontmatter:
+
+```yaml
+---
+id: mem_20260612_a3f81c
+type: decision
+cognitive_type: semantic
+created: "2026-06-12T09:14:02Z"
+strength: 0.85
+decay_rate: 0.995
+salience: 0.7
+confidence: 0.9
+origin: "user"
+tags: ["postgres", "architecture"]
+related: ["mem_20260408_77b2de"]
+---
+
+# Postgres over Mongo for the primary store
+...
+```
+
+No database. No server. No embeddings. No API key. The tree itself carries meaning — `professional/companies/acme/projects/` tells an agent where it is before a single word is read — and subdirectories get created on demand rather than defined up front.
+
+Which means you can `cd` into your agent's memory, `grep` it, read it in any editor, and put it under version control to watch what your agent believed change over time. If you disagree with something it remembered, you can open the file and fix it.
+
+## Forgetting, concretely
+
+Every memory has a strength and a per-memory decay rate:
+
+```
+effective_strength = strength × (decay_rate ^ days_since_access)
+```
+
+Recall it, and it gets a boost — larger when more time has passed since the last recall, because the spacing effect is real and cramming produces diminishing returns. Each recall also improves the memory's resistance to future decay. Memories that keep proving useful become nearly permanent; a passing observation from April quietly stops competing for attention.
+
+Different kinds of memory behave differently, as they do in people:
+
+| Cognitive type | Behaviour |
+|---|---|
+| **Episodic** | Event-specific. Starts strong, fades fast — details go, the lesson stays |
+| **Semantic** | Abstracted knowledge. Stable, default decay |
+| **Procedural** | Skills and workflows. Starts weaker, then decays extremely slowly once established |
+
+Two scores sit on top. **Salience** is how much a memory matters — anything at or above 0.7 is never auto-pruned. **Confidence** is how sure the agent is, and low-confidence memories get flagged at recall rather than presented as fact.
+
+## Recall is more than search
+
+When brain retrieves, it scores on relevance *and* decayed strength *and* how well the current session's context matches the context the memory was encoded in *and* salience — then does something a vector store doesn't.
+
+**Spreading activation.** Memories are linked by weighted edges. Recalling A surfaces linked B and C, the way one thought pulls another along. And links strengthen through use: memories retrieved together become more tightly bound, which is Hebbian learning, more or less.
+
+**A pinned tier.** Some facts shouldn't have to win a relevance contest — your conventions, your stack, how you like commits written. Pin them and they load every session, bypassing recall, exempt from decay.
+
+**Procedural skills.** Repeated workflows get abstracted into reusable `SKILL.md` files with progressive disclosure: the agent sees an index of what it knows how to do, and loads the full body only when a task matches.
+
+**A sleep cycle.** Run in the background, a nine-phase maintenance pass does replay, synaptic downscaling to stop strength inflation, consolidation of weak related memories into stronger combined ones, crystallization of episodic memories into semantic principles, pruning, and review scheduling.
+
+## Memory you can see fire
+
+Every recalled memory carries a receipt, minted by the retrieval engine:
+
+```
+◉ memory: "brain repo: commit directly to main" (preference, 2mo ago)
+```
+
+When a memory shapes an answer, the agent ends with that line. You see exactly which memory did it, how old it was, and how confident the system is — so when an answer is wrong you can tell whether the reasoning failed or a stale memory misled it. Because receipts are minted by the engine and not by the model, one can't exist for a memory that wasn't actually retrieved.
+
+## Does it work?
+
+We ran a preregistered benchmark: five scenarios, real retriever baselines (BM25 and a local vector store), a no-memory floor, an oracle ceiling, and ablations of brain's own features, graded by a cross-family judge panel.
+
+<Callout type="warning" title="read this before the numbers">
+  n=3 per arm. Token differences are **directional, not statistically significant** at that sample size. The pass-rate gradient is the result. Two of five scenarios are honest nulls, reported rather than dropped.
+</Callout>
+
+Where it wins, it wins clearly. Under a haystack of 1,000 distractor memories, brain was the only retrieval method whose results let the model succeed — BM25 managed Recall@5 of 0.33, the vector store 0.00, and both failed the task. Brain retrieved enough to pass 100%, at **3,199 tokens per success — below the oracle's 3,572**, and a fraction of the 20,689 it took to brute-force the same answer by dumping 60k of context.
+
+On procedural skills, loading just the one relevant skill passed 100% at ~31% fewer tokens than loading every skill body. On multi-session continuity, brain passed at the lowest token cost of any real memory arm — behind only the synthetic oracle — though plain BM25 also passed there, so the edge was efficiency, not correctness.
+
+And where it doesn't help, it doesn't. On the contradiction scenario everything clustered around 67% and a naive chronological dump beat every retriever. On abstention, the base model already declined to invent an answer, and brain changed nothing — while a noisy keyword retriever actively made it worse.
+
+That mixed picture is the honest one. Brain wins at retrieval under noise and at procedural efficiency, is competitive on continuity, and is neutral where the model needs no help. [Full results, raw JSON, and the preregistration](/docs/benchmarks/results) are public.
+
+## Getting started
+
+Local-first, free, no account — memories are files on your machine:
+
+```bash
+npm i -g brain-memory@beta
+```
+
+That covers Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, and Antigravity. There's also a hosted MCP connector that reaches any MCP-capable host, including the Claude and ChatGPT apps, if you want the same brain on web and mobile:
+
+```bash
+claude mcp add --transport http brain https://mcp.brainmemory.ai/mcp
+```
+
+After that it's mostly ambient. Recall happens at session start, memorization is proposed at session end, and maintenance runs in the background. You rarely type a command.
+
+<Callout type="info" title="where your memories live">
+  The plugin is local-first: `~/.brain/` on your machine, nothing leaves it. Sync is always manual, never automatic — push to any private Git repo, or export to a single portable file, both optionally end-to-end encrypted with a passphrase only you hold. The optional hosted Brain Cloud is different: it encrypts memories at rest with **server-held keys**, so it is not zero-knowledge. We spell that out on the [security page](/security) rather than blur it.
+</Callout>
+
+## The part we got wrong
+
+Worth saying in an introduction: a memory system that writes down what an agent learns is also a system that can be taught something false. Research published this month showed a single email can plant a persistent false memory in a coding agent, and brain's pinned tier — the feature that makes conventions stick — was the worst possible landing spot for one.
+
+We shipped a fix, and wrote up [both the exposure and its limits](/blog/provenance-memory-poisoning). If you're evaluating anything in this space, that post is probably more useful than this one.
+
+---
+
+Brain Memory is MIT-licensed and open source. [GitHub](https://github.com/omelas-tech/brain) · [Docs](/docs) · [Benchmarks](/docs/benchmarks/results)
