@@ -1,11 +1,30 @@
 import Link from "next/link";
 import { getAllBlogPosts, formatPostDate } from "@/lib/blog";
 
+const TITLE = "Blog — Brain Memory";
+const DESCRIPTION =
+  "Notes on memory systems for AI agents — design decisions, security work, and what we learned building Brain Memory.";
+
+// openGraph/twitter are declared explicitly: without them Next falls back to
+// the root layout's values, so shares of /blog rendered as the homepage card.
 export const metadata = {
-  title: "Blog — Brain Memory",
-  description:
-    "Notes on memory systems for AI agents — design decisions, security work, and what we learned building Brain Memory.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/blog" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/blog",
+    type: "website",
+    siteName: "Brain Memory",
+    images: ["/opengraph-image"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/opengraph-image"],
+  },
 };
 
 export default function BlogIndexPage() {
