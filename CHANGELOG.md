@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.34] - 2026-07-26
+
 ### Added
 
 - **Memory provenance — every write is now labelled by origin.** Each memory
@@ -34,6 +36,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   quietly capped. Pin deliberately afterwards with `brain pin <id>` instead.
   Only affects callers that drive the CLI directly; `/brain:memorize` already
   proposed rather than assumed pinning.
+
+### Fixed
+
+- **Cache-honest token accounting in the benchmark harness.** `normalizeUsage`
+  now folds `cache_read`/`cache_creation` input tokens back into the input
+  count — the cached prefix was being undercounted, which deflated
+  tokens-per-successful-task on the DeepSeek endpoint. Cached tokens are
+  accumulated, logged, and persisted separately so the two can be compared.
+  Also: model-aware judge dispatch, `runs_per_scenario` raised to 10, tighter
+  needle-fact rubrics on scenarios A/B/C, and three amendment rows recording
+  all of it in `PREREGISTRATION.md`.
 
 ## [0.1.0-beta.33] - 2026-07-04
 
