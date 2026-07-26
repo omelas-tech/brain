@@ -44,6 +44,7 @@ export default function DocsLayout({
               <a href="/#inside" className="hidden md:inline-flex">How it works</a>
               <a href="/#benchmarks" className="hidden md:inline-flex">Benchmarks</a>
               <Link href="/docs" className="hidden md:inline-flex active">Docs</Link>
+              <Link href="/blog" className="hidden md:inline-flex">Blog</Link>
               <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">GitHub</a>
               <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">npm</a>
               <a href="https://app.brainmemory.ai/login" className="hidden md:inline-flex">Login</a>

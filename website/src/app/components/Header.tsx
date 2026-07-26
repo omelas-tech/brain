@@ -51,6 +51,7 @@ export default function Header() {
   const sectionHref = (id: string) => (onHome ? `#${id}` : `/#${id}`);
   const sectionActive = (id: string) => onHome && activeSection === id;
   const docsActive = pathname.startsWith("/docs");
+  const blogActive = pathname.startsWith("/blog");
 
   return (
     <nav className={`nav${scrolled ? " scrolled" : ""}`} id="nav">
@@ -66,6 +67,7 @@ export default function Header() {
           <a href={sectionHref("inside")} className={`hidden md:inline-flex${sectionActive("inside") ? " active" : ""}`}>How it works</a>
           <a href={sectionHref("benchmarks")} className={`hidden md:inline-flex${sectionActive("benchmarks") ? " active" : ""}`}>Benchmarks</a>
           <Link href="/docs" className={`hidden md:inline-flex${docsActive ? " active" : ""}`}>Docs</Link>
+          <Link href="/blog" className={`hidden md:inline-flex${blogActive ? " active" : ""}`}>Blog</Link>
           <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">GitHub</a>
           <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex">npm</a>
           <a href="https://app.brainmemory.ai/login" className="hidden md:inline-flex">Login</a>
@@ -90,6 +92,7 @@ export default function Header() {
             <a href={sectionHref("inside")} className={`py-2 hover:text-[var(--fg)] ${sectionActive("inside") ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>How it works</a>
             <a href={sectionHref("benchmarks")} className={`py-2 hover:text-[var(--fg)] ${sectionActive("benchmarks") ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Benchmarks</a>
             <Link href="/docs" className={`py-2 hover:text-[var(--fg)] ${docsActive ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Docs</Link>
+            <Link href="/blog" className={`py-2 hover:text-[var(--fg)] ${blogActive ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Blog</Link>
             <a href="https://github.com/omelas-tech/brain" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>GitHub</a>
             <a href="https://www.npmjs.com/package/brain-memory" target="_blank" rel="noopener noreferrer" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>npm</a>
             <a href="https://app.brainmemory.ai/login" className="py-2 text-[var(--fg-2)] hover:text-[var(--fg)]" onClick={() => setIsMenuOpen(false)}>Login</a>
