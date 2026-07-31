@@ -156,12 +156,20 @@ export const docPages = [
     order: 4,
   },
   {
+    title: "import",
+    description:
+      "Cold-start a brain from transcripts your agents already wrote. Incremental — safe to re-run.",
+    href: "/docs/commands/import",
+    category: "Commands",
+    order: 5,
+  },
+  {
     title: "sync",
     description:
       "Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run).",
     href: "/docs/commands/sync",
     category: "Commands",
-    order: 5,
+    order: 6,
   },
   {
     title: "skill",
@@ -169,7 +177,7 @@ export const docPages = [
       "Manage procedural skills — reusable how-to workflows with progressive disclosure.",
     href: "/docs/commands/skill",
     category: "Commands",
-    order: 6,
+    order: 7,
   },
   {
     title: "sleep",
@@ -177,7 +185,7 @@ export const docPages = [
       "Full maintenance cycle: replay, homeostasis, consolidation, review reinforcement, pruning, and REM dreaming. Usually runs in the background.",
     href: "/docs/commands/sleep",
     category: "Commands",
-    order: 7,
+    order: 8,
   },
 
   // Advanced
