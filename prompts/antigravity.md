@@ -58,6 +58,9 @@ Core:
 - `/brain-pin [id|query]` — Pin a memory to the always-present tier (toggle — also unpins, e.g. `--off`)
 - `/brain-forget [target]` — Decay or archive memories (`--deep` = forensic erasure of every reference)
 
+Cold start:
+- `/brain-import [--project P] [--since 30d]` — Seed a new brain from transcripts your agents already wrote
+
 Sync & skills:
 - `/brain-sync [subcommand]` — Sync via Brain Cloud, Git remote, or export/import (auto-initializes on first run)
 - `/brain-skills [list|show|add|use|remove|export]` — Manage procedural skills

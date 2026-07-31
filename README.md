@@ -242,9 +242,26 @@ The everyday loop is **ambient** — `remember` and `memorize` run automatically
 | `/brain:status` | Dashboard with brain health metrics and recommendations |
 | `/brain:pin [id\|query]` | Pin a memory to the always-present tier — loads every session, never decays. Toggles: also unpins (`--off`) |
 | `/brain:forget [target]` | Decay, archive, or remove memories. `--deep` performs forensic erasure — traces and removes every reference |
+| `/brain:import [--project P] [--since 30d]` | Cold-start a new brain from transcripts your agents already wrote. Incremental — safe to re-run |
 | `/brain:sync [subcommand]` | Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run) |
 | `/brain:skills [list\|show\|add\|use\|remove\|export]` | Manage procedural skills — reusable how-to workflows with progressive disclosure |
 | `/brain:sleep [scope]` | Full maintenance cycle — 9 neuroscience-inspired phases (replay, consolidation, review reinforcement, pruning, dreaming, …). Usually runs automatically/in the background |
+
+## Cold Start
+
+A new brain is empty, and an empty brain is worth nothing until something fills it. But your agents have been keeping local transcripts for months — decisions, preferences, corrections, conventions. `/brain:import` reads them.
+
+```bash
+brain import --sources          # what history exists on this machine
+brain import --project my-app   # digest that project's past sessions
+brain import --since 30d        # or scope by time
+```
+
+The split matters. The CLI **harvests** — deterministic, budget-bounded, no model call: it extracts session titles, user prompts, projects, branches, and edited files, filters out harness noise and subagent traffic, and interleaves across projects so one busy repo can't eat the budget. The agent then **distills** that digest into memories through the ordinary `brain memorize` path.
+
+That split is deliberate. Extracting meaning is a semantic judgement, and doing it in the CLI would mean shipping an embedding model or calling an LLM — the two things Brain exists to avoid. So the harvester reports facts and never infers, and every imported memory lands as `agent-inferred` provenance: it inherits the existing ceilings for free, and **an import can never pin, entrench, or outrank something you said directly.**
+
+Import is incremental. A cursor in `~/.brain/.import/state.json` records which sessions have been read, so re-running only offers new ones (`--all` overrides). Nothing is written without you — `brain import` only ever reads and prints.
 
 ## Session Lifecycle
 

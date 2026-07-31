@@ -33,6 +33,7 @@ const DELEGATED = {
   pin: 'pin.js',
   unpin: 'unpin.js',
   skill: 'skill.js',
+  import: 'import.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -58,6 +59,13 @@ Memory
                               Manage procedural skills (progressive disclosure)
   session-start [--project P] [--task T] [--top N]
                               Budget-bounded startup payload (agent-invoked)
+
+Cold start
+  import [--source S] [--project P] [--since 30d] [--limit N] [--all]
+                              Digest past agent transcripts into import candidates
+  import --sources            List detected agent history stores
+  import --mark <id> [<id>...]
+                              Record sessions as imported (incremental cursor)
 
 Sync
   cloud <login|logout|push|pull|status>

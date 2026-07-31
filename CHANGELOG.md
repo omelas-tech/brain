@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **`/brain:import` — cold-start a brain from transcripts your agents already
+  wrote.** A new brain is empty, and an empty brain is worth nothing until
+  something fills it; meanwhile every coding agent has been keeping months of
+  local history. `brain import` harvests it: session titles, user prompts,
+  projects, branches and edited files, with harness wrappers
+  (`<system-reminder>`, slash-command tags, command output), subagent sidechain
+  traffic, and bare acknowledgements filtered out. The digest is bounded on
+  three axes (sessions, prompts per session, total characters) and
+  round-robins across projects, so one busy repo cannot consume the whole
+  budget — on a real 261-session history that lifted project coverage from 5
+  to 13 within the same ~15k tokens.
+
+  The CLI harvests; the **agent distills**. Extracting meaning is a semantic
+  judgement, and making it in the CLI would mean shipping an embedding model
+  or calling an LLM — the two things Brain exists to avoid. So the harvester
+  reports facts and never infers, and distilled memories go through the
+  ordinary `brain memorize` path as `agent-inferred`: an import inherits the
+  existing provenance ceilings for free and can never pin, entrench, or
+  outrank something the user said directly.
+
+  Import is incremental — a cursor at `~/.brain/.import/state.json` records
+  which sessions have been read so re-runs offer only new ones (`--all`
+  overrides). `--mark` validates ids against the source's real sessions and
+  exits non-zero on any that match nothing: silently accepting a truncated or
+  mistyped id would report a session as retired while the cursor never matches
+  it, re-offering that session forever. Scope with `--project`,
+  `--since 30d|6m|2026-01-01`, `--limit`.
+  `brain import --sources` lists detected history stores. `brain import` only
+  ever reads and prints; no memory is written without the agent.
+
+  Claude Code is the first source adapter; the registry in `src/harvest.js`
+  takes additional agents without changes downstream.
+
 ## [0.1.0-beta.34] - 2026-07-26
 
 ### Added
