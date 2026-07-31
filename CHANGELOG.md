@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.35] - 2026-08-01
+
 ### Added
 
 - **`/brain:import` — cold-start a brain from transcripts your agents already
