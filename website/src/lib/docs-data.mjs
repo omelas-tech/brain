@@ -261,14 +261,6 @@ export const docPages = [
     category: "Advanced",
     order: 6,
   },
-  {
-    title: "Provenance & Trust",
-    description:
-      "How Brain resists memory poisoning: origin-based clamps, trust-weighted recall, quarantine of untrusted writes, and anomaly detection (OWASP ASI06).",
-    href: "/docs/advanced/provenance-trust",
-    category: "Advanced",
-    order: 7,
-  },
 
   // Reference
   {

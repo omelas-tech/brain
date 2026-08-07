@@ -62,7 +62,8 @@
     "scenario-B-three-sessions",
     "scenario-C-contradiction",
     "scenario-D-skills",
-    "scenario-F-abstention"
+    "scenario-F-abstention",
+    "scenario-G-poisoned-haystack"
   ],
   "deferred_scenarios": [
     "scenario-E-continual"

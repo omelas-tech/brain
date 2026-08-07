@@ -1,0 +1,39 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/commands/verify", {
+  title: "/brain:verify - Brain Memory",
+  description: "Review and resolve memories pending verification — writes from untrusted sources held in quarantine.",
+  category: "Commands",
+  order: 8,
+});
+
+# /brain:verify
+
+Writes from untrusted sources — tool output, external content, or text that looks instruction-shaped — are held in a **pending-verification** state (see [Provenance & Trust](/docs/concepts/provenance-trust/)). `verify` is how they get resolved. Resolution is always the user's call; the agent never approves on its own judgment.
+
+<Callout type="info">
+"Verify" is distinct from the spaced-repetition **review queue** (`due_for_review`). Verification is a one-time trust decision on a quarantined write; review is ongoing reinforcement scheduling.
+</Callout>
+
+## Usage
+
+```bash
+brain verify list                    # pending memories (JSON)
+brain verify show <id>               # full frontmatter + body for inspection
+brain verify approve <id> [<id>…]    # clear the flag, mark vetted
+brain verify reject  <id> [<id>…]    # archive (recoverable)
+```
+
+## What approval and rejection do
+
+- **Approve** clears the quarantine flag and marks the memory `vetted`. Its `origin`, write-time caps, and recall trust weighting all **stay** — approval means "a human looked; this is not an injection," not "this is now user-asserted." To fully trust it, re-store it with `origin: user` or pin it explicitly.
+- **Reject** archives the memory to `~/.brain/_archived/` (recoverable). Pass `--force` only if the CLI refuses a high-salience entry and you're sure.
+
+Every approve and reject is written to the append-only audit log.
+
+## Related
+
+- [`brain audit`](/docs/concepts/provenance-trust/#anomaly-detection) — scans for poisoning patterns and can feed the quarantine queue.
+- [Provenance & Trust](/docs/concepts/provenance-trust/) — the full defense model.

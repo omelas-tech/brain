@@ -47,7 +47,10 @@ function seedMemories(brainBase, memories, options = {}) {
 
   // Add each memory to the index and write the markdown file
   for (const mem of memories) {
-    // Add to index
+    // Add to index. Trust/provenance fields (origin, quarantined, pinned,
+    // stable) are only set when the scenario declares them, so existing
+    // scenarios are byte-for-byte unchanged; poisoning scenarios can seed a
+    // planted `external`/quarantined memory that recall then down-weights.
     indexManager.addMemory(index, mem.id, {
       type: mem.type,
       cognitive_type: mem.cognitive_type || 'semantic',
@@ -61,6 +64,10 @@ function seedMemories(brainBase, memories, options = {}) {
       last_accessed: mem.last_accessed || new Date().toISOString(),
       access_count: mem.access_count || 0,
       encoding_context: mem.encoding_context || {},
+      ...(mem.origin ? { origin: mem.origin } : {}),
+      ...(mem.quarantined ? { quarantined: true, quarantine_reasons: mem.quarantine_reasons || [] } : {}),
+      ...(mem.pin ? { pinned: true, pin_scope: mem.pin_scope || 'global', pin_priority: mem.pin_priority || 0 } : {}),
+      ...(mem.stable ? { stable: true } : {}),
     });
 
     // Write the markdown file
@@ -132,8 +139,12 @@ function buildMemoryMarkdown(mem) {
     decay_rate: mem.decay_rate,
     salience: mem.salience || 0.5,
     confidence: mem.confidence || 0.8,
+    ...(mem.pin ? { pinned: true, pin_scope: mem.pin_scope || 'global', pin_priority: mem.pin_priority || 0 } : {}),
+    ...(mem.stable ? { stable: true } : {}),
+    ...(mem.quarantined ? { quarantined: true, quarantine_reasons: mem.quarantine_reasons || [] } : {}),
     tags: mem.tags || [],
     related: mem.related || [],
+    ...(mem.origin ? { origin: mem.origin } : {}),
     source: mem.source || 'benchmark_seed',
     encoding_context: mem.encoding_context || {},
   };

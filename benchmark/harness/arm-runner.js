@@ -366,6 +366,16 @@ async function applySeeding({ arm, homeDir, setup, agentName }) {
     context: setup.context || null,
   });
 
+  // Per-arm brain config override (e.g. the poisoning scenario's
+  // quarantine-disabled ablation sets { quarantine_mode: "off" }). Merged over
+  // defaults so an arm only states what it changes.
+  if (arm.brain_config && typeof arm.brain_config === 'object') {
+    const cfgPath = path.join(homeDir, '.brain', 'config.json');
+    let cfg = {};
+    try { cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); } catch { /* none yet */ }
+    fs.writeFileSync(cfgPath, JSON.stringify({ ...cfg, ...arm.brain_config }, null, 2) + '\n');
+  }
+
   // Phase 1: pinning. Pin the oracle memories that the scenario marks `pin: true`,
   // *unless* the arm explicitly disables pinning.
   if (arm.pin !== false) {

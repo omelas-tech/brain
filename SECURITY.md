@@ -17,6 +17,45 @@ Brain Memory handles sensitive data in several areas:
 - **File system access** — Reads and writes to the `.brain/` directory tree
 - **Git operations** — When sync is configured, pushes/pulls to a user-specified Git remote using the system `git` binary and the user's existing Git/SSH authentication
 
+## Memory poisoning (OWASP ASI06)
+
+Because Brain reloads stored memories into the model, a memory absorbed from
+untrusted content — an email, a web page, a tool result — is an injection vector
+([MemGhost](https://arxiv.org/abs/2607.05189)). Brain implements all five ASI06
+defense layers; the full model is in the [Provenance & Trust](https://brainmemory.ai/docs/concepts/provenance-trust/)
+docs:
+
+- **Provenance ceilings.** Every memory records an `origin`; non-`user` origins
+  are confidence-capped, decay faster, and **cannot pin or entrench** (refused at
+  write, not silently capped).
+- **Trust-weighted recall.** Origin trust multiplies the recall score and damps
+  spreading-activation sources, so a co-tagged clique of planted writes can't
+  self-amplify past a genuine memory.
+- **Content lint.** Instruction-shaped writes (e.g. "ignore previous
+  instructions", pipe-to-shell, secret exfiltration) are flagged regardless of
+  the claimed origin.
+- **Quarantine + verification.** Low-trust and lint-flagged writes land pending
+  verification (`brain verify`); in `enforce` mode they are excluded from recall
+  until approved.
+- **Anomaly detection.** `brain audit` flags write bursts, low-trust cliques, and
+  quietly-reinforced unverified memories (runs as `brain sleep` Phase 0).
+- **Forensics + rollback.** An append-only `~/.brain/audit.log` (carried forward
+  through restores) records every write, archival, and verification; `brain
+  restore` rolls the whole brain back to a pre-attack snapshot.
+
+`origin` is asserted by the writing agent, so this does not defend against a
+fully hostile agent lying about provenance — but it holds for the dominant case
+(an honest agent relaying poisoned content), and the entrenchment refusal and
+lint hold regardless of the claimed origin.
+
+## File-system safety
+
+The `.brain/` tree and everything that writes into it (memorize, reinforce, pin,
+forget, import) validate that resolved paths stay inside the brain directory,
+including through symlinks (realpath checks); sync/import/export refuse `..`
+traversal and never follow symlinks out of the tree; cloud snapshots are
+extracted through a staging directory that drops symlink members.
+
 ## Hosted service: Brain Cloud & the connector
 
 Brain Memory is **local-first** — by default your memories are plain files on your

@@ -78,6 +78,44 @@ Low-trust origins are never silently blended into results:
 
 Trusted receipts are byte-identical to the base format — the marker only ever appears when there is something to warn about.
 
+## Quarantine: untrusted writes wait for review
+
+Bounding what an untrusted memory can claim is the *sanitization* and *retrieval* half of the defense. The other half is a review step — the fix MemGhost's own authors prescribe. Low-trust writes (`tool-output` / `external`), and any write whose content is **instruction-shaped**, land in a **pending-verification** state.
+
+The instruction-shaped check is a write-time lint that runs on *every* origin: it flags "ignore previous instructions," pipe-to-shell, secret-exfiltration phrasing, and similar. This catches the case origin alone can't — an honest agent relaying poison but mislabeling its origin. (The lint is downgraded to advisory for `preference` and `procedural` memories, which legitimately contain instructions like "always use 2-space indent.")
+
+Behavior is controlled by `quarantine_mode` in `~/.brain/config.json`:
+
+| Mode | Pending memory behavior |
+|---|---|
+| `off` | Never flagged |
+| `flag` (default) | Recallable but marked (`⊘ unverified` receipt, surfaced at session start); never pinnable |
+| `enforce` | Excluded from recall and session start until approved |
+
+Resolution is always the user's call — `brain verify` never approves on the agent's judgment:
+
+```bash
+brain verify list                 # pending memories
+brain verify approve <id>         # clear the flag (origin + trust weighting stay)
+brain verify reject  <id>         # archive it
+```
+
+Approval clears the flag and marks the memory `vetted`; it does **not** promote it to `user` trust.
+
+## Detection: `brain audit`
+
+`brain audit` scans `audit.log`, the index, and the association graph for the patterns an attack leaves behind — write bursts per origin, co-tagged cliques of low-trust memories, and unverified memories quietly accumulating recall reinforcement. `--apply` quarantines what it finds (capped per run, so a scan can never mass-quarantine a large brain). It runs automatically as Phase 0 of [`brain sleep`](/docs/commands/sleep/).
+
+## The five OWASP ASI06 layers
+
+| ASI06 layer | Brain feature |
+|---|---|
+| Input moderation | Write-time content lint |
+| Memory sanitization with provenance | Origin ceilings + entrenchment refusal + audit log |
+| Trust-aware retrieval | Trust-weighted scoring + activation damping |
+| Behavioral monitoring | `brain audit` anomaly detection |
+| Forensic capabilities | Append-only audit log + `brain restore` |
+
 ## Honest Limitations
 
 `origin` is asserted by the writing agent, so it does not defend against a fully hostile agent lying about provenance. The dominant real-world case, though, is an *honest* agent relaying poisoned content it read — and there the policy holds. The entrenchment refusal holds regardless: pinning is simply not reachable without an explicit user origin, and a deliberate `brain pin <id>` afterwards is a human decision.

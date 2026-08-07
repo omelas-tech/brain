@@ -45,7 +45,6 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Portable Sync](https://brainmemory.ai/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
 - [Working Memory & Session Start](https://brainmemory.ai/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
 - [Portable Skill Distribution](https://brainmemory.ai/docs/advanced/skill-distribution): Ship Brain as a portable agentskills.io SKILL.md folder that runs unmodified across Claude Code, Copilot, Cursor, Codex, Gemini CLI, and more.
-- [Provenance & Trust](https://brainmemory.ai/docs/advanced/provenance-trust): How Brain resists memory poisoning: origin-based clamps, trust-weighted recall, quarantine of untrusted writes, and anomaly detection (OWASP ASI06).
 
 ## Reference
 
@@ -63,6 +62,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 
 ## Blog
 
+- [Closing the loop on memory poisoning: quarantine, audit, and rollback](https://brainmemory.ai/blog/quarantine-and-audit) (2026-08-07): The write-path gate stopped planted memories from entrenching. Now brain flags untrusted writes for review, detects the patterns an attack leaves behind, and can roll the whole brain back — all five OWASP ASI06 layers, shipped.
 - [Introducing Brain Memory: a memory system that forgets on purpose](https://brainmemory.ai/blog/introducing-brain-memory) (2026-07-26): AI agents start every session at zero. The usual fixes treat memory as storage plus search. Brain models it the way remembering actually works — decay, reinforcement, association — in plain files you can read.
 - [Provenance, not filtering: hardening brain against memory poisoning](https://brainmemory.ai/blog/provenance-memory-poisoning) (2026-07-26): A single email can plant a false memory in an AI agent and keep it there. Here is the attack, where brain was exposed, and the write-path gate we shipped in response.
 

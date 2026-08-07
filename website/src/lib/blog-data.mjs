@@ -13,6 +13,15 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "Closing the loop on memory poisoning: quarantine, audit, and rollback",
+    description:
+      "The write-path gate stopped planted memories from entrenching. Now brain flags untrusted writes for review, detects the patterns an attack leaves behind, and can roll the whole brain back — all five OWASP ASI06 layers, shipped.",
+    href: "/blog/quarantine-and-audit",
+    date: "2026-08-07",
+    readingTime: "7 min",
+    tag: "Security",
+  },
+  {
     title: "Introducing Brain Memory: a memory system that forgets on purpose",
     description:
       "AI agents start every session at zero. The usual fixes treat memory as storage plus search. Brain models it the way remembering actually works — decay, reinforcement, association — in plain files you can read.",

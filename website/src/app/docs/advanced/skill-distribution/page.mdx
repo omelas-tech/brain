@@ -13,7 +13,7 @@ export const metadata = docMeta("/docs/advanced/skill-distribution", {
 
 Brain Memory reaches agents two ways. The [installer](/docs/getting-started/installation/) writes native command/skill files into each supported CLI, and the [hosted MCP connector](/docs/getting-started/claude-apps/) serves Claude.ai, ChatGPT, and mobile. The **portable skill** is a third rail: a single self-contained [`SKILL.md`](https://www.agentskills.io) folder that any agentskills.io-compatible client loads unmodified — including agents Brain Memory has no dedicated installer for.
 
-<Callout type="note">
+<Callout type="info">
 "Skill" is overloaded here. This page is about a **packaged Agent Skill** — a folder a coding agent loads. It is unrelated to Brain's own [procedural skills](/docs/concepts/procedural-skills/) (`~/.brain/_skills/`), which are memories of *how you do things*.
 </Callout>
 
@@ -42,7 +42,7 @@ The open `SKILL.md` spec is read identically by a growing set of clients (Claude
 
 ## Trust surface travels with it
 
-The portable skill documents the full provenance workflow, not just recall and memorize: it tells the host to honor `low_trust` and `quarantine_pending` flags, copy `receipt` lines verbatim, and route untrusted writes through [`brain verify`](/docs/commands/verify/). Wherever the skill runs, the [poisoning defenses](/docs/advanced/provenance-trust/) come with it.
+The portable skill documents the full provenance workflow, not just recall and memorize: it tells the host to honor `low_trust` and `quarantine_pending` flags, copy `receipt` lines verbatim, and route untrusted writes through [`brain verify`](/docs/commands/verify/). Wherever the skill runs, the [poisoning defenses](/docs/concepts/provenance-trust/) come with it.
 
 ## Relationship to the native installers
 

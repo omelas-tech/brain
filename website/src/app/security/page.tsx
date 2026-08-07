@@ -64,6 +64,37 @@ export default function SecurityPage() {
           </section>
 
           <section>
+            <h2 className="font-semibold text-[var(--text-primary)] mb-2">
+              Memory-poisoning defense
+            </h2>
+            <p>
+              Because Brain reloads stored memories into the model, a memory absorbed from untrusted
+              content — an email, a web page, a tool result — is an injection vector. Brain treats{" "}
+              <em>where a memory came from</em> as a first-class property and implements all five{" "}
+              <a
+                href="https://genai.owasp.org/"
+                className="text-[var(--accent)] hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                OWASP ASI06
+              </a>{" "}
+              defense layers: origin ceilings that stop untrusted content from pinning or
+              entrenching, trust-weighted recall, a write-time lint for instruction-shaped payloads,{" "}
+              <strong className="text-[var(--text-primary)]">quarantine</strong> of untrusted writes
+              for review, anomaly detection (<code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">brain audit</code>),
+              and an append-only audit log with one-command rollback. See{" "}
+              <a
+                href="/docs/concepts/provenance-trust/"
+                className="text-[var(--accent)] hover:underline"
+              >
+                Provenance &amp; Trust
+              </a>
+              .
+            </p>
+          </section>
+
+          <section>
             <h2 className="font-semibold text-[var(--text-primary)] mb-2">Local-first by default</h2>
             <p>
               By default, your memories are plain files in{" "}
