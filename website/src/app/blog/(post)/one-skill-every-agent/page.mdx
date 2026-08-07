@@ -1,0 +1,55 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/one-skill-every-agent", {
+  title: "One skill, every agent: Brain as a portable SKILL.md",
+  description:
+    "Brain already installed natively into a handful of coding agents. Now it ships as a single portable Agent Skill folder that runs unmodified across ~40 clients — the ones we support, and the ones we've never heard of.",
+  publishedTime: "2026-08-08",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Distribution</span> · 8 August 2026 · 5 min
+</div>
+
+# One skill, every agent
+
+Brain has always been model-agnostic — one `~/.brain/` shared across Claude Code, Codex, OpenCode, Antigravity. But "supported" meant we'd written an installer for that specific agent: a table of paths, a prompt file, a command format, per tool. Every new agent was a new row to maintain, and an agent we hadn't gotten to was an agent you couldn't use Brain with.
+
+That framing is now backwards. The question isn't "did Brain's team add support for my agent?" It's "does my agent read `SKILL.md`?" — and increasingly, they all do.
+
+## The standard that made this possible
+
+Over the last few months the open [Agent Skills](https://www.agentskills.io) format — a folder with a `SKILL.md` (YAML frontmatter plus instructions) and optional `scripts/` — went from a Claude convention to something read identically by Claude Code, Copilot, Cursor, Codex, Gemini CLI, and a growing list of others. Two of them (Codex, Copilot) even read the same cross-tool `~/.agents/skills/` location, so one folder installed there serves multiple agents at once.
+
+A memory system is a near-perfect fit for that shape. Brain's intelligence lives in a deterministic CLI; the skill just has to tell the host *when* to recall, *how* to classify a write, and *how* to read the results. That's instructions plus a binary — exactly what a portable skill carries.
+
+## What ships
+
+A single committed folder, included in the npm package, so `npm i -g brain-memory` drops it where cross-agent registries can find it:
+
+```
+brain-memory/
+  SKILL.md              # frontmatter + the full recall / memorize / verify loop
+  scripts/
+    session-start.mjs   # dependency-free wrapper over `brain session-start`
+```
+
+The frontmatter declares what it needs, in the open format's own vocabulary:
+
+```yaml
+metadata: {"requires": {"bins": ["brain"]}, "install": [{"kind": "node", "package": "brain-memory", "bins": ["brain"]}]}
+```
+
+Any host that reads the standard sees "this skill needs the `brain` binary; here's how to install it" and offers the same deterministic recall, provenance-aware memorize, and verification workflow every other integration uses. Because the skill only ever depends on the global CLI — never on a specific host's APIs — it stays byte-identical everywhere it runs.
+
+## The trust surface comes with it
+
+This isn't a stripped-down port. The portable skill documents the whole thing: honor `low_trust` and `quarantine_pending` flags, copy `receipt` lines verbatim, route untrusted writes through `brain verify`. Wherever the skill lands, the [poisoning defenses](/blog/quarantine-and-audit/) travel with it — a memory absorbed from a web page on one agent is still capped, flagged, and quarantined when a different agent recalls it.
+
+<Callout type="info">
+The native installers aren't going away — where they exist, they add the ambient session-start / session-end loop a bare skill can't. The portable skill is the floor, not the ceiling: it guarantees Brain works *somewhere* on any compliant agent, and the installer upgrades that to the full ambient experience where we support it.
+</Callout>
+
+The full mechanics are in [Portable Skill Distribution](/docs/advanced/skill-distribution/). If you're on an agent Brain doesn't have a dedicated installer for, this is your path — and it probably already works.

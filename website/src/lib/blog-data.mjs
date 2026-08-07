@@ -13,6 +13,24 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "When a memory stops being true",
+    description:
+      "Decay handles memories that fade. It doesn't handle memories that were true and then, on a specific day, weren't. Brain now models truth-based invalidation: supersede the old fact, keep it answerable, let the new one win.",
+    href: "/blog/when-a-memory-stops-being-true",
+    date: "2026-08-08",
+    readingTime: "5 min",
+    tag: "Concepts",
+  },
+  {
+    title: "One skill, every agent: Brain as a portable SKILL.md",
+    description:
+      "Brain already installed natively into a handful of coding agents. Now it ships as a single portable Agent Skill folder that runs unmodified across ~40 clients — the ones we support, and the ones we've never heard of.",
+    href: "/blog/one-skill-every-agent",
+    date: "2026-08-08",
+    readingTime: "5 min",
+    tag: "Distribution",
+  },
+  {
     title: "Closing the loop on memory poisoning: quarantine, audit, and rollback",
     description:
       "The write-path gate stopped planted memories from entrenching. Now brain flags untrusted writes for review, detects the patterns an attack leaves behind, and can roll the whole brain back — all five OWASP ASI06 layers, shipped.",

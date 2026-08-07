@@ -1,0 +1,51 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/when-a-memory-stops-being-true", {
+  title: "When a memory stops being true",
+  description:
+    "Decay handles memories that fade. It doesn't handle memories that were true and then, on a specific day, weren't. Brain now models truth-based invalidation: supersede the old fact, keep it answerable, let the new one win.",
+  publishedTime: "2026-08-08",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Concepts</span> · 8 August 2026 · 5 min
+</div>
+
+# When a memory stops being true
+
+Brain's whole premise is that [forgetting is a feature](/blog/introducing-brain-memory/). A memory decays unless it's used; what matters resists, what doesn't fades. That handles the memory you *stop caring about*.
+
+It does not handle the memory that was true on Monday and false on Wednesday.
+
+"We deploy to Heroku" isn't low-salience noise that should quietly fade — it's a load-bearing fact you referenced constantly, right up until you migrated to Fly.io. Decay works on *disuse*. This is a different axis: *disproof*. A frequently-used, high-strength memory can become exactly wrong, and strength-based ranking will keep surfacing it with confidence precisely because it used to matter.
+
+## Decay is time-based; this is truth-based
+
+The two need different mechanisms. Decay is a function of elapsed time since last access. Invalidation is an event: a new fact arrives that *replaces* an old one. You can't get the second from the first — a superseded fact might have been accessed yesterday and still be dead wrong today.
+
+So Brain now records the relationship explicitly. When you store a memory that replaces an older one, you name what it supersedes:
+
+```json
+{ "title": "Deploy target is Fly.io", "type": "decision",
+  "supersedes": ["mem_20260101_heroku"], "content": "..." }
+```
+
+Brain stamps `superseded_by` on the old memory — in both its index entry and its file's frontmatter — and links the two.
+
+## Demote, don't delete
+
+The obvious move is to delete the old fact. Brain doesn't, and the reason is the interesting part.
+
+"Where do we deploy?" — the answer is Fly.io, and the superseded Heroku memory must never outrank it. But "didn't we used to be on Heroku?" is a real question with a real answer, and a deleted memory can't answer it. So a superseded memory is **strongly demoted, not excluded**: the recall engine multiplies its score down far enough that the successor always wins, but not to zero. It still surfaces when nothing else is relevant, and it carries `superseded_by` so the agent frames it correctly — "that was true until we moved to Fly.io" — instead of presenting a corpse as current.
+
+<Callout type="info">
+This is the axis the memory-benchmark field has been converging on — temporal validity, "true-then / true-now" — and it's where a plain vector store struggles most: cosine similarity has no notion of one fact retiring another. A superseded memory and its successor look nearly identical to an embedding; the difference is a relationship, not a distance.
+</Callout>
+
+## It falls out of contradiction handling
+
+You rarely have to think about `supersedes` by hand. When `brain sleep` consolidates, it already looks for memories that overlap. Now it distinguishes two cases: memories that are *compatible* get merged as before; memories that *contradict* get proposed as a supersession instead of silently averaged into mush. Brain never auto-resolves a contradiction — it surfaces the pair and lets you decide — but when you do decide, "the new one replaces the old" is now a first-class, recorded outcome rather than a delete-and-hope.
+
+Details in the [memorize](/docs/commands/memorize/) command docs. It's a small addition with an outsized effect on one specific, corrosive failure: an agent that's confidently, fluently wrong because it remembers something that used to be right.
