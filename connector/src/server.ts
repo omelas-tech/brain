@@ -28,6 +28,7 @@ import { ensureUserBrain, syncBack, purgeBrain, startBrainReaper } from "./store
 import { memorize, pin, unpin, forget, verifyList, verifyApprove, verifyReject } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
 import { memoryResult } from "./result.js";
+import { INSPECTOR_URI, inspectorHtml } from "./inspector.js";
 
 /**
  * A tool result the client MUST NOT act on because the token lacks the write
@@ -257,6 +258,20 @@ export function buildServer(session: Session): McpServer {
       );
     },
   );
+
+  // Experimental MCP App (memory inspector). Dormant unless CONNECTOR_ENABLE_UI=1
+  // — MCP Apps client support is still emerging, so it must never touch the
+  // default tool surface. Registers a self-contained ui:// HTML resource.
+  if (process.env.CONNECTOR_ENABLE_UI === "1") {
+    server.registerResource(
+      "brain-inspector",
+      INSPECTOR_URI,
+      { title: "Memory Inspector", description: "Provenance and verification state for recalled memories.", mimeType: "text/html" },
+      async () => ({
+        contents: [{ uri: INSPECTOR_URI, mimeType: "text/html", text: inspectorHtml() }],
+      }),
+    );
+  }
 
   return server;
 }
