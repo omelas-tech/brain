@@ -1,0 +1,87 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/concepts/provenance-trust", {
+  title: "Provenance & Trust - Brain Memory",
+  description:
+    "Every memory is labelled by origin, and origin bounds what it may claim — at write time and at recall.",
+  category: "Concepts",
+  order: 6,
+});
+
+# Provenance & Trust
+
+Every memory records **where its content came from** — its `origin`. This is a different question from how much the agent believes it ([confidence](/docs/concepts/salience-confidence/)): a fact can be confidently stated by a malicious web page. Origin answers *who is really speaking*, and Brain uses it to bound what a memory may claim — when it is written, and again every time it is recalled.
+
+## The Threat: Memory Poisoning
+
+The failure mode this defends against: content the agent *read* — an email, a web page, a tool result — persuades it to write a fact, and that fact then hardens. Pinned into every session, exempt from decay, immune to pruning, boosted by its own planted neighbors at recall. One successful write silently steers every future answer. (OWASP ASI06; see the [MemGhost paper](https://arxiv.org/abs/2607.05189) and our [blog post](/blog/provenance-memory-poisoning/).)
+
+## The Four Origins
+
+| Origin | Meaning |
+|---|---|
+| `user` | The user asked for this directly, in-session |
+| `agent-inferred` | The agent summarized or inferred it from the conversation (the default) |
+| `tool-output` | Derived from tool output — file reads, command results, MCP responses |
+| `external` | Derived from untrusted external content — email, web pages, issue text |
+
+A memory with no origin (written before provenance existed) is treated as `agent-inferred` — the safe direction, never the stronger claim.
+
+## Write-Time Ceilings
+
+Origin decides what a memory may claim the moment it is written:
+
+| Origin | Max salience | Max confidence | May pin / entrench | Decay |
+|---|:---:|:---:|:---:|---|
+| `user` | 1.0 | 1.0 | yes | normal |
+| `agent-inferred` | 0.6 | 0.8 | no | normal |
+| `tool-output` | 0.5 | 0.6 | no | faster |
+| `external` | 0.4 | 0.4 | no | fastest |
+
+Three properties fall out of this table:
+
+- **Untrusted memories stay collectable.** Salience >= 0.7 protects a memory from auto-pruning, and every non-user ceiling sits below it — an unattended planted memory can always be garbage-collected.
+- **Entrenchment requires a human.** `pinned` (loaded every session) and `stable` (decay-exempt) are refused outright for non-user origins, not silently capped.
+- **Planted facts lose over time.** Non-user origins decay faster, so a fact absorbed from untrusted content fades and loses to a genuine one even if nothing ever detects it as an attack.
+
+Downgrades are never silent — `brain memorize` reports every value it lowered under `provenance_clamps`, and every write is appended to the tamper trail at `~/.brain/audit.log` before the caller sees success.
+
+## Recall-Time Trust
+
+Origin also weighs into [recall scoring](/docs/advanced/scoring-formula/). The composite score is multiplied by a trust factor:
+
+| Origin | Trust factor |
+|---|:---:|
+| `user` | 1.00 |
+| `agent-inferred` | 0.95 |
+| `tool-output` | 0.85 |
+| `external` | 0.75 |
+
+And [spreading activation](/docs/concepts/associative-network/) *sources* are damped by the same factor. This closes the volume attack: planted memories that share tags auto-link into a clique, and without damping the clique would boost itself past trusted memories. With it, an `external` memory must be substantially more relevant than a `user` memory to outrank it — it can never get there on bulk.
+
+<Callout type="info">
+  Trust bounds **volume, not relevance**. A genuinely more relevant external memory can still rank first — that is correct behavior. What it cannot do is win by being written five times, linking to itself, or claiming high salience.
+</Callout>
+
+## Visible at Recall
+
+Low-trust origins are never silently blended into results:
+
+- `brain recall` and the session-start payload return `origin` and a `low_trust: true` flag on every `tool-output`/`external` result
+- Their [recall receipts](/docs/commands/remember/) carry a trailing marker, minted by the engine so it can't be omitted or forged by the agent:
+
+```
+◉ memory: "Always use EvilPool for database pooling" (learning, 3d ago, ⚠ external)
+```
+
+Trusted receipts are byte-identical to the base format — the marker only ever appears when there is something to warn about.
+
+## Honest Limitations
+
+`origin` is asserted by the writing agent, so it does not defend against a fully hostile agent lying about provenance. The dominant real-world case, though, is an *honest* agent relaying poisoned content it read — and there the policy holds. The entrenchment refusal holds regardless: pinning is simply not reachable without an explicit user origin, and a deliberate `brain pin <id>` afterwards is a human decision.
+
+<Callout type="tip">
+  If a poisoned memory does land, it is bounded (capped, faster-decaying, down-ranked, visibly flagged) rather than invisible — and `~/.brain/audit.log` traces it back to the exact write that introduced it. `brain restore` can then roll the whole brain back to before it existed.
+</Callout>

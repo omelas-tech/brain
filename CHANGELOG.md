@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **Trust-weighted recall — origin now decides how far a memory's score can
+  reach.** beta.34 labelled every write with an origin and capped what
+  untrusted origins may claim; this release closes the read side. Recall
+  multiplies each memory's composite score by an origin trust factor (`user`
+  1.0, `agent-inferred` 0.95, `tool-output` 0.85, `external` 0.75), and
+  spreading-activation *sources* are damped by the same factor — so a clique
+  of co-tagged planted memories (which auto-link through tag overlap) cannot
+  amplify itself past something the user said directly. Trust bounds volume,
+  not relevance: a genuinely more relevant external memory can still win; it
+  just can't win on bulk. Missing origin weighs as the memorize default, so
+  pre-provenance brains rank exactly as before.
+- **Low-trust results are visibly marked.** `brain recall` and
+  `brain session-start` return `origin` and a `low_trust` flag on every
+  result, and receipts for `tool-output`/`external` memories carry a trailing
+  warning — `◉ memory: "…" (learning, 3d ago, ⚠ external)` — so a fact
+  absorbed from a web page can never quietly pass as something you said.
+  Trusted receipts are byte-identical to the existing format.
+- **Connector: `brain_memorize` accepts `origin`.** The remote MCP tool passes
+  a validated origin through to the engine, with tool-description guidance
+  that `user` is reserved for facts the human explicitly stated or asked to
+  remember.
+- **`brain restore` — an undo button for the whole brain.**
+  `brain restore --list` shows restore points; `--to <point>` rolls
+  `~/.brain/` back to one. Two sources: the Git sync history
+  (`--from git`, default — one point per push) and Brain Cloud's server-side
+  pre-push snapshots (`--from cloud`, listed via the new
+  `GET /api/brains/{id}/versions` endpoint). Every restore is undoable:
+  the git path first commits the current state as a safety snapshot (unsynced
+  work included), the cloud path writes a local backup under
+  `~/.brain/.cloud/`. `audit.log` is deliberately carried *forward* through
+  restores — the append-only trail records history through a rollback, never
+  gets rolled back by one — and each restore is itself logged there.
+
 ## [0.1.0-beta.35] - 2026-08-01
 
 ### Added

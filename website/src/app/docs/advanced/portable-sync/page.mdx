@@ -143,6 +143,28 @@ Imports a previously exported brain. Two modes are available:
 
 Merge mode is safe for combining brains from two machines — it preserves whichever version of each file is more recent.
 
+## Restore — an Undo Button for Your Whole Brain
+
+Every push is a restore point, and the CLI can roll the entire brain back to any of them:
+
+```
+brain restore --list                      # list restore points (the Git sync history)
+brain restore --to <commit>               # roll ~/.brain/ back to that point
+brain restore --list --from cloud         # list Brain Cloud's pre-push snapshots
+brain restore --to <version> --from cloud # restore from a cloud snapshot
+```
+
+Two sources of restore points:
+
+| Source | Restore points | Safety net |
+|---|---|---|
+| `git` (default) | One per `/brain:sync push` | Current state is committed as a safety snapshot first — even unsynced work survives in history |
+| `cloud` | One per `brain cloud push` (taken server-side before each overwrite) | A local pre-restore backup is written under `~/.brain/.cloud/` |
+
+Every restore is therefore undoable with another restore. The append-only `~/.brain/audit.log` is carried *forward* through restores — the tamper trail records history through a rollback, never gets rolled back by one — and each restore is itself logged there.
+
+Restore granularity follows push frequency: push often for finer-grained history.
+
 ## Encryption
 
 Both sync methods support optional AES-256-GCM encryption with a user-provided passphrase.

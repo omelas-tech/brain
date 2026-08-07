@@ -19,6 +19,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Associative Network](https://brainmemory.ai/docs/concepts/associative-network): Memories connect via weighted edges with spreading activation and Hebbian learning.
 - [Context-Dependent Recall](https://brainmemory.ai/docs/concepts/context-recall): Memories encoded in a similar context to the current session are scored higher during recall.
 - [Salience & Confidence](https://brainmemory.ai/docs/concepts/salience-confidence): Emotional significance and epistemic certainty scores that influence memory behavior.
+- [Provenance & Trust](https://brainmemory.ai/docs/concepts/provenance-trust): Every memory is labelled by origin, and origin bounds what it may claim — at write time and at recall.
 - [Pinned Memory](https://brainmemory.ai/docs/concepts/pinned-memory): Pin critical conventions and preferences to the always-present tier — loaded every session, never decaying.
 - [Procedural Skills](https://brainmemory.ai/docs/concepts/procedural-skills): Reusable how-to workflows served via progressive disclosure and learned from repeated experience.
 

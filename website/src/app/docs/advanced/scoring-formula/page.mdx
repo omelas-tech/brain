@@ -16,15 +16,17 @@ When you run `/brain:remember`, every candidate memory is scored using a 6-facto
 ## The Formula
 
 ```
-score = 0.38 * relevance
-      + 0.18 * decayed_strength
-      + 0.08 * recency_bonus
-      + 0.14 * spreading_bonus
-      + 0.14 * context_match
-      + 0.08 * salience
+score = ( 0.38 * relevance
+        + 0.18 * decayed_strength
+        + 0.08 * recency_bonus
+        + 0.14 * spreading_bonus
+        + 0.14 * context_match
+        + 0.08 * salience ) * trust_factor(origin)
 ```
 
-All six factors are normalized to the range 0.0 - 1.0 before weighting.
+All six factors are normalized to the range 0.0 - 1.0 before weighting. The
+weighted composite is then multiplied by an [origin trust
+factor](/docs/concepts/provenance-trust/) (0.75 - 1.0).
 
 ## Factor Breakdown
 
@@ -74,7 +76,7 @@ Activation received from linked memories in the [associative network](/docs/conc
 spreading_bonus = sum(activation from connected memories)
 ```
 
-Activation spreads up to 2 hops from source memories, decaying by 50% per hop. The spreading bonus is capped at 1.0.
+Activation spreads up to 2 hops from source memories, decaying by 50% per hop. The spreading bonus is capped at 1.0. Each source's activation strength is damped by its [origin trust factor](/docs/concepts/provenance-trust/), so a cluster of untrusted memories spreads less activation than an equally connected cluster of user-stated ones.
 
 This factor surfaces memories that are part of a cluster of related knowledge, even if their direct relevance to the query is moderate.
 
@@ -91,6 +93,19 @@ How similar the memory's [encoding context](/docs/concepts/context-recall/) is t
 The memory's emotional/motivational significance score (0.0 - 1.0). See [Salience & Confidence](/docs/concepts/salience-confidence/).
 
 This factor provides a tiebreaker that favors personally important memories when other factors are similar.
+
+### Origin Trust (multiplier: 0.75 - 1.0)
+
+After the six weighted factors are combined, the composite is multiplied by a trust factor derived from the memory's [origin](/docs/concepts/provenance-trust/):
+
+| Origin | Trust factor |
+|---|:---:|
+| `user` | 1.00 |
+| `agent-inferred` (and memories with no origin) | 0.95 |
+| `tool-output` | 0.85 |
+| `external` | 0.75 |
+
+Unlike the weighted factors, trust is a multiplier: it bounds how far a memory's score can reach rather than contributing its own signal. A fact planted by a web page must be *substantially* more relevant than a user-stated fact to outrank it — it can never get there on volume or clique amplification alone.
 
 ## Weight Rationale
 

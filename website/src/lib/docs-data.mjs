@@ -97,12 +97,20 @@ export const docPages = [
     order: 5,
   },
   {
+    title: "Provenance & Trust",
+    description:
+      "Every memory is labelled by origin, and origin bounds what it may claim — at write time and at recall.",
+    href: "/docs/concepts/provenance-trust",
+    category: "Concepts",
+    order: 6,
+  },
+  {
     title: "Pinned Memory",
     description:
       "Pin critical conventions and preferences to the always-present tier — loaded every session, never decaying.",
     href: "/docs/concepts/pinned-memory",
     category: "Concepts",
-    order: 6,
+    order: 7,
   },
   {
     title: "Procedural Skills",
@@ -110,7 +118,7 @@ export const docPages = [
       "Reusable how-to workflows served via progressive disclosure and learned from repeated experience.",
     href: "/docs/concepts/procedural-skills",
     category: "Concepts",
-    order: 7,
+    order: 8,
   },
 
   // Commands — the everyday loop (remember/memorize) is ambient; the rest is a
