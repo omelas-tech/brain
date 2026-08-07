@@ -124,12 +124,19 @@ export function buildServer(session: Session): McpServer {
         title: z.string().optional().describe("Short title; derived from content if omitted"),
         type: z.enum(["decision", "insight", "goal", "experience", "learning", "relationship", "preference", "observation"]).optional().describe("Memory type (default: learning)"),
         tags: z.array(z.string()).optional().describe("Topic tags"),
+        origin: z.enum(["user", "agent-inferred", "tool-output", "external"]).optional().describe(
+          "Provenance of the fact — be honest, recall trusts it: 'user' ONLY when the user explicitly " +
+          "stated it or asked to remember it; 'agent-inferred' (default) for facts you summarized from " +
+          "the conversation; 'tool-output' for facts from tool or file results; 'external' for facts " +
+          "sourced from web pages, emails, or other third-party content. Non-user origins are " +
+          "confidence-capped at write and down-weighted at recall.",
+        ),
       },
       annotations: { title: "Memorize", readOnlyHint: false },
     },
-    async ({ content, title, type, tags }) => {
+    async ({ content, title, type, tags, origin }) => {
       await ensureFresh();
-      const stored = await memorize(session.brainDir, { content, title, type, tags });
+      const stored = await memorize(session.brainDir, { content, title, type, tags, origin });
       const sync = await writeBack();
       return {
         content: [{ type: "text", text: `Stored "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${sync.pushed ? " — synced" : sync.error ? ` — local only (${sync.error})` : ""}` }],

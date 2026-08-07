@@ -36,6 +36,11 @@ function slug(s: string): string {
   return (s || "memory").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "memory";
 }
 
+// Origin names accepted by the engine's provenance policy (src/provenance.js).
+// Anything else is dropped so the CLI applies its own default (agent-inferred)
+// instead of erroring the whole write.
+const ORIGINS = new Set(["user", "agent-inferred", "tool-output", "external"]);
+
 export interface MemorizeInput {
   content: string;
   title?: string;
@@ -43,6 +48,7 @@ export interface MemorizeInput {
   tags?: string[];
   category?: string;   // top-level area; defaults to "captured" (reorganized later by sleep)
   project?: string;
+  origin?: string;     // user | agent-inferred | tool-output | external (see ORIGINS)
 }
 
 /** Create a memory from explicitly-provided content (never the raw conversation). */
@@ -59,6 +65,7 @@ export async function memorize(brainDir: string, m: MemorizeInput): Promise<any>
     salience: 0.5,
     confidence: 0.8,
     source: "Claude connector",
+    ...(m.origin && ORIGINS.has(m.origin) ? { origin: m.origin } : {}),
     encoding_context: { project: m.project || "", topics: m.tags ?? [], task_type: "capturing" },
     content: m.content,
   };
