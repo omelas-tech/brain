@@ -34,6 +34,7 @@
     "prompts/",
     "templates/",
     "src/",
+    "integrations/agentskills/brain-memory/",
     "README.md",
     "SECURITY.md",
     "CHANGELOG.md",
@@ -45,7 +46,8 @@
   },
   "scripts": {
     "test": "node --test test/index-manager.test.js test/scorer.test.js test/tfidf.test.js test/receipt.test.js test/recall.test.js test/recall-cli.test.js test/forget.test.js test/functional.test.js test/erasure.test.js test/stress.test.js test/crypto.test.js test/git-sync.test.js test/restore.test.js test/trust-recall.test.js test/cloud-sync.test.js test/export-import.test.js test/install.test.js test/prompts.test.js test/session-start.test.js test/memorize.test.js test/pinning.test.js test/skills.test.js test/contradiction.test.js test/harvest.test.js test/content-lint.test.js test/audit-log.test.js test/quarantine.test.js test/anomaly.test.js test/path-hardening.test.js",
-    "test:integrations": "npm run test:integrations:openclaw && npm run test:integrations:copilot && npm run test:integrations:kilo && npm run test:integrations:hermes",
+    "test:integrations": "npm run test:integrations:agentskills && npm run test:integrations:openclaw && npm run test:integrations:copilot && npm run test:integrations:kilo && npm run test:integrations:hermes",
+    "test:integrations:agentskills": "node --test integrations/agentskills/test/*.test.mjs",
     "test:integrations:openclaw": "node --test integrations/openclaw/test/*.test.mjs",
     "test:integrations:copilot": "node --test integrations/copilot/test/*.test.mjs",
     "test:integrations:kilo": "node --test integrations/kilo/test/*.test.mjs",

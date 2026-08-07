@@ -33,6 +33,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [import](https://brainmemory.ai/docs/commands/import): Cold-start a brain from transcripts your agents already wrote. Incremental — safe to re-run.
 - [sync](https://brainmemory.ai/docs/commands/sync): Sync via Brain Cloud, Git remote, or export/import (auto-initializes the brain on first run).
 - [skill](https://brainmemory.ai/docs/commands/skill): Manage procedural skills — reusable how-to workflows with progressive disclosure.
+- [verify](https://brainmemory.ai/docs/commands/verify): Review and resolve memories pending verification — writes from untrusted sources held in quarantine.
 - [sleep](https://brainmemory.ai/docs/commands/sleep): Full maintenance cycle: replay, homeostasis, consolidation, review reinforcement, pruning, and REM dreaming. Usually runs in the background.
 
 ## Advanced
@@ -43,6 +44,8 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Cross-Agent Sharing](https://brainmemory.ai/docs/advanced/cross-agent): Share memories across Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity agents.
 - [Portable Sync](https://brainmemory.ai/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
 - [Working Memory & Session Start](https://brainmemory.ai/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
+- [Portable Skill Distribution](https://brainmemory.ai/docs/advanced/skill-distribution): Ship Brain as a portable agentskills.io SKILL.md folder that runs unmodified across Claude Code, Copilot, Cursor, Codex, Gemini CLI, and more.
+- [Provenance & Trust](https://brainmemory.ai/docs/advanced/provenance-trust): How Brain resists memory poisoning: origin-based clamps, trust-weighted recall, quarantine of untrusted writes, and anomaly detection (OWASP ASI06).
 
 ## Reference
 

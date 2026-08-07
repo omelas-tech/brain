@@ -1,0 +1,49 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/skill-distribution", {
+  title: "Portable Skill Distribution - Brain Memory",
+  description: "Ship Brain Memory as a portable agentskills.io SKILL.md folder that runs unmodified across Claude Code, Copilot, Cursor, Codex, Gemini CLI, and other compatible agents.",
+  category: "Advanced",
+  order: 6,
+});
+
+# Portable Skill Distribution
+
+Brain Memory reaches agents two ways. The [installer](/docs/getting-started/installation/) writes native command/skill files into each supported CLI, and the [hosted MCP connector](/docs/getting-started/claude-apps/) serves Claude.ai, ChatGPT, and mobile. The **portable skill** is a third rail: a single self-contained [`SKILL.md`](https://www.agentskills.io) folder that any agentskills.io-compatible client loads unmodified — including agents Brain Memory has no dedicated installer for.
+
+<Callout type="note">
+"Skill" is overloaded here. This page is about a **packaged Agent Skill** — a folder a coding agent loads. It is unrelated to Brain's own [procedural skills](/docs/concepts/procedural-skills/) (`~/.brain/_skills/`), which are memories of *how you do things*.
+</Callout>
+
+## What ships
+
+The canonical skill lives at `integrations/agentskills/brain-memory/` and is included in the npm package, so `npm i -g brain-memory` places it where cross-agent registries and tools can find it:
+
+```
+brain-memory/
+  SKILL.md              # frontmatter (name, description, license, metadata) + instructions
+  scripts/
+    session-start.mjs   # dependency-free wrapper over `brain session-start`
+```
+
+The `SKILL.md` frontmatter follows the open standard: a `name` matching the folder, a `description` used for relevance, `license`, `homepage`, and a single-line JSON `metadata` block declaring the runtime requirement:
+
+```yaml
+metadata: {"requires": {"bins": ["brain"]}, "install": [{"kind": "node", "package": "brain-memory", "bins": ["brain"]}]}
+```
+
+Any host that reads the standard sees "this skill needs the `brain` binary; install it from npm" and offers the recall, memorize, verify, and session-start workflows — the same deterministic CLI every other integration uses.
+
+## Why a single folder reaches many agents
+
+The open `SKILL.md` spec is read identically by a growing set of clients (Claude Code, Copilot, Cursor, Codex, Gemini CLI, and more). Codex and Copilot both read the cross-tool `~/.agents/skills/` location, so one folder installed there serves multiple agents at once. Because the skill only depends on the global `brain` CLI — never on a specific host's APIs — it stays byte-identical everywhere.
+
+## Trust surface travels with it
+
+The portable skill documents the full provenance workflow, not just recall and memorize: it tells the host to honor `low_trust` and `quarantine_pending` flags, copy `receipt` lines verbatim, and route untrusted writes through [`brain verify`](/docs/commands/verify/). Wherever the skill runs, the [poisoning defenses](/docs/advanced/provenance-trust/) come with it.
+
+## Relationship to the native installers
+
+The native installers still exist and are preferred where available — they add the ambient session-start/session-end loop a bare skill can't. The portable skill is the fallback that maximizes reach: it turns "is my agent supported?" into "does my agent read `SKILL.md`?", which nearly all of them now do.

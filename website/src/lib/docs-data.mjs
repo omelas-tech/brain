@@ -188,12 +188,20 @@ export const docPages = [
     order: 7,
   },
   {
+    title: "verify",
+    description:
+      "Review and resolve memories pending verification — writes from untrusted sources held in quarantine.",
+    href: "/docs/commands/verify",
+    category: "Commands",
+    order: 8,
+  },
+  {
     title: "sleep",
     description:
       "Full maintenance cycle: replay, homeostasis, consolidation, review reinforcement, pruning, and REM dreaming. Usually runs in the background.",
     href: "/docs/commands/sleep",
     category: "Commands",
-    order: 8,
+    order: 9,
   },
 
   // Advanced
@@ -244,6 +252,22 @@ export const docPages = [
     href: "/docs/advanced/working-memory",
     category: "Advanced",
     order: 5,
+  },
+  {
+    title: "Portable Skill Distribution",
+    description:
+      "Ship Brain as a portable agentskills.io SKILL.md folder that runs unmodified across Claude Code, Copilot, Cursor, Codex, Gemini CLI, and more.",
+    href: "/docs/advanced/skill-distribution",
+    category: "Advanced",
+    order: 6,
+  },
+  {
+    title: "Provenance & Trust",
+    description:
+      "How Brain resists memory poisoning: origin-based clamps, trust-weighted recall, quarantine of untrusted writes, and anomaly detection (OWASP ASI06).",
+    href: "/docs/advanced/provenance-trust",
+    category: "Advanced",
+    order: 7,
   },
 
   // Reference

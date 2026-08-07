@@ -52,6 +52,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - run: npm run test:integrations:agentskills
       - run: npm run test:integrations:openclaw
       - run: npm ci --prefix integrations/openclaw/plugin
       - run: npm run typecheck --prefix integrations/openclaw/plugin
