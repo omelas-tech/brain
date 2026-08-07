@@ -29,6 +29,12 @@ const DEFAULT_CONFIG = {
   pin_budget_tokens: 1500,
   skills_index_budget_tokens: 800,
   recall_budget_tokens: 700,
+  // ASI06 quarantine for low-trust writes: 'off' (never flag), 'flag'
+  // (recallable but marked + surfaced for verification — the default), or
+  // 'enforce' (excluded from recall/session-start until approved). Exclusion
+  // is evaluated at read time, so flipping the knob retroactively
+  // hides/reveals already-pending memories.
+  quarantine_mode: 'flag',
 };
 
 /**

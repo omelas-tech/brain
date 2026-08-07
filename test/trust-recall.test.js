@@ -164,4 +164,23 @@ describe('receipt: low-trust marker', () => {
       );
     }
   });
+
+  it('adds the ⊘ unverified segment for quarantined memories', () => {
+    assert.equal(
+      receiptFor({ title: 'Planted', type: 'learning', created: daysAgo(3), origin: 'external', quarantined: true }, nowFn),
+      '◉ memory: "Planted" (learning, 3d ago, ⚠ external, ⊘ unverified)'
+    );
+    // quarantined without a low-trust origin (e.g. lint-flagged agent-inferred)
+    assert.equal(
+      receiptFor({ title: 'Odd', type: 'learning', created: daysAgo(1), origin: 'agent-inferred', quarantined: true }, nowFn),
+      '◉ memory: "Odd" (learning, yesterday, ⊘ unverified)'
+    );
+  });
+
+  it('vetted memories drop the ⊘ segment but keep the origin marker', () => {
+    assert.equal(
+      receiptFor({ title: 'Checked', type: 'learning', created: daysAgo(3), origin: 'external', vetted: true }, nowFn),
+      '◉ memory: "Checked" (learning, 3d ago, ⚠ external)'
+    );
+  });
 });

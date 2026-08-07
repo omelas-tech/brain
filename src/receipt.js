@@ -12,7 +12,9 @@
  * Low-trust origins (tool-output, external — see src/provenance.js) carry a
  * trailing warning segment so a poisoned-source memory is visibly marked
  * wherever its receipt appears:  ◉ memory: "<title>" (<type>, <age>, ⚠ external)
- * User/agent-inferred receipts are byte-identical to the base format.
+ * Memories pending verification (quarantined — see src/quarantine.js) carry a
+ * further "⊘ unverified" segment. User/agent-inferred, vetted receipts are
+ * byte-identical to the base format.
  *
  * Age is derived from the memory's `created` timestamp (falling back to
  * `last_accessed`; omitted entirely when neither parses):
@@ -67,10 +69,13 @@ function receiptFor(memoryLike, nowFn) {
   const type = typeof mem.type === 'string' && mem.type ? mem.type : 'memory';
   const age = ageLabel(mem.created ?? mem.last_accessed ?? NaN, now);
   const trust = isLowTrust(mem.origin) ? `, ⚠ ${mem.origin}` : '';
+  // Pending verification (quarantine flag mode): the receipt is the visible
+  // channel, so an unverified memory is marked wherever it fires.
+  const pending = mem.quarantined ? ', ⊘ unverified' : '';
 
   return age
-    ? `◉ memory: "${title}" (${type}, ${age}${trust})`
-    : `◉ memory: "${title}" (${type}${trust})`;
+    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending})`
+    : `◉ memory: "${title}" (${type}${trust}${pending})`;
 }
 
 module.exports = { receiptFor, ageLabel };

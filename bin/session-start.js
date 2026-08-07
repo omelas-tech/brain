@@ -124,6 +124,8 @@ function computeSessionStart(projectRoot, args = {}) {
     skills_index: [],    // Phase 2: procedural skill summaries
     context_recall: [],
     due_for_review: 0,
+    pending_verification: 0,
+    pending_verification_items: [],
     low_confidence_alerts: [],
     budget: { cap, recall_cap: config.recall_budget_tokens, used: 0, included: 0, excluded: 0 },
   };
@@ -150,7 +152,14 @@ function computeSessionStart(projectRoot, args = {}) {
   }
 
   const tfidfScores = bm25Search(searchIndex, buildContextQuery(args));
-  const memories = Object.entries(index.memories).map(([id, entry]) => ({ id, ...entry }));
+  // Enforce-mode quarantine: pending-verification memories are excluded from
+  // the ranked pool entirely (flag mode includes them, marked). The pending
+  // COUNT below always scans the full index, so the agent still learns that
+  // items are waiting even when they are hidden.
+  const quarantineMode = config.quarantine_mode || 'flag';
+  const memories = Object.entries(index.memories)
+    .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
+    .map(([id, entry]) => ({ id, ...entry }));
 
   let associations = null;
   try { associations = readAssociations(projectRoot); } catch (_) { associations = null; }
@@ -175,6 +184,9 @@ function computeSessionStart(projectRoot, args = {}) {
   const pinnedCandidates = [];
   for (const [id, entry] of Object.entries(index.memories)) {
     if (!entry.pinned) continue;
+    // Defensive: pinning a quarantined memory is refused, but state synced
+    // from another device could carry both flags — never load it every session.
+    if (entry.quarantined && quarantineMode !== 'off') continue;
     const scope = entry.pin_scope || 'global';
     if (scope !== 'global') {
       const scopedProject = scope.startsWith('project:') ? scope.slice('project:'.length) : null;
@@ -245,6 +257,7 @@ function computeSessionStart(projectRoot, args = {}) {
       score: mem.score,
       origin,
       ...(isLowTrust(origin) ? { low_trust: true } : {}),
+      ...(mem.quarantined ? { quarantine_pending: true } : {}),
       token_estimate: est,
       receipt,
     });
@@ -257,6 +270,15 @@ function computeSessionStart(projectRoot, args = {}) {
     const queue = readReviewQueue(projectRoot);
     if (queue && Array.isArray(queue.items)) dueForReview = queue.items.length;
   } catch (_) { dueForReview = 0; }
+
+  // --- Pending verification (ASI06 quarantine) — count over the FULL index ---
+  // Cheapest possible surface: a count plus up to five {id, title, origin}
+  // stubs, so the agent can say "N memories are awaiting review" and route the
+  // user to `brain verify list` without spending budget on bodies.
+  const pendingAll = [];
+  for (const [id, entry] of Object.entries(index.memories)) {
+    if (entry.quarantined) pendingAll.push({ id, title: entry.title, origin: entry.origin });
+  }
 
   // --- Low-confidence-but-frequently-used alerts ---
   const low_confidence_alerts = [];
@@ -277,6 +299,8 @@ function computeSessionStart(projectRoot, args = {}) {
     skills_index,
     context_recall: edgeOrder(context_recall), // Tier B §10.4: top ranks at the edges
     due_for_review: dueForReview,
+    pending_verification: pendingAll.length,
+    pending_verification_items: pendingAll.slice(0, 5),
     low_confidence_alerts,
     budget: {
       cap,

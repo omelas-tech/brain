@@ -26,6 +26,7 @@ const path = require('path');
 const { listRestorePoints, restoreTo } = require('../src/git-sync');
 const { getBrainDir, readIndex } = require('../src/index-manager');
 const { readSearchIndex, writeSearchIndex, rebuildIndex, isSearchIndexStale } = require('../src/tfidf');
+const { appendAudit } = require('../src/audit');
 
 function parseArgs(argv) {
   const args = { list: false, to: null, from: 'git', limit: 20, passphrase: null };
@@ -40,15 +41,6 @@ function parseArgs(argv) {
     }
   }
   return args;
-}
-
-/** Append-only audit trail — same format and mode as memorize's write log. */
-function appendAuditLog(brainDir, record) {
-  fs.appendFileSync(
-    path.join(brainDir, 'audit.log'),
-    JSON.stringify(record) + '\n',
-    { mode: 0o600 }
-  );
 }
 
 /**
@@ -107,7 +99,7 @@ async function main(argv) {
 
     const reindexed = reindexIfStale(brainDir);
 
-    appendAuditLog(brainDir, {
+    appendAudit(brainDir, {
       ts: new Date().toISOString(),
       event: 'restore',
       source: args.from,

@@ -32,6 +32,7 @@ const {
 const {
   readIndex,
   readAssociations,
+  readConfig,
   getBrainDir,
 } = require('../src/index-manager');
 
@@ -110,11 +111,17 @@ function main() {
   // than raw TF-IDF cosine at surfacing long, detailed memories under noise).
   const tfidfScores = bm25Search(searchIndex, query);
 
-  // Build memory list from index
-  const memories = Object.entries(index.memories).map(([id, entry]) => ({
-    id,
-    ...entry,
-  }));
+  // Build memory list from index. In enforce mode, quarantined (pending-
+  // verification) memories are excluded here — before ranking — which also
+  // removes them as spreading-activation sources. readConfig tolerates a
+  // missing/corrupt config.json (falls back to the 'flag' default).
+  const quarantineMode = readConfig().quarantine_mode || 'flag';
+  const memories = Object.entries(index.memories)
+    .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
+    .map(([id, entry]) => ({
+      id,
+      ...entry,
+    }));
 
   // Load associations for spreading activation
   let associations;
@@ -161,6 +168,9 @@ function main() {
       // "where did you get that?" without opening the memory file.
       origin,
       ...(isLowTrust(origin) ? { low_trust: true } : {}),
+      // Pending verification (flag mode): recallable but visibly marked, so
+      // the agent can caveat an answer built on an unverified memory.
+      ...(mem.quarantined ? { quarantine_pending: true } : {}),
       tags: mem.tags,
       // Recall receipt — the engine mints it, agents copy it verbatim when
       // this memory materially shapes an answer (so it can't be hallucinated).

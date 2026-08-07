@@ -2,13 +2,17 @@
 
 /**
  * brain forget <id> — archive a memory (recoverable). Deterministic helper used
- * by the connector's `brain_forget` tool. Honors BRAIN_DIR.
+ * by the connector's `brain_forget` tool and by `brain verify reject`. Honors
+ * BRAIN_DIR.
  *
  * Archive (default): move the memory file into `_archived/`, record it in
  * `_archived/index.json`, and remove it from the live index, associations,
  * review queue, and search index — so it stops surfacing in recall but stays
  * recoverable. Deep / forensic erasure remains the agent-driven `/brain:forget
  * --deep` path; this primitive only archives.
+ *
+ * Every archival is recorded in audit.log (event: 'forget') — removal changes
+ * what the brain believes just as much as a write does.
  *
  * Usage:
  *   BRAIN_DIR=/path/to/.brain node bin/forget.js mem_20260101_abc123
@@ -30,39 +34,35 @@ const {
 // (index-manager exports same-named helpers with a (projectRoot) signature that
 // re-appends `.brain`, which would silently no-op the search-index update here.)
 const { removeDocument, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
+const { appendAudit } = require('../src/audit');
 
-function main(argv) {
-  const args = argv || process.argv.slice(2);
-  const id = args.find((a) => a && !a.startsWith('--'));
-  const force = args.includes('--force');
-  if (!id) {
-    console.error(JSON.stringify({ error: 'Usage: brain forget <id> [--force]' }));
-    process.exit(1);
-  }
+// CoALA salience protection: high-salience memories are "never auto-pruned"
+// (the documented guarantee). Enforced deterministically here — the only
+// archival primitive — instead of relying on the agent to honor it.
+const SALIENCE_FLOOR = 0.7;
 
-  const brainDir = getBrainDir();
+/**
+ * Archive one memory. The shared primitive behind `brain forget` and
+ * `brain verify reject`.
+ *
+ * @param {string} brainDir - Path to ~/.brain/
+ * @param {string} id - Memory ID
+ * @param {Object} [opts] - { force = false, reason = 'forget' }
+ * @returns {Object} { archived, id, title, memory_count } or { error, protected? }
+ */
+function archiveMemory(brainDir, id, opts = {}) {
+  const { force = false, reason = 'forget' } = opts;
+
   const index = readIndex();
-  if (!index) {
-    console.error(JSON.stringify({ error: 'Brain not initialized.' }));
-    process.exit(1);
-  }
+  if (!index) return { error: 'Brain not initialized.' };
   const entry = index.memories[id];
-  if (!entry) {
-    console.error(JSON.stringify({ error: `Memory not found: ${id}` }));
-    process.exit(1);
-  }
+  if (!entry) return { error: `Memory not found: ${id}` };
 
-  // CoALA salience protection: high-salience memories are "never auto-pruned"
-  // (the documented guarantee). Enforce it deterministically here — the only
-  // archival primitive — instead of relying on the agent to honor it. --force
-  // overrides for a deliberate, explicit removal.
-  const SALIENCE_FLOOR = 0.7;
   if (!force && typeof entry.salience === 'number' && entry.salience >= SALIENCE_FLOOR) {
-    console.error(JSON.stringify({
+    return {
       error: `Refusing to archive high-salience memory ${id} (salience ${entry.salience} >= ${SALIENCE_FLOOR}). Pass --force to override.`,
       protected: true,
-    }));
-    process.exit(1);
+    };
   }
 
   const now = new Date().toISOString();
@@ -84,7 +84,7 @@ function main(argv) {
   arch.memories[id] = {
     path: entry.path, archived_path: archivedPath, title: entry.title, type: entry.type,
     cognitive_type: entry.cognitive_type, strength: entry.strength, salience: entry.salience,
-    confidence: entry.confidence, tags: entry.tags || [], archived_date: now, archived_reason: 'forget',
+    confidence: entry.confidence, tags: entry.tags || [], archived_date: now, archived_reason: reason,
   };
   arch.archived_count = Object.keys(arch.memories).length;
   writeArchiveIndex(arch);
@@ -112,11 +112,44 @@ function main(argv) {
     writeSearchIndex(brainDir, searchIndex);
   }
 
-  console.log(JSON.stringify({ archived: true, id, title: entry.title, memory_count: index.memory_count }));
+  // 7. Audit trail. Best-effort: the archival already happened; losing the
+  // trail is worse surfaced than thrown.
+  let auditError = null;
+  try {
+    appendAudit(brainDir, {
+      ts: now, event: 'forget', id, title: entry.title, path: entry.path,
+      origin: entry.origin, salience: entry.salience, reason, forced: force,
+    });
+  } catch (err) {
+    auditError = err.message;
+  }
+
+  return {
+    archived: true, id, title: entry.title, memory_count: index.memory_count,
+    ...(auditError ? { audit_error: auditError } : {}),
+  };
+}
+
+function main(argv) {
+  const args = argv || process.argv.slice(2);
+  const id = args.find((a) => a && !a.startsWith('--'));
+  const force = args.includes('--force');
+  if (!id) {
+    console.error(JSON.stringify({ error: 'Usage: brain forget <id> [--force]' }));
+    process.exit(1);
+  }
+
+  const brainDir = getBrainDir();
+  const result = archiveMemory(brainDir, id, { force });
+  if (result.error) {
+    console.error(JSON.stringify(result));
+    process.exit(1);
+  }
+  console.log(JSON.stringify(result));
 }
 
 if (require.main === module) {
   main(process.argv.slice(2));
 }
 
-module.exports = { main };
+module.exports = { main, archiveMemory, SALIENCE_FLOOR };

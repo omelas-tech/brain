@@ -30,8 +30,12 @@ function estimateTokens(entry) {
 /**
  * Update-or-insert scalar YAML frontmatter fields in a memory file (best effort;
  * the index entry remains the source of truth if the file is unreadable).
+ *
+ * A `null` value REMOVES the field's line (used by quarantine approval to strip
+ * flags). Keys listed in `opts.raw` are written verbatim, without quoting —
+ * for pre-formatted YAML values like inline arrays.
  */
-function setFrontmatterFields(brainDir, memPath, fields) {
+function setFrontmatterFields(brainDir, memPath, fields, opts = {}) {
   const fullPath = path.join(brainDir, memPath);
   let content;
   try { content = fs.readFileSync(fullPath, 'utf-8'); } catch (_) { return; }
@@ -40,11 +44,16 @@ function setFrontmatterFields(brainDir, memPath, fields) {
   const second = content.indexOf('---', first + 3);
   if (first === -1 || second === -1) return;
 
+  const raw = new Set(opts.raw || []);
   let fm = content.slice(first + 3, second);
   const inserts = [];
   for (const [key, value] of Object.entries(fields)) {
-    const formatted = typeof value === 'string' ? `"${value}"` : String(value);
     const re = new RegExp(`^(${key}:\\s*).*$`, 'm');
+    if (value === null) {
+      fm = fm.replace(new RegExp(`^${key}:.*\\n?`, 'm'), '');
+      continue;
+    }
+    const formatted = raw.has(key) || typeof value !== 'string' ? String(value) : `"${value}"`;
     if (re.test(fm)) fm = fm.replace(re, `$1${formatted}`);
     else inserts.push(`${key}: ${formatted}\n`);
   }
@@ -73,6 +82,14 @@ function pinMemory(projectRoot, id, opts = {}) {
   }
 
   const entry = index.memories[id];
+  // ASI06: pinning is entrenchment — a memory still pending verification must
+  // not reach the always-present tier. memorize already refuses born-pinned
+  // low-trust writes; this closes the flag-then-pin bypass.
+  if (entry.quarantined) {
+    return {
+      error: `Memory is pending verification — approve it first: brain verify approve ${id}`,
+    };
+  }
   entry.pinned = true;
   entry.pin_scope = scope;
   entry.pin_priority = priority;

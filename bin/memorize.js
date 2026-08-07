@@ -31,10 +31,14 @@ const {
   reinforceEdge,
   readPinned,
   writePinned,
+  readConfig,
   atomicWriteSync,
   validateBrainPath,
 } = require('../src/index-manager');
 const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
+const { appendAudit } = require('../src/audit');
+const { lintMemoryContent } = require('../src/content-lint');
+const { quarantineDecision } = require('../src/quarantine');
 
 // Best-effort detection of the host AI agent, recorded on each memory's
 // encoding_context for "where your brain is used" analytics. An explicit
@@ -169,7 +173,7 @@ function computeStrengthAndDecay(type, cognitiveType, strengthAdjustment = 0, or
   return { strength: Math.round(strength * 100) / 100, decay_rate };
 }
 
-function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier) {
+function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, quarantine) {
   const { strength, decay_rate } = computeStrengthAndDecay(
     mem.type, mem.cognitive_type, mem.strength_adjustment, originDecayMultiplier
   );
@@ -196,6 +200,14 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier) {
     fmLines.push(`pin_priority: ${mem.pin_priority || 0}`);
   }
   if (mem.stable) fmLines.push('stable: true');
+  // ASI06 quarantine: pending-verification state travels with the memory —
+  // same conditional-field pattern as pinned/stable, so it syncs and restores
+  // with the file and syncs via the index entry.
+  if (quarantine && quarantine.quarantined) {
+    fmLines.push('quarantined: true');
+    fmLines.push(`quarantine_reasons: [${quarantine.reasons.map((r) => `"${r}"`).join(', ')}]`);
+    fmLines.push(`quarantine_flagged: "${now}"`);
+  }
   fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
@@ -214,7 +226,7 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier) {
   return { fileContent: frontmatter + mem.content + '\n', strength, decay_rate };
 }
 
-function buildIndexEntry(mem, id, strength, decayRate, now, origin) {
+function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) {
   const entry = {
     title: mem.title,
     path: mem.path,
@@ -243,23 +255,12 @@ function buildIndexEntry(mem, id, strength, decayRate, now, origin) {
     entry.pin_priority = mem.pin_priority || 0;
   }
   if (mem.stable) entry.stable = true;
+  if (quarantine && quarantine.quarantined) {
+    entry.quarantined = true;
+    entry.quarantine_reasons = quarantine.reasons;
+    entry.quarantine_flagged = now;
+  }
   return entry;
-}
-
-/**
- * Append-only provenance log, one JSON object per line.
- *
- * Written for every memory that reaches disk, including ones the policy
- * downgraded, so a fact that later turns out to be planted can be traced to the
- * write that introduced it — even if the memory file itself was since edited,
- * consolidated by a sleep cycle, or deleted.
- */
-function appendAuditLog(brainDir, record) {
-  fs.appendFileSync(
-    path.join(brainDir, 'audit.log'),
-    JSON.stringify(record) + '\n',
-    { mode: 0o600 }
-  );
 }
 
 function updateMetaFiles(brainDir, memPath) {
@@ -413,6 +414,9 @@ async function main() {
   }
 
   const now = new Date().toISOString();
+  // Quarantine mode ('off' | 'flag' | 'enforce', default 'flag') — read once;
+  // readConfig tolerates a missing/corrupt config.json by falling back to defaults.
+  const config = readConfig();
   const results = [];
   const newIds = [];
   const pinnedToAdd = [];
@@ -444,13 +448,19 @@ async function main() {
     const mem = policy.mem;
     for (const c of policy.clamps) clampsReported.push({ ...c, title: rawMem.title });
 
+    // ASI06 content lint + quarantine decision. Lint runs for every origin
+    // (cheap, and the flags feed forensics even when nothing is quarantined);
+    // the decision flags low-trust origins and injection-shaped content.
+    const lint = lintMemoryContent(mem);
+    const quarantine = quarantineDecision({ origin, lintResult: lint, config });
+
     // Generate ID
     const id = generateId();
     newIds.push(id);
 
     // Compute strength/decay
     const { fileContent, strength, decay_rate } = buildMemoryFileContent(
-      mem, id, now, origin, policy.policy.decay_multiplier
+      mem, id, now, origin, policy.policy.decay_multiplier, quarantine
     );
 
     // Create directories
@@ -465,7 +475,7 @@ async function main() {
     // rather than thrown: the memory is already on disk, and silently dropping
     // the trail would be the worse outcome of the two.
     try {
-      appendAuditLog(brainDir, {
+      appendAudit(brainDir, {
         ts: now,
         event: 'memorize',
         id,
@@ -479,13 +489,15 @@ async function main() {
         decay_rate,
         entrenched: Boolean(mem.pinned || mem.stable),
         clamped: policy.clamps.map((c) => c.field),
+        ...(lint.flags.length ? { lint: lint.flags.map((f) => f.rule) } : {}),
+        ...(quarantine.quarantined ? { quarantined: true, quarantine_reasons: quarantine.reasons } : {}),
       });
     } catch (err) {
       auditErrors.push({ id, error: err.message });
     }
 
     // Update index
-    const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now, origin);
+    const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now, origin, quarantine);
     addMemory(index, id, indexEntry);
 
     // CoALA Phase 1: register a born-pinned memory in the pinned manifest
@@ -546,6 +558,12 @@ async function main() {
       tags: mem.tags || [],
       edges_created: edgesCreated,
       ...(potentialConflicts.length ? { potential_conflicts: potentialConflicts } : {}),
+      // Surfaced so the agent can tell the user a write went to pending
+      // verification (and why) — mirrors provenance_clamps reporting.
+      ...(quarantine.quarantined
+        ? { quarantine_pending: true, quarantine_reasons: quarantine.reasons }
+        : {}),
+      ...(lint.flags.length ? { lint_flags: lint.flags.map((f) => f.rule) } : {}),
     });
   }
 

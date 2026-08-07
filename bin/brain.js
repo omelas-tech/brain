@@ -35,6 +35,8 @@ const DELEGATED = {
   skill: 'skill.js',
   import: 'import.js',
   restore: 'restore.js',
+  verify: 'verify.js',
+  audit: 'audit.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -60,6 +62,12 @@ Memory
                               Manage procedural skills (progressive disclosure)
   session-start [--project P] [--task T] [--top N]
                               Budget-bounded startup payload (agent-invoked)
+
+Trust
+  verify <list|show|approve|reject>
+                              Quarantine workflow for unverified writes
+  audit [--window 24h|7d] [--apply]
+                              Anomalous-write scan over audit.log
 
 Cold start
   import [--source S] [--project P] [--since 30d] [--limit N] [--all]
