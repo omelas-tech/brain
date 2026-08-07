@@ -171,6 +171,10 @@ function main() {
       // Pending verification (flag mode): recallable but visibly marked, so
       // the agent can caveat an answer built on an unverified memory.
       ...(mem.quarantined ? { quarantine_pending: true } : {}),
+      // Temporal invalidation: a newer memory replaced this one. Surfaced so
+      // the agent can say "this was true until <the successor>" rather than
+      // presenting a stale fact as current.
+      ...(mem.superseded_by ? { superseded_by: mem.superseded_by } : {}),
       tags: mem.tags,
       // Recall receipt — the engine mints it, agents copy it verbatim when
       // this memory materially shapes an answer (so it can't be hallucinated).

@@ -117,8 +117,18 @@ If the output contains `quarantine_pending: true`, the memory landed in the pend
 ### 5. Resolve contradictions (Tier B §10.2)
 
 If a stored memory's result includes `potential_conflicts`, it shares heavy tag overlap with a **pinned or stable** memory — and pinned/stable facts never decay out of contention, so a stale one is dangerous. **Do not silently keep both.** Inspect the conflicting memory (`brain recall` or read its file) and, if the new memory genuinely contradicts it, propose a resolution to the user:
-- **Supersede** — unpin/forget the old fact, keep the new one (record the supersession).
+- **Supersede** — store the new fact with `"supersedes": ["<old_id>"]` (see below).
 - **Keep both, scoped** — e.g. pin each to its own project.
 - **Reject the new one** — the old fact stands.
 
 Never auto-resolve; surface the conflict and let the user decide.
+
+### Superseding an outdated memory (temporal invalidation)
+
+When a new memory replaces an older one — a decision reversed, a preference changed, a fact that used to be true — pass the old memory's id in `supersedes`:
+
+```json
+{ "title": "Deploy target is Fly.io", "type": "decision", "supersedes": ["mem_20260101_heroku"], "content": "..." }
+```
+
+The CLI stamps `superseded_by` on the old memory (index + frontmatter) and links the two. The old memory is **not deleted** — recall strongly demotes it so the successor always ranks first, but it still surfaces when nothing else is relevant, carrying `superseded_by` so you can answer "that was true until X." This is truth-based invalidation, distinct from time-based decay. Only set `supersedes` when the new fact genuinely replaces the old one; unknown ids are skipped silently.

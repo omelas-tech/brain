@@ -39,6 +39,7 @@ const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = re
 const { appendAudit } = require('../src/audit');
 const { lintMemoryContent } = require('../src/content-lint');
 const { quarantineDecision } = require('../src/quarantine');
+const { setFrontmatterFields } = require('../src/pinning');
 
 // Best-effort detection of the host AI agent, recorded on each memory's
 // encoding_context for "where your brain is used" analytics. An explicit
@@ -208,6 +209,11 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, qua
     fmLines.push(`quarantine_reasons: [${quarantine.reasons.map((r) => `"${r}"`).join(', ')}]`);
     fmLines.push(`quarantine_flagged: "${now}"`);
   }
+  // Temporal invalidation: record which memories this one replaces. The
+  // reciprocal `superseded_by` is stamped on those targets in main().
+  if (mem.supersedes && mem.supersedes.length) {
+    fmLines.push(`supersedes: [${mem.supersedes.map((s) => `"${s}"`).join(', ')}]`);
+  }
   fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
@@ -260,6 +266,7 @@ function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) 
     entry.quarantine_reasons = quarantine.reasons;
     entry.quarantine_flagged = now;
   }
+  if (mem.supersedes && mem.supersedes.length) entry.supersedes = mem.supersedes;
   return entry;
 }
 
@@ -516,6 +523,21 @@ async function main() {
       });
     }
 
+    // Temporal invalidation: stamp `superseded_by` on each memory this one
+    // replaces (index + frontmatter), and link them. The scorer strongly
+    // demotes a superseded memory so the successor wins, without dropping it —
+    // "this was true until now" stays answerable. Unknown target ids are
+    // skipped silently (they may have been forgotten).
+    const supersededNow = [];
+    for (const targetId of (mem.supersedes || [])) {
+      const target = index.memories[targetId];
+      if (!target) continue;
+      target.superseded_by = id;
+      setFrontmatterFields(brainDir, target.path, { superseded_by: id });
+      reinforceEdge(associations, id, targetId, 'manual', 0.20);
+      supersededNow.push({ id: targetId, title: target.title });
+    }
+
     // Update associations — explicit related links
     for (const relatedId of (mem.related || [])) {
       if (index.memories[relatedId]) {
@@ -570,6 +592,7 @@ async function main() {
         ? { quarantine_pending: true, quarantine_reasons: quarantine.reasons }
         : {}),
       ...(lint.flags.length ? { lint_flags: lint.flags.map((f) => f.rule) } : {}),
+      ...(supersededNow.length ? { superseded: supersededNow } : {}),
     });
   }
 

@@ -9,6 +9,12 @@
 
 const { trustFactor } = require('./provenance');
 
+// Temporal invalidation: multiplier applied to a memory that a newer one has
+// explicitly superseded. Low enough that the successor reliably outranks it,
+// high enough that the superseded fact still surfaces when nothing else is
+// relevant (so "this was true until X" remains answerable).
+const SUPERSEDED_PENALTY = 0.25;
+
 /**
  * Compute the effective (decayed) strength of a memory.
  *
@@ -457,12 +463,18 @@ function rankMemories(memories, relevanceFn, options = {}) {
       // volume, not relevance — a clearly more relevant low-trust memory can
       // still win, but it can't win on bulk. Missing origin weighs as the
       // memorize default, so legacy memories keep their relative order.
+      // Temporal invalidation: a memory explicitly superseded by a newer one
+      // (via `superseded_by`) is strongly demoted — not excluded, so an agent
+      // can still surface "this was true until X" — but it must never outrank
+      // the memory that replaced it. Demote, don't drop; the successor wins.
+      const supersededPenalty = mem.superseded_by ? SUPERSEDED_PENALTY : 1;
+
       const score = fin(computeRecallScore(
         mem.relevance,
         mem.decayed_strength,
         mem.recency_bonus,
         extras
-      )) * trustFactor(mem.origin);
+      )) * trustFactor(mem.origin) * supersededPenalty;
 
       return {
         ...mem,

@@ -378,6 +378,8 @@ During sleep, the brain transfers memories from the hippocampus to the neocortex
 
 During deep sleep, the brain merges related experiences into generalized knowledge. Weak memories that share themes are combined into stronger, more durable memories.
 
+**Temporal invalidation (before merging):** while scanning a consolidation group, watch for memories that don't just overlap but *contradict* — a decision reversed, a preference changed, a fact that stopped being true. These should not be merged. Instead, when a newer memory clearly replaces an older one, propose superseding: re-record the newer fact with `"supersedes": ["<old_id>"]` (or note the pair for the user). The old memory is demoted at recall (never deleted), carrying `superseded_by` so "this was true until X" stays answerable. Merge only genuinely *compatible* memories; supersede genuinely *contradictory* ones. Never auto-resolve a contradiction — surface it.
+
 ### Steps
 
 1. From the Phase 1 scan, take all **Moderate** and **Weak** tier memories (decayed_strength < 0.6) that were NOT already updated in Phase 3 (Knowledge Propagation) or Phase 4 (Semantic Crystallization)

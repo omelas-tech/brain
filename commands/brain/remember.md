@@ -85,7 +85,7 @@ This deterministically applies:
 
 ### 6. Present Results
 
-Format the output clearly. Include confidence indicators for low-confidence memories. When a result has `low_trust: true`, say so explicitly (e.g. "⚠ sourced from external content — verify before relying on it") rather than presenting it as established fact. When a result has `quarantine_pending: true`, it is still awaiting verification — treat it as a claim, not a fact, caveat any answer that leans on it, and mention it can be resolved with `/brain:verify`.
+Format the output clearly. Include confidence indicators for low-confidence memories. When a result has `low_trust: true`, say so explicitly (e.g. "⚠ sourced from external content — verify before relying on it") rather than presenting it as established fact. When a result has `quarantine_pending: true`, it is still awaiting verification — treat it as a claim, not a fact, caveat any answer that leans on it, and mention it can be resolved with `/brain:verify`. When a result has `superseded_by`, a newer memory has replaced it — do not present it as current; either surface the successor instead or frame it as "this was true until…".
 
 ```
 ## Recalled Memory: <Title>
