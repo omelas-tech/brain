@@ -17,8 +17,10 @@ const SYNC_DIR = '.sync';
 const REPO_DIR = 'repo';
 const CONFIG_FILE = 'config.json';
 
-// Files/dirs inside ~/.brain/ that should NOT be synced
-const EXCLUDED = new Set(['.sync', '.DS_Store']);
+// Files/dirs inside ~/.brain/ that should NOT be synced. `.cloud` holds Brain
+// Cloud OAuth tokens and pre-restore backups — credentials must never be
+// committed to a git remote.
+const EXCLUDED = new Set(['.sync', '.cloud', '.DS_Store']);
 
 /**
  * Check whether `git` is available on PATH.
@@ -148,6 +150,10 @@ function copyDir(srcDir, destDir, brainDir, passphrase) {
     const srcPath = path.join(srcDir, entry.name);
     const destPath = path.join(destDir, entry.name);
 
+    // Symlinks are skipped: for a symlink entry isDirectory() is false, so the
+    // else-branch would readFileSync THROUGH the link — copying whatever it
+    // points at (e.g. ~/.ssh keys) into the sync repo and pushing it.
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
       fs.mkdirSync(destPath, { recursive: true });
       copyDir(srcPath, destPath, brainDir, passphrase);
@@ -185,10 +191,17 @@ function copyRepoDir(srcDir, destDir, repoDir, passphrase) {
     const srcPath = path.join(srcDir, entry.name);
     const destPath = path.join(destDir, entry.name);
 
+    // A symlink in the repo (a remote can commit one) is never materialized
+    // into ~/.brain, and an existing symlink at the destination is removed
+    // rather than written through.
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
       fs.mkdirSync(destPath, { recursive: true });
       copyRepoDir(srcPath, destPath, repoDir, passphrase);
     } else {
+      try {
+        if (fs.lstatSync(destPath).isSymbolicLink()) fs.rmSync(destPath, { force: true });
+      } catch (_) { /* destination doesn't exist */ }
       const content = fs.readFileSync(srcPath);
       if (passphrase) {
         fs.writeFileSync(destPath, decrypt(content, passphrase));

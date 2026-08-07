@@ -58,6 +58,10 @@ function collectFiles(dir, brainDir, files) {
     if (EXCLUDED.has(topLevel)) continue;
 
     const fullPath = path.join(dir, entry.name);
+    // Symlinks are skipped entirely: following one would copy whatever it
+    // points at (potentially outside ~/.brain, e.g. ~/.ssh keys) into an
+    // export that may be transferred or synced.
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
       collectFiles(fullPath, brainDir, files);
     } else {
@@ -66,6 +70,23 @@ function collectFiles(dir, brainDir, files) {
       files[key] = fs.readFileSync(fullPath, 'utf8');
     }
   }
+}
+
+/**
+ * Reject export entries whose path would land outside ~/.brain/ — absolute
+ * paths or any `..` segment. A hostile .brain-export must fail loudly, not
+ * write ~/.ssh/authorized_keys.
+ *
+ * @param {string} relPath - Forward-slash relative path from the export file
+ * @returns {string} The OS-native relative path
+ * @throws {Error} on traversal
+ */
+function safeNativePath(relPath) {
+  const segments = relPath.split('/');
+  if (relPath.startsWith('/') || /^[a-zA-Z]:/.test(relPath) || segments.includes('..') || segments.includes('')) {
+    throw new Error(`Invalid path in export file (traversal): ${relPath}`);
+  }
+  return segments.join(path.sep);
 }
 
 /**
@@ -115,8 +136,8 @@ function importBrain(inputPath, brainDir, passphrase, options = {}) {
   let skipped = 0;
 
   for (const [relPath, content] of Object.entries(payload.files)) {
-    // Convert forward-slash paths to OS-native
-    const nativePath = relPath.split('/').join(path.sep);
+    // Convert forward-slash paths to OS-native, refusing traversal
+    const nativePath = safeNativePath(relPath);
     const destPath = path.join(brainDir, nativePath);
 
     if (mode === 'merge' && fs.existsSync(destPath)) {
@@ -176,7 +197,9 @@ function previewImport(inputPath, brainDir, passphrase) {
   const existingFiles = [];
 
   for (const relPath of files) {
-    const nativePath = relPath.split('/').join(path.sep);
+    // Same traversal guard as importBrain — the preview is what the agent
+    // shows the user, so a hostile export must fail here too, not look benign.
+    const nativePath = safeNativePath(relPath);
     const destPath = path.join(brainDir, nativePath);
     if (fs.existsSync(destPath)) {
       existingFiles.push(relPath);

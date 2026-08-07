@@ -30,6 +30,7 @@ const {
   writeAssociations,
   reinforceEdge,
   getBrainDir,
+  validateBrainPath,
 } = require('../src/index-manager');
 
 const {
@@ -141,6 +142,9 @@ function main() {
 function updateMemoryFile(brainDir, memPath, updates) {
   const fullPath = path.join(brainDir, memPath);
   try {
+    // The path comes from index.json — which syncs across devices, so a
+    // tampered index entry must not become a write primitive outside ~/.brain.
+    validateBrainPath(fullPath, brainDir);
     let content = fs.readFileSync(fullPath, 'utf-8');
 
     // Find frontmatter boundaries

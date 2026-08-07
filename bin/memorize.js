@@ -17,7 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const {
   getBrainDir,
   readIndex,
@@ -330,13 +330,19 @@ function trySync() {
   const gitConfig = path.join(brainDir, '.sync', 'config.json');
   if (fs.existsSync(gitConfig)) {
     try {
-      // Use the git-sync module
-      const gitSync = require('../src/git-sync');
-      // Sync push is async, but we run sync for CLI simplicity
-      execSync(`node -e "require('${path.join(__dirname, '..', 'src', 'git-sync.js')}').push('${brainDir}').then(() => process.exit(0)).catch(() => process.exit(1))"`, {
-        stdio: 'pipe',
-        timeout: 30000,
-      });
+      // push() is async; run it in a child so this CLI can stay synchronous.
+      // Paths travel as argv — never interpolated into a shell string, where a
+      // quote in $BRAIN_DIR would break out of it.
+      execFileSync(
+        process.execPath,
+        [
+          '-e',
+          "require(process.argv[1]).push(process.argv[2]).then(() => process.exit(0)).catch(() => process.exit(1))",
+          path.join(__dirname, '..', 'src', 'git-sync.js'),
+          brainDir,
+        ],
+        { stdio: 'pipe', timeout: 30000 }
+      );
       return { method: 'git', success: true };
     } catch (err) {
       return { method: 'git', success: false, error: err.message };

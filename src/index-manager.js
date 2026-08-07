@@ -64,6 +64,40 @@ function validateBrainPath(targetPath, brainDir) {
   if (!resolved.startsWith(resolvedBrain + path.sep) && resolved !== resolvedBrain) {
     throw new Error(`Path traversal detected: ${targetPath} is outside ${brainDir}`);
   }
+
+  // The string check above can be defeated by a symlink placed INSIDE the
+  // brain dir (e.g. ~/.brain/professional/x -> /etc): the lexical path stays
+  // inside while the write lands outside. Realpath the deepest existing
+  // ancestor and require it to stay under the realpath'd brain root. Both
+  // sides are realpath'd so a brain dir that is itself a symlink (BRAIN_DIR
+  // pointing into Dropbox/iCloud) remains fully supported.
+  let realBrain;
+  try {
+    realBrain = fs.realpathSync(resolvedBrain);
+  } catch (_) {
+    return; // brain dir doesn't exist yet (init paths) — nothing to escape from
+  }
+
+  // Refuse to write onto a path whose final component is itself a symlink —
+  // whether it dangles or resolves, a memory file must be a regular file.
+  let finalIsLink = false;
+  try {
+    finalIsLink = fs.lstatSync(resolved).isSymbolicLink();
+  } catch (_) { /* doesn't exist — fine */ }
+  if (finalIsLink) {
+    throw new Error(`Refusing to write through symlink: ${targetPath}`);
+  }
+
+  let probe = resolved;
+  while (!fs.existsSync(probe)) {
+    const parent = path.dirname(probe);
+    if (parent === probe) break;
+    probe = parent;
+  }
+  const realProbe = fs.realpathSync(probe);
+  if (!realProbe.startsWith(realBrain + path.sep) && realProbe !== realBrain) {
+    throw new Error(`Symlink escape detected: ${targetPath} resolves outside ${brainDir}`);
+  }
 }
 
 /**

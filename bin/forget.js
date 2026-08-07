@@ -29,6 +29,7 @@ const {
   readAssociations, writeAssociations, removeEdgesForMemory,
   readReviewQueue, writeReviewQueue, removeFromReviewQueue,
   readArchiveIndex, writeArchiveIndex,
+  validateBrainPath,
 } = require('../src/index-manager');
 // Search-index helpers take (brainDir) — the same signature memorize/recall use.
 // (index-manager exports same-named helpers with a (projectRoot) signature that
@@ -67,16 +68,23 @@ function archiveMemory(brainDir, id, opts = {}) {
 
   const now = new Date().toISOString();
 
-  // 1. Move the memory file into _archived/ (recoverable).
+  // 1. Move the memory file into _archived/ (recoverable). The path comes
+  // from index.json (which syncs), so validate both ends — a tampered entry
+  // must not turn archival into an arbitrary file move. On violation the file
+  // move is skipped; index removal below still proceeds.
   let archivedPath = null;
   if (entry.path) {
     const src = path.join(brainDir, entry.path);
     const dest = path.join(brainDir, '_archived', entry.path);
-    if (fs.existsSync(src)) {
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.renameSync(src, dest);
-      archivedPath = path.join('_archived', entry.path);
-    }
+    try {
+      validateBrainPath(src, brainDir);
+      validateBrainPath(dest, brainDir);
+      if (fs.existsSync(src)) {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.renameSync(src, dest);
+        archivedPath = path.join('_archived', entry.path);
+      }
+    } catch (_) { /* path violation — leave the file untouched */ }
   }
 
   // 2. Record in the archive index.

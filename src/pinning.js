@@ -19,6 +19,7 @@ const {
   writeIndex,
   readPinned,
   writePinned,
+  validateBrainPath,
 } = require('./index-manager');
 
 /** chars/4 token estimate; falls back to the title line for older entries. */
@@ -38,6 +39,10 @@ function estimateTokens(entry) {
 function setFrontmatterFields(brainDir, memPath, fields, opts = {}) {
   const fullPath = path.join(brainDir, memPath);
   let content;
+  // Best-effort contract: on a path violation (tampered/synced-in index entry
+  // pointing outside ~/.brain) the file write is skipped — the index entry
+  // remains the source of truth either way.
+  try { validateBrainPath(fullPath, brainDir); } catch (_) { return; }
   try { content = fs.readFileSync(fullPath, 'utf-8'); } catch (_) { return; }
 
   const first = content.indexOf('---');

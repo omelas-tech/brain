@@ -360,8 +360,21 @@ function logout(brainDir) {
 // Tar helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Fresh unpredictable temp path. A per-call mkdtemp directory (mode 0700)
+ * avoids the classic predictable-/tmp-name pre-creation/symlink race that
+ * `${Date.now()}` names invite. Clean up with rmTmp().
+ */
+function mkTmp(name) {
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-cloud-')), name);
+}
+
+function rmTmp(file) {
+  try { fs.rmSync(path.dirname(file), { recursive: true, force: true }); } catch { /* ignore */ }
+}
+
 function packBrain(brainDir) {
-  const tmpFile = path.join(os.tmpdir(), `brain-upload-${Date.now()}.tar.gz`);
+  const tmpFile = mkTmp('upload.tar.gz');
   const excludeArgs = TAR_EXCLUDES.flatMap((e) => ['--exclude', e]);
 
   execFileSync('tar', ['czf', tmpFile, ...excludeArgs, '-C', brainDir, '.'], {
@@ -372,12 +385,43 @@ function packBrain(brainDir) {
   return tmpFile;
 }
 
+/**
+ * Extract a downloaded snapshot into ~/.brain — hardened against hostile
+ * archives. The tarball is extracted into a throwaway staging directory
+ * first, then only REGULAR FILES and DIRECTORIES are copied across: symlink
+ * (and any other special) members are dropped, `..`-shaped names never leave
+ * staging, and a pre-existing symlink at a destination is removed rather than
+ * written through. A tampered server-side snapshot therefore cannot plant a
+ * link that later writes land through, and cannot escape the brain dir.
+ */
 function unpackBrain(tarPath, brainDir) {
-  // Extract into brain dir, overwriting existing files
-  execFileSync('tar', ['xzf', tarPath, '-C', brainDir], {
-    stdio: 'pipe',
-    timeout: 120000,
-  });
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-extract-'));
+  try {
+    execFileSync('tar', ['xzf', tarPath, '-C', staging], {
+      stdio: 'pipe',
+      timeout: 120000,
+    });
+    copyExtracted(staging, brainDir);
+  } finally {
+    try { fs.rmSync(staging, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
+function copyExtracted(srcDir, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) {
+      copyExtracted(srcPath, destPath);
+    } else if (entry.isFile()) {
+      try {
+        if (fs.lstatSync(destPath).isSymbolicLink()) fs.rmSync(destPath, { force: true });
+      } catch (_) { /* destination doesn't exist */ }
+      fs.writeFileSync(destPath, fs.readFileSync(srcPath));
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,7 +464,7 @@ async function push(brainDir) {
     return { ...result, local_size: tarSize };
   } finally {
     // Clean up temp file
-    try { fs.unlinkSync(tarPath); } catch { /* ignore */ }
+    rmTmp(tarPath);
   }
 }
 
@@ -437,7 +481,7 @@ async function pull(brainDir) {
 
   const token = await getValidToken(brainDir);
   const url = `${config.api_url}/api/brains/${config.brain_id}/sync`;
-  const tmpFile = path.join(os.tmpdir(), `brain-download-${Date.now()}.tar.gz`);
+  const tmpFile = mkTmp('download.tar.gz');
 
   try {
     const { checksum } = await downloadFile(url, tmpFile, token);
@@ -452,7 +496,7 @@ async function pull(brainDir) {
 
     return { size_bytes: size, checksum };
   } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    rmTmp(tmpFile);
   }
 }
 
@@ -509,7 +553,7 @@ async function restoreVersion(brainDir, version) {
 
   const token = await getValidToken(brainDir);
   const url = `${config.api_url}/api/brains/${config.brain_id}/sync?version=${encodeURIComponent(version)}`;
-  const tmpFile = path.join(os.tmpdir(), `brain-restore-${Date.now()}.tar.gz`);
+  const tmpFile = mkTmp('restore.tar.gz');
 
   try {
     await downloadFile(url, tmpFile, token);
@@ -523,7 +567,7 @@ async function restoreVersion(brainDir, version) {
     const backupPath = path.join(cloudDir, backupName);
     const packed = packBrain(brainDir);
     fs.copyFileSync(packed, backupPath);
-    try { fs.unlinkSync(packed); } catch { /* ignore */ }
+    rmTmp(packed);
     const backups = fs.readdirSync(cloudDir).filter((n) => n.startsWith('pre-restore-')).sort();
     while (backups.length > 5) fs.rmSync(path.join(cloudDir, backups.shift()), { force: true });
 
@@ -544,7 +588,7 @@ async function restoreVersion(brainDir, version) {
 
     return { restored_version: version, size_bytes: size, backup: backupPath };
   } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    rmTmp(tmpFile);
   }
 }
 
