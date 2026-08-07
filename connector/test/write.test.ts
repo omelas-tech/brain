@@ -54,7 +54,7 @@ async function main() {
   const log = (s: string) => console.log(`  ${s}`);
 
   try {
-    const token = issueToken(userId, brainDir, { aud: `http://localhost:${port}/mcp` });
+    const token = issueToken(userId, brainDir, { aud: `http://localhost:${port}/mcp`, scope: "brain.read brain.write" });
     const transport = new StreamableHTTPClientTransport(new URL(`http://localhost:${port}/mcp`), {
       requestInit: { headers: { Authorization: `Bearer ${token}` } },
     });
@@ -62,7 +62,7 @@ async function main() {
     await client.connect(transport);
 
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin"]);
+    assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin", "brain_verify"]);
     log(`① tools/list → [${tools.join(", ")}]`);
 
     // Write a memory from explicit content

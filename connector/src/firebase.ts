@@ -129,7 +129,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseId
  * and a Google button. Behaviour is unchanged from the old minimal page: Google
  * login via the Firebase web SDK, then POST the resulting ID token (as JSON) to
  * `action`. On a JSON `{redirect}` response it navigates there (the OAuth flow);
- * otherwise it shows the JSON (the /dev/whoami demo page).
+ * otherwise it shows the returned JSON.
  *
  * `clientName`, `scope`, and `origin` tailor the consent copy to the actual
  * request (the OAuth client, what it asked for, and the host shown in the trust

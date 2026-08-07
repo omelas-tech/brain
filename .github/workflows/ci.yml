@@ -26,6 +26,21 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm test
 
+  # ─── MCP connector (remote server) ──────────────────────────────
+  # Its own job: the connector is a separate TS package (not published to npm,
+  # excluded from the root matrix) with its own deps and tsx-run test suite.
+  connector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: connector
+      - run: npm test
+        working-directory: connector
+
   # ─── Host-agent integrations (OpenClaw plugin, Hermes provider) ───
   # Separate job: the OpenClaw TS plugin targets the Gateway's Node 22+
   # runtime and the Hermes provider is Python — neither belongs in the

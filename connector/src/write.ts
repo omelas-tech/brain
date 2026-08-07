@@ -88,3 +88,18 @@ export async function unpin(brainDir: string, id: string): Promise<any> {
 export async function forget(brainDir: string, id: string): Promise<any> {
   return run("forget.js", [id], brainDir);
 }
+
+/** List memories pending verification (ASI06 quarantine). Read-only. */
+export async function verifyList(brainDir: string): Promise<any> {
+  return run("verify.js", ["list"], brainDir);
+}
+
+/** Approve pending memories: clears the flag, marks vetted. Origin/trust stay. */
+export async function verifyApprove(brainDir: string, ids: string[]): Promise<any> {
+  return run("verify.js", ["approve", ...ids], brainDir);
+}
+
+/** Reject pending memories: archives them (recoverable). */
+export async function verifyReject(brainDir: string, ids: string[]): Promise<any> {
+  return run("verify.js", ["reject", ...ids], brainDir);
+}

@@ -75,6 +75,15 @@ export function authenticate(authHeader: string | undefined): Session | null {
   return s;
 }
 
+/**
+ * Whether a session's token carries a given scope. Scope is a space-delimited
+ * string (OAuth 2.1). Until now `scope` was stored but never checked — so a
+ * read-only token could call the write tools; this is what closes that.
+ */
+export function hasScope(session: Session, scope: string): boolean {
+  return (session.scope || "").split(/\s+/).includes(scope);
+}
+
 /** RFC 9728 Protected Resource Metadata document. */
 export function protectedResourceMetadata(issuer: string) {
   return {
@@ -85,8 +94,16 @@ export function protectedResourceMetadata(issuer: string) {
   };
 }
 
-/** The WWW-Authenticate value for a 401 (points clients at the PRM, RFC 9728). */
-export function wwwAuthenticate(issuer: string, error?: string): string {
+/**
+ * The WWW-Authenticate value for a 401/403 (points clients at the PRM, RFC 9728).
+ * `error` is the RFC 6750 error code (`invalid_token` / `insufficient_scope`);
+ * `description` is the human-readable detail. A machine-readable `error` lets
+ * clients distinguish "re-auth" from "wrong scope" instead of guessing.
+ */
+export function wwwAuthenticate(issuer: string, description?: string, error = "invalid_token"): string {
   const prm = `${issuer}/.well-known/oauth-protected-resource`;
-  return `Bearer resource_metadata="${prm}"${error ? `, error_description="${error}"` : ""}`;
+  const parts = [`Bearer resource_metadata="${prm}"`];
+  if (error) parts.push(`error="${error}"`);
+  if (description) parts.push(`error_description="${description}"`);
+  return parts.join(", ");
 }

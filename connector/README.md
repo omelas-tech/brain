@@ -120,13 +120,14 @@ If `FIREBASE_*` env is **not** set, `/authorize` falls back to a fixed dev user
 ```bash
 cp .env.example .env      # fill in FIREBASE_API_KEY / AUTH_DOMAIN / PROJECT_ID
 npm start                 # http://localhost:8788
-# open http://localhost:8788/dev/whoami → "Sign in with Google"
+# then connect an MCP client (e.g. Claude) to http://localhost:8788/mcp —
+# the OAuth flow opens the branded Google sign-in page from /authorize
 ```
 
-`/dev/whoami` runs *only* the identity step in isolation: sign in, and the connector shows your
-verified `firebase_uid`, `email`, and the resolved `brain_user_id` + `brain_dir` — exactly what
-`/authorize` uses to pick whose brain to serve. (`localhost` is an authorized Firebase domain by
-default, so popup sign-in works locally.)
+Signing in through `/authorize` shows the branded consent/login page and, on success, resolves
+your verified `firebase_uid` → `brain_user_id` → `brain_dir` — which is how the connector picks
+whose brain to serve. (`localhost` is an authorized Firebase domain by default, so popup sign-in
+works locally.)
 
 ## Per-user store (`src/store.ts`)
 
