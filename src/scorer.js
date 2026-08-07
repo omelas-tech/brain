@@ -7,6 +7,8 @@
  * by external tools.
  */
 
+const { trustFactor } = require('./provenance');
+
 /**
  * Compute the effective (decayed) strength of a memory.
  *
@@ -407,9 +409,14 @@ function rankMemories(memories, relevanceFn, options = {}) {
     const sources = options.relevanceFloor != null
       ? scored.filter((m) => m.relevance >= options.relevanceFloor)
       : scored;
+    // Source strength is damped by origin trust: a clique of co-tagged
+    // low-trust memories (planted writes auto-link via tag_overlap edges)
+    // must not self-amplify past trusted memories through activation alone.
     const scoredSummary = sources.map((m) => ({
       id: m.id,
-      score: 0.55 * m.relevance + 0.30 * m.decayed_strength + 0.15 * m.recency_bonus,
+      score:
+        (0.55 * m.relevance + 0.30 * m.decayed_strength + 0.15 * m.recency_bonus) *
+        trustFactor(m.origin),
     }));
 
     const bonuses = computeSpreadingActivationBatch(
@@ -446,12 +453,16 @@ function rankMemories(memories, relevanceFn, options = {}) {
       if (mem.context_match > 0) extras.contextMatch = mem.context_match;
       if (mem.salience != null) extras.salience = mem.salience;
 
+      // Origin trust multiplies the composite: trust bounds entrenchment and
+      // volume, not relevance — a clearly more relevant low-trust memory can
+      // still win, but it can't win on bulk. Missing origin weighs as the
+      // memorize default, so legacy memories keep their relative order.
       const score = fin(computeRecallScore(
         mem.relevance,
         mem.decayed_strength,
         mem.recency_bonus,
         extras
-      ));
+      )) * trustFactor(mem.origin);
 
       return {
         ...mem,

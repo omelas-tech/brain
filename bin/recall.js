@@ -40,6 +40,7 @@ const {
 } = require('../src/scorer');
 
 const { receiptFor } = require('../src/receipt');
+const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
 
 // Minimum relevance (or spreading bonus) for a memory to appear in explicit-
 // query results. Filters the zero/near-zero-relevance memories that would
@@ -144,6 +145,7 @@ function main() {
   const top = args.top || 10;
   const results = ranked.slice(0, top).map((mem) => {
     const title = mem.title || path.basename(mem.path, '.md');
+    const origin = mem.origin || DEFAULT_ORIGIN;
     return {
       id: mem.id,
       title,
@@ -155,6 +157,10 @@ function main() {
       context_match: mem.context_match,
       spreading_bonus: mem.spreading_bonus,
       confidence: mem.confidence,
+      // Provenance travels with every result so the agent can answer
+      // "where did you get that?" without opening the memory file.
+      origin,
+      ...(isLowTrust(origin) ? { low_trust: true } : {}),
       tags: mem.tags,
       // Recall receipt — the engine mints it, agents copy it verbatim when
       // this memory materially shapes an answer (so it can't be hallucinated).

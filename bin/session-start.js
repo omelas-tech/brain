@@ -43,6 +43,7 @@ const {
 const { rankMemories } = require('../src/scorer');
 const { advertisedSummaries } = require('../src/skills');
 const { receiptFor } = require('../src/receipt');
+const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
 
 function parseArgs(argv) {
   const args = { project: null, topics: null, task: null, top: 5 };
@@ -235,12 +236,15 @@ function computeSessionStart(projectRoot, args = {}) {
       excluded++;
       continue;
     }
+    const origin = mem.origin || DEFAULT_ORIGIN;
     context_recall.push({
       id: mem.id,
       title,
       path: mem.path,
       type: mem.type,
       score: mem.score,
+      origin,
+      ...(isLowTrust(origin) ? { low_trust: true } : {}),
       token_estimate: est,
       receipt,
     });

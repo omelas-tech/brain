@@ -74,34 +74,11 @@ const COGNITIVE_ADJUSTMENTS = {
 // --- Provenance (OWASP ASI06: memory poisoning) ---
 //
 // Where a memory came from decides how much it is allowed to entrench itself.
-// The failure mode this defends against: content the agent *read* (an email, a
-// web page, a tool result) persuades it to write a fact, and that fact then
-// hardens — pinned into every session, exempt from decay, immune to pruning,
-// and never flagged as uncertain. See MemGhost (arXiv:2607.05189).
-//
-// `origin` is asserted by the caller, so it does not defend against a fully
-// hostile agent — but the dominant real case is an *honest* agent relaying
-// poisoned content, and there it holds. The pin/stable restriction is the part
-// that holds regardless: entrenchment is simply not reachable from this path
-// without an explicit user origin.
-const ORIGIN_POLICY = {
-  // The user asked for this directly, in-session.
-  user: { max_salience: 1.0, max_confidence: 1.0, allow_entrench: true, decay_multiplier: 1.0 },
-  // The agent inferred or summarized it from session context. Default.
-  'agent-inferred': { max_salience: 0.6, max_confidence: 0.8, allow_entrench: false, decay_multiplier: 1.0 },
-  // Derived from tool output — file reads, command results, MCP responses.
-  'tool-output': { max_salience: 0.5, max_confidence: 0.6, allow_entrench: false, decay_multiplier: 0.997 },
-  // Derived from untrusted external content — email, web pages, issue text.
-  external: { max_salience: 0.4, max_confidence: 0.4, allow_entrench: false, decay_multiplier: 0.99 },
-};
-
-// Absent origin means the agent didn't tell us — assume the weaker claim, never
-// the stronger one. A memory that deserves `user` is one keystroke away.
-const DEFAULT_ORIGIN = 'agent-inferred';
-
-// Salience >= 0.7 is exempt from auto-pruning, so every non-user ceiling sits
-// below it: an unattended poisoned memory must remain collectable.
-const PRUNE_EXEMPT_SALIENCE = 0.7;
+// The policy table lives in src/provenance.js (shared with the recall-side
+// trust weighting in src/scorer.js). The pin/stable restriction is the part
+// that holds regardless of caller honesty: entrenchment is simply not
+// reachable from this path without an explicit user origin.
+const { ORIGIN_POLICY, DEFAULT_ORIGIN } = require('../src/provenance');
 
 // --- Args ---
 

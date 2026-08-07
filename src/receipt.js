@@ -9,6 +9,11 @@
  *
  * Format:  ◉ memory: "<title>" (<type>, <age>)
  *
+ * Low-trust origins (tool-output, external — see src/provenance.js) carry a
+ * trailing warning segment so a poisoned-source memory is visibly marked
+ * wherever its receipt appears:  ◉ memory: "<title>" (<type>, <age>, ⚠ external)
+ * User/agent-inferred receipts are byte-identical to the base format.
+ *
  * Age is derived from the memory's `created` timestamp (falling back to
  * `last_accessed`; omitted entirely when neither parses):
  *   today | yesterday | <N>d ago (2-30 days) | <N>mo ago (31-364 days,
@@ -16,6 +21,8 @@
  *
  * Deterministic: `now` is injectable for tests.
  */
+
+const { isLowTrust } = require('./provenance');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DAYS_PER_MONTH = 30.44; // mean Gregorian month
@@ -59,10 +66,11 @@ function receiptFor(memoryLike, nowFn) {
 
   const type = typeof mem.type === 'string' && mem.type ? mem.type : 'memory';
   const age = ageLabel(mem.created ?? mem.last_accessed ?? NaN, now);
+  const trust = isLowTrust(mem.origin) ? `, ⚠ ${mem.origin}` : '';
 
   return age
-    ? `◉ memory: "${title}" (${type}, ${age})`
-    : `◉ memory: "${title}" (${type})`;
+    ? `◉ memory: "${title}" (${type}, ${age}${trust})`
+    : `◉ memory: "${title}" (${type}${trust})`;
 }
 
 module.exports = { receiptFor, ageLabel };

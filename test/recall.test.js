@@ -114,9 +114,14 @@ describe('End-to-end recall scoring', () => {
     const tfidfScores = search(searchIndex, 'connection pool');
 
     const now = new Date().toISOString();
+    // origin: 'user' pins trust to the neutral 1.0 factor — this test isolates
+    // spreading-activation mechanics; trust weighting has its own suite
+    // (trust-recall.test.js). Without it, the default-origin source damping
+    // (×0.95) pushes this fixture's bonus below the weighted-average
+    // break-even and the with-associations score dips instead of rising.
     const memories = [
-      { id: 'mem_pool', strength: 0.80, decay_rate: 0.995, last_accessed: now, salience: 0.7 },
-      { id: 'mem_migrate', strength: 0.60, decay_rate: 0.990, last_accessed: now, salience: 0.5 },
+      { id: 'mem_pool', strength: 0.80, decay_rate: 0.995, last_accessed: now, salience: 0.7, origin: 'user' },
+      { id: 'mem_migrate', strength: 0.60, decay_rate: 0.990, last_accessed: now, salience: 0.5, origin: 'user' },
     ];
 
     // Without associations
