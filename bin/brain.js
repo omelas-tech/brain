@@ -34,6 +34,7 @@ const DELEGATED = {
   unpin: 'unpin.js',
   skill: 'skill.js',
   import: 'import.js',
+  restore: 'restore.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -69,6 +70,10 @@ Cold start
 
 Sync
   cloud <login|logout|push|pull|status>
+  restore --list [--from git|cloud]
+                              List restore points (Git history or Cloud snapshots)
+  restore --to <point> [--from git|cloud]
+                              Roll the whole brain back to a restore point
 
 Setup
   install                     Interactive installer (default when no command)

@@ -382,6 +382,119 @@ function pull(brainDir, passphrase) {
 }
 
 /**
+ * List restore points — the commits in the sync repo's history, newest first.
+ *
+ * A restore point exists for every push (and every pre-restore safety
+ * snapshot), so granularity follows how often the brain is pushed.
+ *
+ * @param {string} brainDir - Absolute path to ~/.brain/
+ * @param {number} [limit=20] - Maximum entries to return
+ * @returns {Array<{ commit: string, date: string, message: string }>}
+ */
+function listRestorePoints(brainDir, limit = 20) {
+  const { repoDir, configPath } = resolvePaths(brainDir);
+  const config = readConfig(configPath);
+  if (!config) throw new Error('Sync not configured. Run /brain:sync setup first.');
+  if (!fs.existsSync(path.join(repoDir, '.git'))) return [];
+
+  let out;
+  try {
+    out = git(repoDir, ['log', '--pretty=format:%H%x09%cI%x09%s', '-n', String(limit)]);
+  } catch {
+    return []; // repo initialized but no commits yet
+  }
+  if (!out) return [];
+  return out.split('\n').map((line) => {
+    const [commit, date, ...subject] = line.split('\t');
+    return { commit, date, message: subject.join('\t') };
+  });
+}
+
+/**
+ * Remove everything inside ~/.brain/ except the excluded infrastructure
+ * entries (.sync/), so a restore can't leave orphaned post-snapshot files
+ * behind. Only called after the current state is committed to sync history.
+ */
+function clearBrainDir(brainDir) {
+  for (const entry of fs.readdirSync(brainDir)) {
+    if (EXCLUDED.has(entry)) continue;
+    fs.rmSync(path.join(brainDir, entry), { recursive: true, force: true });
+  }
+}
+
+/**
+ * Restore ~/.brain/ to a previous restore point.
+ *
+ * History only moves forward: the current brain state is first committed as a
+ * pre-restore safety snapshot (when it differs from HEAD), then the target
+ * tree is materialized as a NEW commit on main — so the restore itself is
+ * always undoable via another restore.
+ *
+ * @param {string} brainDir - Absolute path to ~/.brain/
+ * @param {string} ref - Commit hash (or any git ref) to restore to
+ * @param {string} [passphrase] - Encryption passphrase (if configured)
+ * @returns {{ restored_to: string, safety_commit: string|null, restore_commit: string }}
+ */
+function restoreTo(brainDir, ref, passphrase) {
+  const { repoDir, configPath } = resolvePaths(brainDir);
+  const config = readConfig(configPath);
+  if (!config) throw new Error('Sync not configured. Run /brain:sync setup first.');
+
+  const pass = config.encrypt ? passphrase : null;
+  if (config.encrypt && !passphrase) {
+    throw new Error('Encryption is enabled but no passphrase provided.');
+  }
+  if (!fs.existsSync(path.join(repoDir, '.git'))) {
+    throw new Error('No sync history yet — push at least once before restoring.');
+  }
+
+  // Validate the ref up front (also resolves short hashes / dates via git).
+  let target;
+  try {
+    target = git(repoDir, ['rev-parse', '--verify', `${ref}^{commit}`]);
+  } catch {
+    throw new Error(`Unknown restore point "${ref}". Use --list to see available points.`);
+  }
+
+  // Safety snapshot: commit the CURRENT brain state before touching anything,
+  // so even unsynced work survives the restore in history.
+  copyBrainToRepo(brainDir, repoDir, pass);
+  git(repoDir, ['add', '-A']);
+  let safetyCommit = null;
+  if (git(repoDir, ['status', '--porcelain'])) {
+    git(repoDir, ['commit', '-m', `pre-restore snapshot ${new Date().toISOString()}`]);
+    safetyCommit = git(repoDir, ['rev-parse', 'HEAD']);
+  }
+
+  // Materialize the target tree in the worktree and commit it forward.
+  // Wipe first so files absent in the target don't survive, then let
+  // `git add -A` stage those deletions alongside the checked-out content.
+  for (const entry of fs.readdirSync(repoDir)) {
+    if (entry === '.git') continue;
+    fs.rmSync(path.join(repoDir, entry), { recursive: true, force: true });
+  }
+  git(repoDir, ['checkout', target, '--', '.']);
+  git(repoDir, ['add', '-A']);
+  if (git(repoDir, ['status', '--porcelain'])) {
+    git(repoDir, ['commit', '-m', `restore to ${target.slice(0, 12)}`]);
+  }
+  const restoreCommit = git(repoDir, ['rev-parse', 'HEAD']);
+
+  // Only now mutate the live brain — the snapshot above makes this recoverable.
+  // audit.log is deliberately carried across the swap: the append-only trail
+  // must record history *through* a restore, not be rolled back by one.
+  const auditPath = path.join(brainDir, 'audit.log');
+  let auditTrail = null;
+  try { auditTrail = fs.readFileSync(auditPath); } catch { auditTrail = null; }
+
+  clearBrainDir(brainDir);
+  copyRepoToBrain(repoDir, brainDir, pass);
+  if (auditTrail !== null) fs.writeFileSync(auditPath, auditTrail, { mode: 0o600 });
+
+  return { restored_to: target, safety_commit: safetyCommit, restore_commit: restoreCommit };
+}
+
+/**
  * Read sync config from ~/.brain/.sync/config.json.
  *
  * @param {string} configPath - Absolute path to config.json
@@ -435,6 +548,8 @@ module.exports = {
   getStatus,
   push,
   pull,
+  listRestorePoints,
+  restoreTo,
   getSyncConfig,
   writeSyncConfig,
   // Internal — exported for testing

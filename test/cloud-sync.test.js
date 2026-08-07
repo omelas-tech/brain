@@ -365,6 +365,84 @@ describe('cloud-sync: pull', () => {
   });
 });
 
+describe('cloud-sync: versions & restore', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('listVersions returns the server list; guards when logged out', async () => {
+    await assert.rejects(cloud.listVersions(brainDir), /Not logged in/);
+    cloud.writeConfig(brainDir, loggedInConfig());
+    routes['GET /api/brains/brain-123/versions'] = (req, res) => {
+      assert.equal(req.headers['authorization'], 'Bearer access-1');
+      send(res, 200, { versions: [
+        { version: '20260803T120000.000000000.tar.gz', date: '2026-08-03T12:00:00Z' },
+        { version: '20260801T090000.000000000.tar.gz', date: '2026-08-01T09:00:00Z' },
+      ], total: 2 });
+    };
+    const versions = await cloud.listVersions(brainDir);
+    assert.equal(versions.length, 2);
+    assert.equal(versions[0].version, '20260803T120000.000000000.tar.gz');
+  });
+
+  it('restoreVersion swaps in the snapshot, preserves audit.log/_archived/.cloud, and writes a backup', async () => {
+    cloud.writeConfig(brainDir, loggedInConfig());
+    // Live brain: one memory that should vanish, one archived memory and an
+    // audit trail that must both survive.
+    fs.mkdirSync(path.join(brainDir, 'personal'), { recursive: true });
+    fs.writeFileSync(path.join(brainDir, 'personal', 'extra.md'), 'post-snapshot memory');
+    fs.mkdirSync(path.join(brainDir, '_archived'), { recursive: true });
+    fs.writeFileSync(path.join(brainDir, '_archived', 'old.md'), 'archived memory');
+    fs.writeFileSync(path.join(brainDir, 'audit.log'), '{"event":"memorize","id":"live"}\n');
+
+    // Snapshot the server hands back: a different memory set and an OLDER audit
+    // trail (which must NOT replace the live one).
+    const snapDir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-snap-'));
+    fs.mkdirSync(path.join(snapDir, 'personal'), { recursive: true });
+    fs.writeFileSync(path.join(snapDir, 'personal', 'restored.md'), 'snapshot memory');
+    fs.writeFileSync(path.join(snapDir, 'audit.log'), '{"event":"memorize","id":"old"}\n');
+    const snapTar = cloud.packBrain(snapDir);
+    const tarBytes = fs.readFileSync(snapTar);
+
+    const version = '20260803T120000.000000000.tar.gz';
+    routes['GET /api/brains/:id/sync'] = (req, res) => {
+      assert.ok(req.url.includes(`version=${encodeURIComponent(version)}`), 'must request the named version');
+      res.writeHead(200, { 'Content-Type': 'application/gzip' });
+      res.end(tarBytes);
+    };
+
+    try {
+      const r = await cloud.restoreVersion(brainDir, version);
+      assert.equal(r.restored_version, version);
+      assert.equal(fs.readFileSync(path.join(brainDir, 'personal', 'restored.md'), 'utf8'), 'snapshot memory');
+      assert.ok(!fs.existsSync(path.join(brainDir, 'personal', 'extra.md')), 'post-snapshot memory removed');
+      assert.equal(fs.readFileSync(path.join(brainDir, '_archived', 'old.md'), 'utf8'), 'archived memory');
+      assert.equal(fs.readFileSync(path.join(brainDir, 'audit.log'), 'utf8'),
+        '{"event":"memorize","id":"live"}\n', 'live audit trail carried forward, not rolled back');
+      assert.ok(cloud.readConfig(brainDir), 'cloud config preserved');
+      assert.ok(fs.existsSync(r.backup), 'pre-restore backup written');
+      assert.ok(path.basename(r.backup).startsWith('pre-restore-'));
+    } finally {
+      fs.rmSync(snapTar, { force: true });
+      fs.rmSync(snapDir, { recursive: true, force: true });
+    }
+  });
+
+  it('a failed version download leaves the brain untouched', async () => {
+    cloud.writeConfig(brainDir, loggedInConfig());
+    fs.mkdirSync(path.join(brainDir, 'personal'), { recursive: true });
+    fs.writeFileSync(path.join(brainDir, 'personal', 'keep.md'), 'still here');
+    routes['GET /api/brains/:id/sync'] = (req, res) => send(res, 404, { error: 'version not found' });
+
+    await assert.rejects(cloud.restoreVersion(brainDir, 'nope.tar.gz'), /Download failed \(404\)/);
+    assert.equal(fs.readFileSync(path.join(brainDir, 'personal', 'keep.md'), 'utf8'), 'still here');
+  });
+
+  it('restoreVersion requires a version name', async () => {
+    cloud.writeConfig(brainDir, loggedInConfig());
+    await assert.rejects(cloud.restoreVersion(brainDir, ''), /No version given/);
+  });
+});
+
 describe('cloud-sync: status', () => {
   beforeEach(setup);
   afterEach(teardown);

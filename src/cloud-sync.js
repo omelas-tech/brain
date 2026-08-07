@@ -457,6 +457,98 @@ async function pull(brainDir) {
 }
 
 // ---------------------------------------------------------------------------
+// Versions / Restore
+// ---------------------------------------------------------------------------
+
+// Local entries a cloud restore must never touch: sync/auth infrastructure and
+// _archived/, which is deliberately excluded from cloud pushes (see
+// TAR_EXCLUDES) and so does not exist in the snapshot being restored.
+const RESTORE_PRESERVE = new Set(['.sync', '.cloud', '.DS_Store', '_archived']);
+
+/**
+ * List cloud restore points — pre-overwrite snapshots Brain Cloud takes
+ * automatically before every push commit. Newest first.
+ *
+ * @param {string} brainDir
+ * @returns {Promise<Array<{version: string, date: string}>>}
+ */
+async function listVersions(brainDir) {
+  const config = readConfig(brainDir);
+  if (!config) throw new Error('Not logged in. Run cloud login first.');
+  if (!config.brain_id) throw new Error('No brain linked. Run cloud login again.');
+
+  const token = await getValidToken(brainDir);
+  const res = await jsonRequest(
+    `${config.api_url}/api/brains/${config.brain_id}/versions`,
+    'GET', null, token
+  );
+  if (res.status !== 200) {
+    throw new Error(`Failed to list versions (${res.status}): ${res.data.error || ''}`);
+  }
+  return res.data.versions || [];
+}
+
+/**
+ * Restore ~/.brain/ from a cloud version snapshot.
+ *
+ * Before touching anything, the current brain is packed into a local backup
+ * under .cloud/ (kept for the last 5 restores) so the restore is undoable even
+ * without the git sync path. audit.log is carried forward across the swap —
+ * the append-only trail records history through a restore, never rolls back.
+ * The cloud's live brain is NOT modified; push when satisfied with the result.
+ *
+ * @param {string} brainDir
+ * @param {string} version - Snapshot name from listVersions()
+ * @returns {Promise<{restored_version: string, size_bytes: number, backup: string}>}
+ */
+async function restoreVersion(brainDir, version) {
+  const config = readConfig(brainDir);
+  if (!config) throw new Error('Not logged in. Run cloud login first.');
+  if (!config.brain_id) throw new Error('No brain linked. Run cloud login again.');
+  if (!version) throw new Error('No version given. List them with versions first.');
+
+  const token = await getValidToken(brainDir);
+  const url = `${config.api_url}/api/brains/${config.brain_id}/sync?version=${encodeURIComponent(version)}`;
+  const tmpFile = path.join(os.tmpdir(), `brain-restore-${Date.now()}.tar.gz`);
+
+  try {
+    await downloadFile(url, tmpFile, token);
+    const size = fs.statSync(tmpFile).size;
+
+    // Local safety backup of the CURRENT state (the download above already
+    // succeeded, so a failure past this point can always be rolled forward).
+    const { cloudDir } = resolvePaths(brainDir);
+    fs.mkdirSync(cloudDir, { recursive: true });
+    const backupName = `pre-restore-${new Date().toISOString().replace(/[:.]/g, '')}.tar.gz`;
+    const backupPath = path.join(cloudDir, backupName);
+    const packed = packBrain(brainDir);
+    fs.copyFileSync(packed, backupPath);
+    try { fs.unlinkSync(packed); } catch { /* ignore */ }
+    const backups = fs.readdirSync(cloudDir).filter((n) => n.startsWith('pre-restore-')).sort();
+    while (backups.length > 5) fs.rmSync(path.join(cloudDir, backups.shift()), { force: true });
+
+    // Carry the append-only audit trail across the swap.
+    const auditPath = path.join(brainDir, 'audit.log');
+    let auditTrail = null;
+    try { auditTrail = fs.readFileSync(auditPath); } catch { auditTrail = null; }
+
+    for (const entry of fs.readdirSync(brainDir)) {
+      if (RESTORE_PRESERVE.has(entry)) continue;
+      fs.rmSync(path.join(brainDir, entry), { recursive: true, force: true });
+    }
+    unpackBrain(tmpFile, brainDir);
+    if (auditTrail !== null) fs.writeFileSync(auditPath, auditTrail, { mode: 0o600 });
+
+    config.last_pull = new Date().toISOString();
+    writeConfig(brainDir, config);
+
+    return { restored_version: version, size_bytes: size, backup: backupPath };
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Status
 // ---------------------------------------------------------------------------
 
@@ -520,6 +612,8 @@ module.exports = {
   logout,
   push,
   pull,
+  listVersions,
+  restoreVersion,
   status,
   readConfig,
   writeConfig,
