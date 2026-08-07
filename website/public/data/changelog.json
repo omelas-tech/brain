@@ -1,5 +1,35 @@
 [
   {
+    "version": "0.1.0",
+    "date": "2026-08-08",
+    "sections": [
+      {
+        "category": "Added",
+        "items": [
+          "**Quarantine for untrusted writes.** Low-trust origins (`tool-output`, `external`) and instruction-shaped content (a write-time lint catches \"ignore previous instructions\", pipe-to-shell, secret-exfiltration, and similar) now land in a pending-verification state. The `quarantine_mode` config knob controls behavior: `flag` (default — recallable but marked `⊘ unverified`, never pinnable), `enforce` (excluded from recall until approved), or `off`. Resolve with `brain verify list | approve | reject` — approval clears the flag but keeps origin and trust weighting; it never promotes a memory to user trust.",
+          "**Anomaly detection.** `brain audit [--window 7d] [--apply]` scans the audit log, index, and association graph for the patterns poisoning leaves — write bursts per origin, co-tagged low-trust cliques, and quietly-reinforced unverified memories — and can quarantine what it finds (capped per run). Runs automatically as Phase 0 of `brain sleep`.",
+          "**Unified, readable audit trail.** A single append-only `~/.brain/audit.log` records every write, archival, verification, and restore. `brain forget` now audits archivals, and the log is carried forward through restores.",
+          "**Portable Agent Skill.** Brain now ships as a self-contained `SKILL.md` folder (`integrations/agentskills/brain-memory/`) that runs unmodified on any agentskills.io-compatible client — reaching agents without a dedicated installer. Included in the npm package.",
+          "**Temporal invalidation.** `brain memorize` accepts `supersedes: [ids]`, stamping `superseded_by` on the replaced memory. Superseded memories are strongly demoted at recall (not deleted), so the successor always wins while \"this was true until X\" stays answerable. `brain sleep` consolidation now proposes superseding for contradictory memories.",
+          "**Memory inspector (Brain Cloud).** New `/api/brains/{id}/audit` endpoint and memory-trust fields (origin, quarantined, vetted, superseded_by) on the tree endpoint, a server-side version-restore route, and a read-only Inspector page in the subscriber panel. Experimental `ui://brain/inspector` MCP App in the connector (off by default)."
+        ]
+      },
+      {
+        "category": "Changed",
+        "items": [
+          "**Connector conformance.** Every memory-bearing MCP result declares `cacheScope: private` (a memory response is per-user and must never be cached across users); the `brain.write` scope is now enforced (read-only tokens are refused writes); `brain_verify` tool added; `WWW-Authenticate` emits `error=\"invalid_token\"`; non-POST `/mcp` returns 405."
+        ]
+      },
+      {
+        "category": "Fixed",
+        "items": [
+          "**Path & symlink hardening.** `validateBrainPath` now resolves symlinks and refuses writes that escape `~/.brain` even through a symlinked directory, and the guard is applied in every index-trusting writer (reinforce, pin, forget). Export/import reject `..` traversal and skip symlinks; Git sync skips symlinks and excludes `.cloud` (so cloud OAuth tokens are never committed to a remote); cloud tar extraction drops symlink members via a staging directory. The Git-sync push child process takes paths as argv rather than an interpolated shell string."
+        ]
+      }
+    ],
+    "note": "First stable release. Completes the memory-poisoning defense (OWASP ASI06), adds a portable cross-agent distribution rail, and introduces truth-based invalidation."
+  },
+  {
     "version": "0.1.0-beta.36",
     "date": "2026-08-07",
     "sections": [
