@@ -175,7 +175,7 @@ The recall engine ensures **identical scoring across all agents** — Claude, Ge
 
 ## Recall Receipts
 
-Every memory returned by `brain recall` and by the session-start payload (each `context_recall` and `pinned` entry) carries a pre-minted `receipt` field: `◉ memory: "<title>" (<type>, <age>)`. Receipts make memory visibly fire — the user sees exactly which memory shaped an answer.
+Every memory returned by `brain recall` and by the session-start payload (each `context_recall` and `pinned` entry) carries a pre-minted `receipt` field: `◉ memory: "<title>" (<type>, <age>)`. Receipts make memory visibly fire — the user sees exactly which memory shaped an answer. Low-trust memories (origin `tool-output` or `external`) carry a trailing `⚠ <origin>` marker in their receipt — keep it when copying; it is the visible warning that the fact came from outside the user/agent dialogue.
 
 - When recalled or pinned memories **materially shaped your answer**, end the response with their `receipt` lines, copied **verbatim** — max 3 lines, at the very end.
 - Only receipt what actually influenced the output. Pinned memories get a receipt only when they were decisive for this specific answer — they are always present, and receipting them every turn is spam.

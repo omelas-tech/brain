@@ -41,6 +41,7 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Git-friendly** — Full version history of how memories evolve
 - **Strength + decay** — Recalled memories get stronger, forgotten ones fade. Just like your brain
 - **Recall receipts** — Memory that visibly fires: every answer shaped by a memory ends with a one-line attributable receipt (`◉ memory: "<title>" (<type>, <age>)`), minted by the engine so it can't be hallucinated
+- **Provenance-bounded trust** — Every memory records where it came from (`user`, `agent-inferred`, `tool-output`, `external`), and recall weighs it: a fact planted by a web page or tool output is down-ranked, flagged `low_trust`, marked `⚠` on its receipt, and can never outrank what you said directly — no matter how many copies of it get written
 - **Associative network** — Memories link to each other with weighted connections. Recalling one activates related ones automatically
 - **Context-dependent recall** — Memories encoded in a similar context to the current session are scored higher
 - **Spaced reinforcement** — Memories recalled after longer intervals get bigger boosts, cramming produces diminishing returns
@@ -621,6 +622,17 @@ export BRAIN_DIR="$HOME/Google Drive/brain"   # or Dropbox, iCloud Drive, OneDri
 3. Use `/brain:sync push` and `/brain:sync pull` to keep memories in sync
 
 For one-off transfers, use `/brain:sync export` and `/brain:sync import <path>`.
+
+**Restore — an undo button for your whole brain.** Every push is a restore point, and the CLI can roll the entire brain back to any of them:
+
+```bash
+brain restore --list                      # list restore points (the Git sync history)
+brain restore --to <commit>               # roll ~/.brain/ back to that point
+brain restore --list --from cloud         # list Brain Cloud's pre-push snapshots
+brain restore --to <version> --from cloud # restore from a cloud snapshot
+```
+
+Before touching anything, restore preserves your *current* state — the Git path commits it as a safety snapshot, the cloud path writes a local backup under `~/.brain/.cloud/` — so a restore is always undoable, even for work you never pushed. (Brain Cloud also snapshots the brain it's about to replace on every push, server-side.) The append-only `audit.log` is carried forward through restores (never rolled back), and every restore is itself logged there. Restore granularity follows push frequency: push often for finer-grained history.
 
 Sync state is stored locally in `~/.brain/.sync/` and is never pushed to the remote.
 

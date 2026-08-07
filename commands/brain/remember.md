@@ -39,7 +39,7 @@ If the brain-memory package is installed globally, use:
 brain recall "$ARGUMENTS" --project "<project>" --task "<task_type>" --top 10
 ```
 
-The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, and salience using the v4 formula. All scoring is deterministic — same query always produces the same ranking. Each result also carries a pre-minted `receipt` line (`◉ memory: "<title>" (<type>, <age>)`) — keep it for step 6.
+The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, salience, and **origin trust** (memories sourced from tool output or external content are down-weighted and flagged `low_trust`) using the v4 formula. All scoring is deterministic — same query always produces the same ranking. Each result also carries a pre-minted `receipt` line (`◉ memory: "<title>" (<type>, <age>)`; low-trust origins add a trailing `⚠ <origin>` marker) — keep it for step 6.
 
 ### 3. Read Top Memories
 
@@ -85,7 +85,7 @@ This deterministically applies:
 
 ### 6. Present Results
 
-Format the output clearly. Include confidence indicators for low-confidence memories.
+Format the output clearly. Include confidence indicators for low-confidence memories. When a result has `low_trust: true`, say so explicitly (e.g. "⚠ sourced from external content — verify before relying on it") rather than presenting it as established fact.
 
 ```
 ## Recalled Memory: <Title>
