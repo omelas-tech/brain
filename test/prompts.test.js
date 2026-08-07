@@ -45,6 +45,9 @@ describe('Prompt source files — session lifecycle sections', () => {
     { file: 'claude.md', prefix: '/brain:' },
     { file: 'antigravity.md', prefix: '/brain-' },
     { file: 'openai.md', prefix: '/brain-' },
+    { file: 'opencode.md', prefix: '/brain:' },
+    { file: 'copilot.md', prefix: '/brain-' },
+    { file: 'kilo.md', prefix: '/brain:' },
   ];
 
   for (const { file, prefix } of promptFiles) {
@@ -166,6 +169,29 @@ describe('Prompt source files — session lifecycle sections', () => {
         );
       });
 
+      it('contains the quarantine/verification section and markers', () => {
+        assert.ok(
+          content.includes('## Unverified Memories (Quarantine)'),
+          `${file} missing "## Unverified Memories (Quarantine)"`
+        );
+        assert.ok(
+          content.includes('pending_verification'),
+          `${file} missing pending_verification payload field`
+        );
+        assert.ok(
+          content.includes('⊘ unverified'),
+          `${file} missing the ⊘ unverified receipt segment`
+        );
+        assert.ok(
+          content.includes('brain verify list'),
+          `${file} missing the verify workflow entry point`
+        );
+        assert.ok(
+          content.includes('brain audit'),
+          `${file} missing the audit scan reference`
+        );
+      });
+
       it('lists the six-verb core and omits every removed command', () => {
         // The refactor's intent, asserted directly: the survivors are advertised
         // and the six removed/folded commands no longer appear AS COMMANDS.
@@ -194,6 +220,10 @@ describe('Prompt content consistency across runtimes', () => {
     const antigravity = readPrompt('antigravity.md');
     const openai = readPrompt('openai.md');
 
+    const opencode = readPrompt('opencode.md');
+    const copilot = readPrompt('copilot.md');
+    const kilo = readPrompt('kilo.md');
+
     const coreSections = [
       '# Brain Memory System',
       '## How It Works',
@@ -201,13 +231,15 @@ describe('Prompt content consistency across runtimes', () => {
       '## Session End Behavior',
       '## When Recalling Memories',
       '## Recall Receipts',
+      '## Unverified Memories (Quarantine)',
       '## Portable Sync',
     ];
 
+    const all = { 'claude.md': claude, 'antigravity.md': antigravity, 'openai.md': openai, 'opencode.md': opencode, 'copilot.md': copilot, 'kilo.md': kilo };
     for (const section of coreSections) {
-      assert.ok(claude.includes(section), `claude.md missing "${section}"`);
-      assert.ok(antigravity.includes(section), `antigravity.md missing "${section}"`);
-      assert.ok(openai.includes(section), `openai.md missing "${section}"`);
+      for (const [name, text] of Object.entries(all)) {
+        assert.ok(text.includes(section), `${name} missing "${section}"`);
+      }
     }
   });
 

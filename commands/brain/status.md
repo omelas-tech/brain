@@ -105,6 +105,10 @@ Calculate aggregate stats:
   📋 Total in queue: <count> memories
   Due memories are reinforced automatically during /brain:sleep
 
+## Pending Verification (quarantine)
+  ⊘ <count> unverified memories (index entries with `quarantined: true`)
+  Resolve with /brain:verify — approve keeps them (still trust-weighted), reject archives them
+
 ## Recent Memories (Last 7 days)
   + <title> (<path>) — <date>
   + <title> (<path>) — <date>
@@ -132,5 +136,6 @@ Analyze the brain's health and provide recommendations:
 - **"Needs sleep"** — Multiple flat clusters detected, OR many memories in moderate/weak tiers, OR no `_expertise.md` profiles exist despite having 10+ memories. Suggest `/brain:sleep`
 - **"Low confidence"** — More than 30% of memories have confidence < 0.5. Suggest reviewing and validating uncertain memories.
 - **"Review overdue"** — More than 10 memories are past their review date. Suggest `/brain:sleep` (its replay pass reinforces them)
+- **"Unverified backlog"** — More than 5 memories are pending verification. Suggest `/brain:verify` — an unreviewed queue weakens the poisoning defense.
 - **"Sync available"** — Git sync is not configured. Suggest `/brain:sync setup` for cross-device access.
 - **"Sync stale"** — Last push was more than 7 days ago. Suggest `/brain:sync push`.

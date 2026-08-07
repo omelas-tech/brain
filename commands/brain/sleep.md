@@ -11,8 +11,9 @@ You are performing a **sleep cycle** on the Brain Memory system. Just like the h
 
 ## Overview
 
-Sleep performs nine phases, mimicking real neuroscience:
+Sleep performs an integrity sweep plus nine phases, mimicking real neuroscience:
 
+0. **Integrity Sweep** — Deterministic anomaly scan over the audit trail (poisoning forensics)
 1. **Replay** — Scan recent activity and compute decay across all memories
 2. **Synaptic Homeostasis** — Proportionally scale down all strengths to prevent inflation (Tononi & Cirelli SHY)
 3. **Knowledge Propagation** — Evaluate recent memories against the hierarchy and update related memories
@@ -23,6 +24,30 @@ Sleep performs nine phases, mimicking real neuroscience:
 7. **Prune** — Archive memories that have decayed beyond recovery, including context-shift obsolescence (Tier B §10.1)
 8. **REM Dreaming** — Discover creative cross-domain associations via analogical reasoning
 9. **Expertise Detection** — Identify dense knowledge areas and generate expertise profiles
+
+## Phase 0: Integrity Sweep (Poisoning Forensics)
+
+Before touching strengths or structure, verify nothing hostile crept in. This phase is fully deterministic — run the CLI and internalize the JSON (session-start style):
+
+```bash
+brain audit --window 7d
+```
+
+It scans audit.log + index + associations for write bursts per origin, co-tagged cliques of low-trust memories, and unverified low-trust memories quietly accumulating reinforcement.
+
+- If `findings` is empty: report `Phase 0: Integrity sweep clean` and continue.
+- If `findings` is non-empty: run `brain audit --window 7d --apply` to quarantine the proposed memories (capped per run; `truncated: true` means re-run after review), then report what was flagged:
+
+```
+## Phase 0: Integrity Sweep
+
+  <N> finding(s): <kinds>
+  <M> memories quarantined for verification — resolve with /brain:verify
+```
+
+Do **not** approve or reject anything here — resolution belongs to the user via `/brain:verify`. Quarantined memories are excluded from consolidation (Phase 6) and crystallization (Phase 4): never merge an unverified fact into trusted knowledge.
+
+---
 
 ## Phase 1: Replay (Hippocampal Scan)
 
