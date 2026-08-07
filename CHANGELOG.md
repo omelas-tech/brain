@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.1.0-beta.36] - 2026-08-07
+
 ### Added
 
 - **Trust-weighted recall — origin now decides how far a memory's score can
