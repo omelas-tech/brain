@@ -123,7 +123,7 @@ The first time a host connects you'll complete an OAuth sign-in with the Google 
 ### 2. Local-first path — the native plugin
 
 ```bash
-npm install -g brain-memory@beta
+npm install -g brain-memory
 brain
 ```
 
@@ -178,7 +178,7 @@ Both are backed by the same `brain` CLI the coding-agent installs use — one me
 ### Update
 
 ```bash
-npm install -g brain-memory@beta
+npm install -g brain-memory
 brain update
 ```
 

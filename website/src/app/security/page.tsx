@@ -198,9 +198,9 @@ export default function SecurityPage() {
           <section>
             <h2 className="font-semibold text-[var(--text-primary)] mb-2">Supported versions</h2>
             <p>
-              Brain Memory is in beta. Security fixes are shipped against the current{" "}
+              Security fixes are shipped against the current{" "}
               <code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">0.1.x</code>{" "}
-              beta line. See the{" "}
+              release line. See the{" "}
               <a
                 href="/docs/reference/changelog"
                 className="text-[var(--accent)] hover:text-[var(--accent-hover)] underline underline-offset-2"

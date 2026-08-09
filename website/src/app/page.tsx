@@ -77,7 +77,7 @@ export default function Home() {
         <div className="hero-inner">
           <div className="hero-copy">
             <span className="hero-tag">
-              <span className="dot" />beta · live on npm
+              <span className="dot" />v0.1.0 · live on npm
             </span>
             <h1>
               Memory for AI&nbsp;agents,
@@ -108,13 +108,13 @@ export default function Home() {
               </a>
               <CopyButton
                 className="btn btn-ghost"
-                text="npm i -g brain-memory@beta"
+                text="npm i -g brain-memory"
               >
-                <span className="cmd">$</span> npm i -g brain-memory@beta
+                <span className="cmd">$</span> npm i -g brain-memory
               </CopyButton>
             </div>
             <div className="hero-badges">
-              <span className="badge"><span className="k">npm</span><span className="v">beta</span></span>
+              <span className="badge"><span className="k">npm</span><span className="v">v0.1.0</span></span>
               <span className="badge"><span className="k">license</span><span className="v">MIT</span></span>
               <span className="badge"><span className="k">deterministic</span><span className="v">recall</span></span>
             </div>
@@ -315,7 +315,7 @@ export default function Home() {
           <div className="section-head reveal" style={{ marginTop: 48 }}>
             <h2>Or run it local-first.</h2>
             <p className="lede">
-              <code>npm i -g brain-memory@beta &amp;&amp; brain</code> installs the
+              <code>npm i -g brain-memory &amp;&amp; brain</code> installs the
               free native plugin — slash commands and prompt sections wired into
               the agent&apos;s own config, all pointing at a single
               <code>~/.brain/</code>.
@@ -347,8 +347,8 @@ export default function Home() {
           <div className="qs-block reveal">
             <div className="qs-line">
               <span className="prompt">$</span>
-              <span className="cmd">npm install -g brain-memory@beta</span>
-              <CopyButton className="copy" text="npm install -g brain-memory@beta" idleLabel="copy" />
+              <span className="cmd">npm install -g brain-memory</span>
+              <CopyButton className="copy" text="npm install -g brain-memory" idleLabel="copy" />
             </div>
           </div>
           <p className="qs-note reveal">
