@@ -43,6 +43,7 @@ const {
 const { rankMemories } = require('../src/scorer');
 const { advertisedSummaries } = require('../src/skills');
 const { receiptFor } = require('../src/receipt');
+const { temporalState } = require('../src/temporal');
 const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
 
 function parseArgs(argv) {
@@ -182,11 +183,19 @@ function computeSessionStart(projectRoot, args = {}) {
   // The index entry is the source of truth (pinned.json is a maintained cache);
   // scanning the index here avoids manifest/index drift.
   const pinnedCandidates = [];
+  const nowMs = Date.now();
+  let expiredPins = 0;
   for (const [id, entry] of Object.entries(index.memories)) {
     if (!entry.pinned) continue;
     // Defensive: pinning a quarantined memory is refused, but state synced
     // from another device could carry both flags — never load it every session.
     if (entry.quarantined && quarantineMode !== 'off') continue;
+    // Bitemporal: the pinned tier is presented to the agent as always-apply
+    // active constraints, and a fact whose validity window has closed is not a
+    // constraint any more. Drop it here rather than asserting it every session
+    // — it stays reachable through ordinary recall, demoted and ⌛-marked, and
+    // the count below tells the user to update or unpin it.
+    if (temporalState(entry, nowMs) === 'expired') { expiredPins++; continue; }
     const scope = entry.pin_scope || 'global';
     if (scope !== 'global') {
       const scopedProject = scope.startsWith('project:') ? scope.slice('project:'.length) : null;
@@ -258,6 +267,9 @@ function computeSessionStart(projectRoot, args = {}) {
       origin,
       ...(isLowTrust(origin) ? { low_trust: true } : {}),
       ...(mem.quarantined ? { quarantine_pending: true } : {}),
+      // Bitemporal: surfaced but no longer true — the agent must frame it as
+      // "that was the case until <valid_until>", never as current.
+      ...(mem.temporal_state === 'expired' ? { expired: true, valid_until: mem.valid_until } : {}),
       token_estimate: est,
       receipt,
     });
@@ -299,6 +311,9 @@ function computeSessionStart(projectRoot, args = {}) {
     skills_index,
     context_recall: edgeOrder(context_recall), // Tier B §10.4: top ranks at the edges
     due_for_review: dueForReview,
+    // Pins whose validity window has closed — held out of the always-apply
+    // tier above, and worth telling the user so they can update or unpin.
+    expired_pins: expiredPins,
     pending_verification: pendingAll.length,
     pending_verification_items: pendingAll.slice(0, 5),
     low_confidence_alerts,

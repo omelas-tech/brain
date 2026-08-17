@@ -39,6 +39,15 @@ If the brain-memory package is installed globally, use:
 brain recall "$ARGUMENTS" --project "<project>" --task "<task_type>" --top 10
 ```
 
+**Dated questions — travel in time instead of guessing.** When the query is about a past state ("what were we using back in March?", "what did I think before the rewrite?", "when did that change?"), add a bound rather than reasoning over timestamps yourself:
+
+```bash
+brain recall "deploy target" --as-of 2026-03-01        # what was TRUE then (valid time)
+brain recall "deploy target" --as-known-of 2026-03-01  # what the brain KNEW then (record time)
+```
+
+`--as-of` filters to memories whose validity window contains that instant, and lifts the supersession demotion for them — at that moment they were simply the truth. `--as-known-of` filters on when the memory was recorded. Pass both to reconstruct exactly what the brain believed, and when. An unparseable date is rejected rather than ignored.
+
 The engine computes **TF-IDF relevance** (cosine similarity between query and memory content), then combines it with decayed strength, recency, spreading activation, context match, salience, and **origin trust** (memories sourced from tool output or external content are down-weighted and flagged `low_trust`) using the v4 formula. All scoring is deterministic — same query always produces the same ranking. Each result also carries a pre-minted `receipt` line (`◉ memory: "<title>" (<type>, <age>)`; low-trust origins add a trailing `⚠ <origin>` marker) — keep it for step 6.
 
 ### 3. Read Top Memories
@@ -85,7 +94,7 @@ This deterministically applies:
 
 ### 6. Present Results
 
-Format the output clearly. Include confidence indicators for low-confidence memories. When a result has `low_trust: true`, say so explicitly (e.g. "⚠ sourced from external content — verify before relying on it") rather than presenting it as established fact. When a result has `quarantine_pending: true`, it is still awaiting verification — treat it as a claim, not a fact, caveat any answer that leans on it, and mention it can be resolved with `/brain:verify`. When a result has `superseded_by`, a newer memory has replaced it — do not present it as current; either surface the successor instead or frame it as "this was true until…".
+Format the output clearly. Include confidence indicators for low-confidence memories. When a result has `low_trust: true`, say so explicitly (e.g. "⚠ sourced from external content — verify before relying on it") rather than presenting it as established fact. When a result has `quarantine_pending: true`, it is still awaiting verification — treat it as a claim, not a fact, caveat any answer that leans on it, and mention it can be resolved with `/brain:verify`. When a result has `superseded_by`, a newer memory has replaced it — do not present it as current; either surface the successor instead or frame it as "this was true until…". When a result has `expired: true`, its validity window has closed: say what it was and when it ended (`valid_until`), never state it as the current answer. Results also carry `valid_from`/`valid_until` when the fact was bounded in time — use them to answer "since when?" and "until when?" precisely.
 
 ```
 ## Recalled Memory: <Title>

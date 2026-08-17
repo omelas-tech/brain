@@ -132,3 +132,23 @@ When a new memory replaces an older one — a decision reversed, a preference ch
 ```
 
 The CLI stamps `superseded_by` on the old memory (index + frontmatter) and links the two. The old memory is **not deleted** — recall strongly demotes it so the successor always ranks first, but it still surfaces when nothing else is relevant, carrying `superseded_by` so you can answer "that was true until X." This is truth-based invalidation, distinct from time-based decay. Only set `supersedes` when the new fact genuinely replaces the old one; unknown ids are skipped silently.
+
+Superseding also closes the old memory's **validity window**: its `valid_until` is stamped with the successor's start, so `--as-of` queries get a real interval for free (see below).
+
+**A quarantined write cannot supersede.** If the new memory lands pending verification (low-trust origin or instruction-shaped content), the `superseded_by` stamp is **held back** and reported as `supersede_pending`. Otherwise a poisoned external page claiming "the deploy target changed" would demote the real memory 4x at recall before anyone looked at it. Tell the user the replacement is waiting: it takes effect on `brain verify approve <id>`, and `brain verify reject <id>` discards it with the original untouched.
+
+### Valid time — when a fact was *true* (bitemporal)
+
+`created` records when the brain **learned** a fact. `valid_from` / `valid_until` record when it **was true**. They are independent, and the difference is what lets recall answer "what were we using back in March?" instead of guessing.
+
+```json
+{ "title": "Kafka runs in eu-central-1", "type": "decision",
+  "valid_from": "2026-03-01", "valid_until": "2026-06-01", "content": "..." }
+```
+
+- The window is half-open `[from, until)` — a fact that ends on June 1 is not true on June 1.
+- Either bound may be omitted; omitting both means "true as far as we know". **This is the default — do not invent bounds.**
+- Set them when the user frames the fact in time: "until the end of Q3", "starting in March", "for the duration of the contract", "while I'm on leave".
+- An inverted or unparseable window is **rejected at write time** — a bad window would make the memory invisible to every as-of query.
+
+Once `valid_until` passes, recall demotes the memory and marks it `expired: true`, and its receipt carries `⌛ expired`. It is never deleted: "that was true until June" stays answerable.

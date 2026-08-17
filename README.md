@@ -42,6 +42,7 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Strength + decay** — Recalled memories get stronger, forgotten ones fade. Just like your brain
 - **Recall receipts** — Memory that visibly fires: every answer shaped by a memory ends with a one-line attributable receipt (`◉ memory: "<title>" (<type>, <age>)`), minted by the engine so it can't be hallucinated
 - **Provenance-bounded trust** — Every memory records where it came from (`user`, `agent-inferred`, `tool-output`, `external`), and recall weighs it: a fact planted by a web page or tool output is down-ranked, flagged `low_trust`, marked `⚠` on its receipt, and can never outrank what you said directly — no matter how many copies of it get written
+- **Bitemporal — it knows *when* a fact was true** — Every memory separates record time (when the brain learned it) from valid time (`valid_from` / `valid_until`, when it was actually true). So "we deploy to Fly.io" and "we deploy to Render" aren't a contradiction to guess between — they're one fact with a boundary. `brain recall "deploy target" --as-of 2026-03-01` answers what was true in March; `--as-known-of` answers what the brain knew then. Facts that stopped being true are demoted and marked `⌛ expired`, never silently served as current
 - **Associative network** — Memories link to each other with weighted connections. Recalling one activates related ones automatically
 - **Context-dependent recall** — Memories encoded in a similar context to the current session are scored higher
 - **Spaced reinforcement** — Memories recalled after longer intervals get bigger boosts, cramming produces diminishing returns
@@ -425,6 +426,10 @@ strength: 0.92
 decay_rate: 0.995
 salience: 0.8
 confidence: 0.9
+# Valid time — when the fact was TRUE, as distinct from `created` above (when
+# it was recorded). Optional and half-open [from, until); omit for facts that
+# are simply true. Superseding stamps `valid_until` on the old memory for you.
+valid_from: 2026-02-13T14:30:00Z
 tags: [architecture, microservices, scaling]
 related: [mem_20260210_b4e5d6]
 source: project-alpha-session

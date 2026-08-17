@@ -13,8 +13,9 @@
  * trailing warning segment so a poisoned-source memory is visibly marked
  * wherever its receipt appears:  ◉ memory: "<title>" (<type>, <age>, ⚠ external)
  * Memories pending verification (quarantined — see src/quarantine.js) carry a
- * further "⊘ unverified" segment. User/agent-inferred, vetted receipts are
- * byte-identical to the base format.
+ * further "⊘ unverified" segment, and memories whose validity window has closed
+ * (see src/temporal.js) a "⌛ expired" one. User/agent-inferred, vetted, current
+ * receipts are byte-identical to the base format.
  *
  * Age is derived from the memory's `created` timestamp (falling back to
  * `last_accessed`; omitted entirely when neither parses):
@@ -25,6 +26,7 @@
  */
 
 const { isLowTrust } = require('./provenance');
+const { temporalState } = require('./temporal');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DAYS_PER_MONTH = 30.44; // mean Gregorian month
@@ -72,10 +74,14 @@ function receiptFor(memoryLike, nowFn) {
   // Pending verification (quarantine flag mode): the receipt is the visible
   // channel, so an unverified memory is marked wherever it fires.
   const pending = mem.quarantined ? ', ⊘ unverified' : '';
+  // Bitemporal: the fact's validity window has closed. A stale memory can
+  // still be the right answer ("that was true until March") — but it must
+  // never look current, so the marker rides along with the receipt.
+  const expired = temporalState(mem, now.getTime()) === 'expired' ? ', ⌛ expired' : '';
 
   return age
-    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending})`
-    : `◉ memory: "${title}" (${type}${trust}${pending})`;
+    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending}${expired})`
+    : `◉ memory: "${title}" (${type}${trust}${pending}${expired})`;
 }
 
 module.exports = { receiptFor, ageLabel };

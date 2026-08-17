@@ -36,6 +36,7 @@ const {
 // re-appends `.brain`, which would silently no-op the search-index update here.)
 const { removeDocument, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
 const { appendAudit } = require('../src/audit');
+const { clearSupersessionsBy } = require('../src/temporal');
 
 // CoALA salience protection: high-salience memories are "never auto-pruned"
 // (the documented guarantee). Enforced deterministically here — the only
@@ -97,7 +98,12 @@ function archiveMemory(brainDir, id, opts = {}) {
   arch.archived_count = Object.keys(arch.memories).length;
   writeArchiveIndex(arch);
 
-  // 3. Remove from the live index.
+  // 3. Withdraw any supersession this memory imposed, then remove it from the
+  // live index. Order matters: the sweep reads `superseded_by` back-pointers
+  // out of the index, and without it every memory this one replaced would stay
+  // demoted 4x at recall forever, behind a pointer to an id that no longer
+  // exists — so rejecting a poisoned write would leave its damage in place.
+  const released = clearSupersessionsBy(brainDir, index, id);
   removeMemory(index, id);
   writeIndex(index);
 
@@ -127,6 +133,7 @@ function archiveMemory(brainDir, id, opts = {}) {
     appendAudit(brainDir, {
       ts: now, event: 'forget', id, title: entry.title, path: entry.path,
       origin: entry.origin, salience: entry.salience, reason, forced: force,
+      ...(released.length ? { released } : {}),
     });
   } catch (err) {
     auditError = err.message;
@@ -134,6 +141,8 @@ function archiveMemory(brainDir, id, opts = {}) {
 
   return {
     archived: true, id, title: entry.title, memory_count: index.memory_count,
+    // Memories this one had superseded, now restored to full recall weight.
+    ...(released.length ? { released } : {}),
     ...(auditError ? { audit_error: auditError } : {}),
   };
 }

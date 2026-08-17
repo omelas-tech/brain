@@ -11,6 +11,10 @@
  *   brain recall "database pooling" --project my-app --task implementing --top 5
  *   brain recall --context                     # Session-start mode: auto-detect context
  *   brain recall --reindex                     # Rebuild search index from all memories
+ *   brain recall "deploy target" --as-of 2026-03-01
+ *                                              # Valid time: what was TRUE then
+ *   brain recall "deploy target" --as-known-of 2026-03-01
+ *                                              # Record time: what the brain KNEW then
  *
  * Output: JSON array of scored results, sorted by score descending.
  */
@@ -42,6 +46,7 @@ const {
 
 const { receiptFor } = require('../src/receipt');
 const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
+const { parseInstant } = require('../src/temporal');
 
 // Minimum relevance (or spreading bonus) for a memory to appear in explicit-
 // query results. Filters the zero/near-zero-relevance memories that would
@@ -63,6 +68,15 @@ function main() {
   // Reindex mode
   if (args.reindex) {
     return handleReindex(brainDir);
+  }
+
+  // An unparseable time-travel bound must fail loudly: silently ignoring it
+  // would answer a point-in-time question with present-day memories.
+  for (const [flag, value] of [['--as-of', args.asOf], ['--as-known-of', args.asKnownOf]]) {
+    if (value != null && parseInstant(value) == null) {
+      console.error(JSON.stringify({ error: `Invalid ${flag} value: ${JSON.stringify(value)} — expected an ISO date (e.g. 2026-03-01)` }));
+      process.exit(1);
+    }
   }
 
   // Need a query for search
@@ -145,6 +159,10 @@ function main() {
       associations: associations || undefined,
       recallContext: Object.keys(recallContext).length > 0 ? recallContext : undefined,
       relevanceFloor: args.context ? undefined : RELEVANCE_FLOOR,
+      // Bitemporal travel: --as-of filters on valid time (the fact was true
+      // then), --as-known-of on record time (the brain had it by then).
+      asOf: args.asOf,
+      asKnownOf: args.asKnownOf,
     }
   );
 
@@ -175,6 +193,12 @@ function main() {
       // the agent can say "this was true until <the successor>" rather than
       // presenting a stale fact as current.
       ...(mem.superseded_by ? { superseded_by: mem.superseded_by } : {}),
+      // Bitemporal valid time — when the fact was true, as distinct from
+      // `created` (when it was recorded). `expired` means the window has
+      // closed: answer with "that was true until <valid_until>", not as fact.
+      ...(mem.valid_from ? { valid_from: mem.valid_from } : {}),
+      ...(mem.valid_until ? { valid_until: mem.valid_until } : {}),
+      ...(mem.temporal_state === 'expired' ? { expired: true } : {}),
       tags: mem.tags,
       // Recall receipt — the engine mints it, agents copy it verbatim when
       // this memory materially shapes an answer (so it can't be hallucinated).
@@ -245,6 +269,8 @@ function parseArgs(argv) {
     top: 10,
     context: false,
     reindex: false,
+    asOf: null,
+    asKnownOf: null,
   };
 
   const positional = [];
@@ -268,6 +294,12 @@ function parseArgs(argv) {
         break;
       case '--reindex':
         args.reindex = true;
+        break;
+      case '--as-of':
+        args.asOf = argv[++i];
+        break;
+      case '--as-known-of':
+        args.asKnownOf = argv[++i];
         break;
       default:
         if (!argv[i].startsWith('--')) {

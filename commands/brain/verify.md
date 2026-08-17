@@ -45,6 +45,12 @@ Show the user the memory's content and where it came from. Content flagged `lint
   ```
   Rejection archives the memory (recoverable from `~/.brain/_archived/`). Use `--force` only if the CLI refuses a high-salience entry and the user explicitly confirms.
 
+**Held-back replacements.** A quarantined write that declared `supersedes` never demoted its target — the stamp was withheld so an unverified memory could not knock a trusted one down behind the user's back. This makes approval consequential beyond the memory itself:
+
+- **Before approving,** if the pending memory has `supersedes`, say what approval will demote: "approving this also marks '<old title>' as no longer current."
+- **On approval,** the CLI applies the stamp and closes the old memory's validity window, and reports it back under `superseded`. Relay that.
+- **On rejection,** the target is left exactly as it was. Archiving a memory likewise **releases** everything it had superseded (reported as `released`), restoring full recall weight — so a poisoned write leaves no residue once rejected.
+
 **Never approve on your own judgment.** If the user asked you to "clear the queue," still show them what is in it first — a one-line summary per memory is enough. Batch-approve only what they have seen.
 
 ### 4. Report

@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **Bitemporal validity.** Memories now carry a valid-time window
+  (`valid_from` / `valid_until`, half-open `[from, until)`) alongside the
+  record time they already had (`created`) — the difference between *when a
+  fact was true* and *when the brain learned it*. Two new recall flags travel
+  back along each axis: `brain recall "<q>" --as-of <date>` returns what was
+  **true** at that instant (and lifts the supersession demotion for memories
+  still inside their window — at that moment they were simply the truth), and
+  `--as-known-of <date>` returns what the brain had **recorded** by then. Pass
+  both to reconstruct exactly what the brain believed, and when. Superseding
+  stamps the predecessor's `valid_until` automatically, so the existing corpus
+  gains real validity windows without re-authoring anything. An expired memory
+  is demoted and marked (`expired: true`, `⌛ expired` on its receipt), never
+  deleted — "that was true until June" stays answerable. Inverted or
+  unparseable windows are rejected at write time, as are unparseable `--as-of`
+  bounds; silently ignoring one would answer a point-in-time question with
+  present-day memories.
+- **Expired pins are held out of the always-apply tier.** A pinned memory whose
+  validity window has closed is no longer injected every session as an active
+  constraint; session start reports the count as `expired_pins` so it can be
+  updated or unpinned. It stays reachable through ordinary recall.
+
+### Fixed
+
+- **A quarantined write could demote a trusted memory before anyone looked at
+  it** (ASI06). `supersedes` was applied unconditionally, so a memory written
+  from a fetched page or tool result — pending verification precisely because
+  it isn't trusted — immediately stamped `superseded_by` on its target and cut
+  that memory's recall score to a quarter. The stamp is now withheld while a
+  write is quarantined (reported as `supersede_pending`) and applied by
+  `brain verify approve`; rejection leaves the original untouched.
+- **Archiving a memory left everything it had superseded permanently demoted**,
+  behind a `superseded_by` pointer to an id that no longer existed — so
+  rejecting a poisoned write archived the write but kept its damage. Archival
+  (and therefore `brain verify reject` and `brain forget`) now withdraws the
+  supersessions a memory imposed, reported as `released`. Automatically stamped
+  validity is withdrawn with it; a window set by hand is left alone.
+
 ## [0.1.0] - 2026-08-08
 
 First stable release. Completes the memory-poisoning defense (OWASP ASI06),

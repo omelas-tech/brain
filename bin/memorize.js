@@ -39,7 +39,11 @@ const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = re
 const { appendAudit } = require('../src/audit');
 const { lintMemoryContent } = require('../src/content-lint');
 const { quarantineDecision } = require('../src/quarantine');
-const { setFrontmatterFields } = require('../src/pinning');
+const {
+  validateValidity,
+  supersessionInstant,
+  applySupersession,
+} = require('../src/temporal');
 
 // Best-effort detection of the host AI agent, recorded on each memory's
 // encoding_context for "where your brain is used" analytics. An explicit
@@ -214,6 +218,10 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, qua
   if (mem.supersedes && mem.supersedes.length) {
     fmLines.push(`supersedes: [${mem.supersedes.map((s) => `"${s}"`).join(', ')}]`);
   }
+  // Bitemporal valid time — when the fact was true, as opposed to `created`
+  // (when it was recorded). Emitted only when the author bounded it.
+  if (mem.valid_from) fmLines.push(`valid_from: "${mem.valid_from}"`);
+  if (mem.valid_until) fmLines.push(`valid_until: "${mem.valid_until}"`);
   fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
@@ -267,6 +275,8 @@ function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) 
     entry.quarantine_flagged = now;
   }
   if (mem.supersedes && mem.supersedes.length) entry.supersedes = mem.supersedes;
+  if (mem.valid_from) entry.valid_from = mem.valid_from;
+  if (mem.valid_until) entry.valid_until = mem.valid_until;
   return entry;
 }
 
@@ -450,6 +460,15 @@ async function main() {
       process.exit(1);
     }
 
+    // Bitemporal window, if the author bounded one. Rejected at write time
+    // rather than stored: an inverted window makes the memory invisible to
+    // every as-of query, which is far harder to notice than a failed write.
+    const validity = validateValidity(rawMem);
+    if (validity) {
+      console.error(JSON.stringify({ error: `${validity.error} — memory: ${JSON.stringify(rawMem.title)}` }));
+      process.exit(1);
+    }
+
     // Provenance gate (ASI06) — decide what this origin is allowed to claim
     // before anything reaches disk.
     const policy = applyOriginPolicy(rawMem);
@@ -524,18 +543,27 @@ async function main() {
     }
 
     // Temporal invalidation: stamp `superseded_by` on each memory this one
-    // replaces (index + frontmatter), and link them. The scorer strongly
-    // demotes a superseded memory so the successor wins, without dropping it —
-    // "this was true until now" stays answerable. Unknown target ids are
-    // skipped silently (they may have been forgotten).
-    const supersededNow = [];
-    for (const targetId of (mem.supersedes || [])) {
-      const target = index.memories[targetId];
-      if (!target) continue;
-      target.superseded_by = id;
-      setFrontmatterFields(brainDir, target.path, { superseded_by: id });
-      reinforceEdge(associations, id, targetId, 'manual', 0.20);
-      supersededNow.push({ id: targetId, title: target.title });
+    // replaces (index + frontmatter), plus the valid-time boundary the
+    // replacement implies. The scorer strongly demotes a superseded memory so
+    // the successor wins, without dropping it — "this was true until now"
+    // stays answerable. Unknown target ids are skipped silently (they may have
+    // been forgotten).
+    //
+    // ASI06: a quarantined write must NOT demote anything yet. Supersession is
+    // a write against *existing, already-trusted* memory — a poisoned external
+    // page claiming "the deploy target changed" would otherwise knock the real
+    // memory down 4x at recall before any human looked at it, which is the
+    // whole harm quarantine exists to prevent. The intent is recorded on the
+    // pending memory and applied by `brain verify approve`.
+    const targets = mem.supersedes || [];
+    const deferSupersede = targets.length > 0 && quarantine.quarantined;
+    let supersededNow = [];
+
+    if (targets.length > 0 && !deferSupersede) {
+      supersededNow = applySupersession(brainDir, index, id, targets, {
+        validUntil: supersessionInstant({ valid_from: mem.valid_from, created: now }),
+      });
+      for (const t of supersededNow) reinforceEdge(associations, id, t.id, 'manual', 0.20);
     }
 
     // Update associations — explicit related links
@@ -593,6 +621,11 @@ async function main() {
         : {}),
       ...(lint.flags.length ? { lint_flags: lint.flags.map((f) => f.rule) } : {}),
       ...(supersededNow.length ? { superseded: supersededNow } : {}),
+      // Held back until verification — surfaced so the agent can tell the user
+      // the replacement it asked for has not taken effect yet.
+      ...(deferSupersede ? { supersede_pending: targets } : {}),
+      ...(mem.valid_from ? { valid_from: mem.valid_from } : {}),
+      ...(mem.valid_until ? { valid_until: mem.valid_until } : {}),
     });
   }
 

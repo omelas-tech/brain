@@ -8,6 +8,12 @@
  */
 
 const { trustFactor } = require('./provenance');
+const {
+  EXPIRED_PENALTY,
+  parseInstant,
+  temporalState,
+  validityOf,
+} = require('./temporal');
 
 // Temporal invalidation: multiplier applied to a memory that a newer one has
 // explicitly superseded. Low enough that the successor reliably outranks it,
@@ -378,6 +384,36 @@ function computeSpreadingActivationBatch(scoredMemories, associations, maxDepth 
  *   recall of low-relevance neighbors is a feature, not noise).
  * @returns {Object[]} Scored and sorted memories (highest first)
  */
+/**
+ * Recall multiplier for a memory's temporal standing (1 = current).
+ *
+ * Default mode demotes anything a successor replaced or whose validity window
+ * has elapsed. In valid-time travel (`asOf`) the question changes: a memory
+ * still inside its window *was* current at that instant, so the supersession
+ * demotion is lifted — the fact that it was later replaced is exactly what the
+ * query is looking past.
+ *
+ * The one case that keeps its demotion under asOf is a memory superseded
+ * before validity windows existed (`superseded_by` with no `valid_until`):
+ * nothing records when it stopped being true, so assuming it was still current
+ * would be a guess. Legacy data stays conservative.
+ *
+ * @param {Object} mem - Memory or index entry
+ * @param {Object} ctx - { asOf: number|null, evaluatedAt: number }
+ * @returns {number} Multiplier in (0, 1]
+ */
+function temporalPenaltyFor(mem, { asOf = null, evaluatedAt = Date.now() } = {}) {
+  if (asOf != null) {
+    const supersededWithoutWindow = mem.superseded_by && validityOf(mem).until == null;
+    return supersededWithoutWindow ? SUPERSEDED_PENALTY : 1;
+  }
+
+  let penalty = 1;
+  if (mem.superseded_by) penalty = SUPERSEDED_PENALTY;
+  if (temporalState(mem, evaluatedAt) === 'expired') penalty = Math.min(penalty, EXPIRED_PENALTY);
+  return penalty;
+}
+
 function rankMemories(memories, relevanceFn, options = {}) {
   // Guard every term against NaN (e.g. a missing/invalid last_accessed or
   // strength) — a single NaN score sorts non-deterministically and can outrank
@@ -447,9 +483,34 @@ function rankMemories(memories, relevanceFn, options = {}) {
   // Relevance floor: gate BEFORE final scoring so strength/salience can't
   // carry an unrelated memory into the results (uses raw, unrounded terms).
   const floor = options.relevanceFloor;
-  const gated = floor != null
+  const relevanceGated = floor != null
     ? scored.filter((mem) => mem.relevance >= floor || mem.spreading_bonus >= floor)
     : scored;
+
+  // Bitemporal gates. Both are point-in-time *filters*, not demotions: an
+  // as-of query asks what the world looked like at an instant, and a memory
+  // outside that instant is not a weaker answer — it is not an answer.
+  //   asOf       (valid time)  — the fact was true then
+  //   asKnownOf  (record time) — the brain had recorded it by then
+  // Passing both reconstructs what the brain believed, and when.
+  const asOf = parseInstant(options.asOf);
+  const asKnownOf = parseInstant(options.asKnownOf);
+  let gated = relevanceGated;
+  if (asOf != null) {
+    gated = gated.filter((mem) => temporalState(mem, asOf) === 'current');
+  }
+  if (asKnownOf != null) {
+    gated = gated.filter((mem) => {
+      const recorded = parseInstant(mem.created);
+      // A memory with no parseable record time can't be proven to post-date
+      // the cutoff, so it stays — dropping it would silently lose legacy data.
+      return recorded == null || recorded <= asKnownOf;
+    });
+  }
+
+  // The instant "current" is judged against: the as-of instant in valid-time
+  // travel, otherwise now.
+  const evaluatedAt = asOf != null ? asOf : Date.now();
 
   // Final score
   return gated
@@ -463,21 +524,25 @@ function rankMemories(memories, relevanceFn, options = {}) {
       // volume, not relevance — a clearly more relevant low-trust memory can
       // still win, but it can't win on bulk. Missing origin weighs as the
       // memorize default, so legacy memories keep their relative order.
-      // Temporal invalidation: a memory explicitly superseded by a newer one
-      // (via `superseded_by`) is strongly demoted — not excluded, so an agent
-      // can still surface "this was true until X" — but it must never outrank
-      // the memory that replaced it. Demote, don't drop; the successor wins.
-      const supersededPenalty = mem.superseded_by ? SUPERSEDED_PENALTY : 1;
+      // Temporal invalidation. Two signals say "no longer current": an explicit
+      // successor (`superseded_by`) and an elapsed validity window
+      // (`valid_until`). Take the strongest single penalty, never the product —
+      // a memory carrying both is one stale fact, not two. Demote, don't drop:
+      // the successor wins, but "this was true until X" stays answerable.
+      const temporalPenalty = temporalPenaltyFor(mem, { asOf, evaluatedAt });
 
       const score = fin(computeRecallScore(
         mem.relevance,
         mem.decayed_strength,
         mem.recency_bonus,
         extras
-      )) * trustFactor(mem.origin) * supersededPenalty;
+      )) * trustFactor(mem.origin) * temporalPenalty;
 
       return {
         ...mem,
+        // Standing at the instant this ranking was judged against, so callers
+        // can flag a stale fact without re-deriving the window.
+        temporal_state: temporalState(mem, evaluatedAt),
         decayed_strength: Math.round(mem.decayed_strength * 1000) / 1000,
         recency_bonus: Math.round(mem.recency_bonus * 1000) / 1000,
         relevance: Math.round(mem.relevance * 1000) / 1000,
@@ -506,4 +571,7 @@ module.exports = {
   computeContextMatch,
   computeSpacedBoost,
   improveDecayRate,
+  // Bitemporal validity (see src/temporal.js)
+  temporalPenaltyFor,
+  SUPERSEDED_PENALTY,
 };

@@ -27,8 +27,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const { getBrainDir, readIndex, writeIndex } = require('../src/index-manager');
+const {
+  getBrainDir, readIndex, writeIndex, readAssociations, writeAssociations, reinforceEdge,
+} = require('../src/index-manager');
 const { listPending, approveQuarantine } = require('../src/quarantine');
+const { applySupersession, supersessionInstant } = require('../src/temporal');
 const { appendAudit } = require('../src/audit');
 const { archiveMemory } = require('./forget');
 
@@ -92,6 +95,7 @@ function main(argv) {
     const index = loadIndex();
     const now = new Date().toISOString();
     const approved = [];
+    const supersededOnApproval = [];
     const errors = [];
     for (const id of ids) {
       const entry = index.memories[id];
@@ -107,13 +111,41 @@ function main(argv) {
         entry.vetted = true;
         entry.vetted_at = now;
       }
+
+      // Deferred supersession: memorize withholds the `superseded_by` stamp
+      // when a write lands quarantined, so an unverified memory can never
+      // demote a trusted one behind the user's back. Approval is the moment
+      // that intent takes effect. Re-applying an already-stamped supersession
+      // is a no-op, so the --force path is safe too.
+      let superseded = [];
+      if (entry.supersedes && entry.supersedes.length) {
+        superseded = applySupersession(brainDir, index, id, entry.supersedes, {
+          validUntil: supersessionInstant(entry),
+        });
+        if (superseded.length) {
+          const assoc = readAssociations() || { version: 1, edges: {} };
+          for (const t of superseded) reinforceEdge(assoc, id, t.id, 'manual', 0.20);
+          writeAssociations(assoc);
+        }
+      }
+
       try {
-        appendAudit(brainDir, { ts: now, event: 'verify_approve', id, title: entry.title, origin: entry.origin, forced: force });
+        appendAudit(brainDir, {
+          ts: now, event: 'verify_approve', id, title: entry.title, origin: entry.origin, forced: force,
+          ...(superseded.length ? { superseded: superseded.map((t) => t.id) } : {}),
+        });
       } catch (_) { /* approval already applied */ }
       approved.push(id);
+      if (superseded.length) supersededOnApproval.push({ id, superseded });
     }
     if (approved.length > 0) writeIndex(index);
-    const output = { approved, ...(errors.length ? { errors } : {}) };
+    const output = {
+      approved,
+      // Replacements the approval released — surfaced so the user sees that
+      // approving also demoted something they already trusted.
+      ...(supersededOnApproval.length ? { superseded: supersededOnApproval } : {}),
+      ...(errors.length ? { errors } : {}),
+    };
     if (errors.length && approved.length === 0) {
       console.error(JSON.stringify(output));
       process.exit(1);
