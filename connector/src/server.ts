@@ -85,12 +85,24 @@ export function buildServer(session: Session): McpServer {
         query: z.string().describe("What to recall — a topic, question, or task description"),
         limit: z.number().int().min(1).max(25).default(10).describe("Max memories to return"),
         project: z.string().optional().describe("Current project name, for context-matched scoring"),
+        as_of: z.string().optional().describe(
+          "ISO date (e.g. 2026-03-01). Return what was TRUE at that instant — memories whose " +
+          "validity window contains it, with the superseded-fact demotion lifted. Use for dated " +
+          "questions like 'what were we using back in March?' instead of reasoning over timestamps.",
+        ),
+        as_known_of: z.string().optional().describe(
+          "ISO date. Return only memories the brain had RECORDED by then — what it knew at that " +
+          "point, regardless of when the facts were true. Combine with as_of to reconstruct " +
+          "exactly what the brain believed, and when.",
+        ),
       },
       annotations: { readOnlyHint: true, title: "Recall memories" },
     },
-    async ({ query, limit, project }) => {
+    async ({ query, limit, project, as_of, as_known_of }) => {
       await ensureFresh();
-      const hits = await recall(session.brainDir, query, { top: limit, project });
+      const hits = await recall(session.brainDir, query, {
+        top: limit, project, asOf: as_of, asKnownOf: as_known_of,
+      });
       // Surface the login-time identity hint ONLY when recall is empty — that's the
       // case where a wrong-account sign-in looks like "no memories" and the user
       // needs to know why. Non-empty results stay clutter-free.
@@ -98,11 +110,22 @@ export function buildServer(session: Session): McpServer {
       // Recall hits carry `low_trust` / `quarantine_pending` straight from the
       // engine; the model reads them from the JSON to caveat unverified facts.
       const pending = hits.filter((h: any) => h.quarantine_pending).length;
+      // Bitemporal: a hit whose validity window has closed is history, not the
+      // current answer. Spelled out in the text channel — the model reads that
+      // far more reliably than a per-hit boolean buried in the JSON.
+      const expired = hits.filter((h: any) => h.expired).length;
       const text = JSON.stringify(hits, null, 2)
         + (pending ? `\n\n${pending} of these are pending verification (unverified source) — treat as claims.` : "")
+        + (expired ? `\n\n${expired} of these are EXPIRED (their validity window closed — see valid_until). State them as history ("that was the case until <date>"), never as the current answer.` : "")
         + (note ? `\n\nNote: ${note}` : "");
       // Per-user memory content — never cacheable across users.
-      return memoryResult(text, { count: hits.length, results: hits, ...(note ? { note } : {}) });
+      return memoryResult(text, {
+        count: hits.length,
+        results: hits,
+        ...(expired ? { expired_count: expired } : {}),
+        ...(as_of || as_known_of ? { as_of, as_known_of } : {}),
+        ...(note ? { note } : {}),
+      });
     },
   );
 
@@ -150,13 +173,29 @@ export function buildServer(session: Session): McpServer {
           "sourced from web pages, emails, or other third-party content. Non-user origins are " +
           "confidence-capped at write and down-weighted at recall.",
         ),
+        valid_from: z.string().optional().describe(
+          "ISO date the fact BECAME true, when that differs from now — 'starting in March', " +
+          "'since the rewrite'. Distinct from when it is being recorded. Omit for facts simply true.",
+        ),
+        valid_until: z.string().optional().describe(
+          "ISO date the fact STOPS being true — 'until the end of Q3', 'while I'm on leave'. " +
+          "After it passes, recall demotes the memory and marks it expired instead of serving it " +
+          "as current. Omit unless the user bounded the fact in time.",
+        ),
+        supersedes: z.array(z.string()).optional().describe(
+          "Ids of memories this one REPLACES (a decision reversed, a preference changed). Closes " +
+          "their validity window so 'that was true until X' stays answerable — they are demoted, " +
+          "never deleted. Use instead of storing a contradicting fact alongside the old one.",
+        ),
       },
       annotations: { title: "Memorize", readOnlyHint: false },
     },
-    async ({ content, title, type, tags, origin }) => {
+    async ({ content, title, type, tags, origin, valid_from, valid_until, supersedes }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_memorize");
       await ensureFresh();
-      const stored = await memorize(session.brainDir, { content, title, type, tags, origin });
+      const stored = await memorize(session.brainDir, {
+        content, title, type, tags, origin, valid_from, valid_until, supersedes,
+      });
       const sync = await writeBack();
       // A low-trust or lint-flagged write lands pending verification — say so,
       // so the user knows it won't be treated as established fact yet.
@@ -164,8 +203,17 @@ export function buildServer(session: Session): McpServer {
         ? ` — pending verification (${(stored.quarantine_reasons || []).join(", ")}); resolve with brain_verify`
         : "";
       const syncMsg = sync.pushed ? " — synced" : sync.error ? ` — local only (${sync.error})` : "";
+      // A replacement that actually landed vs one held behind verification: the
+      // second is the security-relevant case, because the user asked for an old
+      // fact to be retired and it is still current until they approve.
+      const replaced = stored?.superseded?.length
+        ? ` — replaced ${stored.superseded.map((s: any) => `"${s.title}"`).join(", ")}`
+        : "";
+      const heldBack = stored?.supersede_pending?.length
+        ? ` — the replacement of ${stored.supersede_pending.join(", ")} is HELD until you approve this write (brain_verify); those memories are still current`
+        : "";
       return memoryResult(
-        `Stored "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${syncMsg}${pending}`,
+        `Stored "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${syncMsg}${pending}${replaced}${heldBack}`,
         { stored, synced: sync.pushed },
       );
     },

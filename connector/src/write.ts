@@ -49,6 +49,15 @@ export interface MemorizeInput {
   category?: string;   // top-level area; defaults to "captured" (reorganized later by sleep)
   project?: string;
   origin?: string;     // user | agent-inferred | tool-output | external (see ORIGINS)
+  // Bitemporal valid time — when the fact WAS TRUE, as distinct from when it
+  // was recorded. Half-open [from, until). The engine rejects an inverted or
+  // unparseable window at write time, which surfaces here as a thrown Error.
+  valid_from?: string;
+  valid_until?: string;
+  // Ids this memory replaces. The engine stamps the reciprocal `superseded_by`
+  // and closes each predecessor's validity window — unless this write lands
+  // quarantined, in which case the stamp is held for `brain_verify approve`.
+  supersedes?: string[];
 }
 
 /** Create a memory from explicitly-provided content (never the raw conversation). */
@@ -66,6 +75,9 @@ export async function memorize(brainDir: string, m: MemorizeInput): Promise<any>
     confidence: 0.8,
     source: "Claude connector",
     ...(m.origin && ORIGINS.has(m.origin) ? { origin: m.origin } : {}),
+    ...(m.valid_from ? { valid_from: m.valid_from } : {}),
+    ...(m.valid_until ? { valid_until: m.valid_until } : {}),
+    ...(m.supersedes?.length ? { supersedes: m.supersedes } : {}),
     encoding_context: { project: m.project || "", topics: m.tags ?? [], task_type: "capturing" },
     content: m.content,
   };

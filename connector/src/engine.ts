@@ -32,11 +32,18 @@ export interface RecallHit {
 export async function recall(
   brainDir: string,
   query: string,
-  opts: { project?: string; task?: string; top?: number } = {},
+  opts: { project?: string; task?: string; top?: number; asOf?: string; asKnownOf?: string } = {},
 ): Promise<RecallHit[]> {
   const args = [RECALL_BIN, query, "--top", String(opts.top ?? 10)];
   if (opts.project) args.push("--project", opts.project);
   if (opts.task) args.push("--task", opts.task);
+  // Bitemporal travel: --as-of filters on valid time (the fact was true then),
+  // --as-known-of on record time (the brain had it by then). The engine rejects
+  // an unparseable bound rather than ignoring it, and that error surfaces here
+  // as a thrown Error — a point-in-time question must never be answered with
+  // present-day memories.
+  if (opts.asOf) args.push("--as-of", opts.asOf);
+  if (opts.asKnownOf) args.push("--as-known-of", opts.asKnownOf);
 
   const { stdout } = await execFileAsync(process.execPath, args, {
     env: { ...process.env, BRAIN_DIR: brainDir },
