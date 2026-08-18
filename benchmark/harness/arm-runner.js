@@ -24,6 +24,8 @@
  *   bare              | nothing seeded, no memory injection
  *   fixture-only      | fixtures only, no memory
  *   brain-real        | session-start payload, distractors, pin+skills enabled
+ *   brain-connector-gated | same corpus, but the MODEL decides whether to recall
+ *                     | (the hosted connector's tool-gated policy — see README)
  *   brain-no-recall   | all oracle memories dumped verbatim (today's behaviour)
  *   brain-no-pin      | brain-real but Pinned Tier disabled
  *   brain-no-skills   | brain-real but Skills disabled
@@ -59,6 +61,7 @@ const INJECTION_MODES = new Set([
   'keyword',                // baseline retriever: lexical/BM25 over the corpus
   'vector',                 // baseline retriever: local dense embeddings (vector-store stand-in)
   'mem0',                   // baseline retriever: real hosted vector store (gated on keys)
+  'connector-gated',        // MODEL decides whether to recall at all (the hosted-connector policy)
 ]);
 
 /**
@@ -148,15 +151,27 @@ async function executeArmRun(ctx) {
     const metrics = createRunMetrics();
     let retrieval = null;
     let memoryPrefix = '';
+    let gateInfo = null;
+
+    // Built before the memory block: the connector-gated arm needs it to run
+    // its gate call through the same agent/env as the task itself.
+    const runEnv = buildAgentEnv(homeDir, agentEnv, dotEnv);
 
     // Build memory context per arm.memory_injection mode. Every arm injects
     // into ONE canonical wrapper (uniform header/delimiters/position) — only
     // the CONTENT differs, never the structure. This removes the prompt-shape
     // confound between session-start / dump / retriever arms.
     if (arm.memory_injection !== 'none' && arm.memory_injection !== undefined) {
-      const ctxBlock = await buildMemoryBlock({ arm, homeDir, setup });
+      const ctxBlock = await buildMemoryBlock({
+        arm, homeDir, setup,
+        gate: {
+          agent, workDir, runEnv, config, metrics,
+          taskText: setup.test?.[0]?.text || '',
+        },
+      });
       memoryPrefix = wrapContextBlock(ctxBlock.text);
       retrieval = ctxBlock.retrieval;
+      gateInfo = ctxBlock.gate || null;
     }
 
     // Optional: prepend full skill bodies for ablation (default is index-only via session-start)
@@ -164,8 +179,6 @@ async function executeArmRun(ctx) {
       const block = buildSkillLoadBlock(arm.skill_load, setup.skills);
       if (block) memoryPrefix = (memoryPrefix || '') + block;
     }
-
-    const runEnv = buildAgentEnv(homeDir, agentEnv, dotEnv);
 
     // Run the test prompts
     const outputs = [];
@@ -219,6 +232,10 @@ async function executeArmRun(ctx) {
       score: judgeResult.score,
       consistency: judgeResult.score, // back-compat with old reporters
       retrieval,
+      // Only present on connector-gated arms: whether the model chose to
+      // recall, and what it asked for. Separates "declined to look" from
+      // "looked with a poor query" — two very different fixes.
+      ...(gateInfo ? { gate: gateInfo } : {}),
       judge: {
         score: judgeResult.score,
         rationale: judgeResult.rationale,
@@ -262,10 +279,17 @@ async function executeContinualArm(ctx) {
       // Build memory injection per-task (fresh recall + session-start each time)
       let memoryPrefix = '';
       let retrieval = null;
+      let gateInfo = null;
       if (arm.memory_injection && arm.memory_injection !== 'none') {
-        const block = await buildMemoryBlock({ arm, homeDir, setup });
+        const block = await buildMemoryBlock({
+          arm, homeDir, setup,
+          // Gate on THIS task's text — the decision is per-task here, exactly
+          // as it is in a real multi-turn connector session.
+          gate: { agent, workDir, runEnv, config, metrics: totalMetrics, taskText: task.text },
+        });
         memoryPrefix = block.text;
         retrieval = block.retrieval;
+        gateInfo = block.gate || null;
       }
 
       const fullPrompt = memoryPrefix + task.text;
@@ -289,6 +313,7 @@ async function executeContinualArm(ctx) {
         tokens: result.tokens.input + result.tokens.output,
         time_ms: result.time_ms,
         retrieval,
+        ...(gateInfo ? { gate: gateInfo } : {}),
         judge_rationale: judged.rationale,
       });
 
@@ -422,7 +447,7 @@ function installSkills(homeDir, skills) {
  * Build the memory text block prepended to test prompts AND, if oracle IDs
  * are declared, score Recall@k from the retrieved IDs.
  */
-async function buildMemoryBlock({ arm, homeDir, setup }) {
+async function buildMemoryBlock({ arm, homeDir, setup, gate }) {
   const mode = arm.memory_injection;
   if (!INJECTION_MODES.has(mode)) throw new Error(`Unknown memory_injection: ${mode}`);
 
@@ -480,6 +505,10 @@ async function buildMemoryBlock({ arm, homeDir, setup }) {
     return { text: formatMemItemsForPrompt(oracleMems), retrieval };
   }
 
+  if (mode === 'connector-gated') {
+    return connectorGatedRecall({ arm, homeDir, setup, gate });
+  }
+
   if (mode === 'keyword' || mode === 'vector' || mode === 'mem0') {
     // Baseline retrievers over the same corpus Brain sees. Only the retrieval
     // METHOD differs from the brain-real arm — same wrapper, same budget.
@@ -494,6 +523,140 @@ async function buildMemoryBlock({ arm, homeDir, setup }) {
   }
 
   return { text: '', retrieval: null };
+}
+
+/* ────────────────────── connector-gated recall policy ────────────────────── */
+
+// The hosted MCP connector advertises memory as TOOLS: nothing is injected up
+// front, and the model chooses whether to call `brain_recall` and with what
+// query. That is a *gating* policy, and it is the policy real Claude.ai users
+// get — while every other brain-* arm measures the always-on ranked injection
+// the local plugin does at session start. Without this arm the connector's
+// actual retrieval behaviour is unmeasured.
+//
+// Kept verbatim from connector/src/server.ts (server `instructions` + the
+// brain_recall tool description) so the arm tests the advertisement we really
+// ship, not a paraphrase of it. Update both together.
+const CONNECTOR_INSTRUCTIONS =
+  "Recall the user's stored memories before tasks where prior decisions, " +
+  "preferences, or learnings may help. brain_recall ranks by the brain's own " +
+  "scoring (relevance + decayed strength + spreading activation), not keyword match. " +
+  "Use brain_memorize to store a specific fact the user asks to remember — pass only the " +
+  "distilled content, never the whole conversation.";
+
+const CONNECTOR_RECALL_TOOL_DESC =
+  "Recall the user's most relevant stored memories for a query, ranked by the " +
+  "brain engine (TF-IDF relevance + decayed strength + spreading activation + " +
+  "context match). Call this at the start of a task where past context may help.";
+
+/**
+ * Prompt that puts the model in the connector's position: it sees the tool
+ * advertisement and the task, and nothing else. No memory content is shown, so
+ * the decision has to be made the way it is made in production — on the task
+ * text alone.
+ */
+function buildGatePrompt(taskText) {
+  return [
+    'You have access to a memory server with the following instructions:',
+    '',
+    CONNECTOR_INSTRUCTIONS,
+    '',
+    'It exposes this tool:',
+    '',
+    `  brain_recall(query: string, limit?: number)`,
+    `    ${CONNECTOR_RECALL_TOOL_DESC}`,
+    '',
+    'You are about to be given the task below. Decide whether to call brain_recall first.',
+    '',
+    '--- TASK ---',
+    taskText,
+    '--- END TASK ---',
+    '',
+    'Reply with ONLY a JSON object, no prose:',
+    '  {"recall": true, "query": "<the query you would pass>"}',
+    '  {"recall": false}',
+  ].join('\n');
+}
+
+/**
+ * Parse the gate decision. Models wrap JSON in prose or fences often enough
+ * that a strict parse would measure formatting rather than policy, so scan for
+ * the first JSON object. An unparseable reply counts as "did not recall" —
+ * which is what a malformed tool call yields in production too — but is
+ * flagged separately so it can be told apart from a deliberate decline.
+ */
+function parseGateDecision(output) {
+  const text = String(output || '');
+  const match = text.match(/\{[^{}]*"recall"[\s\S]*?\}/);
+  if (!match) return { recall: false, parse_failed: true };
+  try {
+    const obj = JSON.parse(match[0]);
+    const recall = obj.recall === true || obj.recall === 'true';
+    const query = typeof obj.query === 'string' ? obj.query.trim() : '';
+    // Asked for recall but gave no query — a real tool call with an empty
+    // argument retrieves nothing. Treat it as a failed call, not a decline.
+    if (recall && !query) return { recall: false, parse_failed: true };
+    return { recall, query };
+  } catch {
+    return { recall: false, parse_failed: true };
+  }
+}
+
+/**
+ * Model-gated recall. Two phases:
+ *   1. Ask the SAME agent whether it would call brain_recall, and with what
+ *      query. Its tokens are charged to the arm — gating is not free, and
+ *      tokens_per_success must show that.
+ *   2. If it says yes, run the real engine with ITS query (never the
+ *      scenario's curated recall_query — a self-authored query is precisely
+ *      what this policy costs) and inject through the shared wrapper.
+ *
+ * Declining scores as a retrieval MISS rather than null: the arm had the
+ * oracle available and did not fetch it, which is the failure this measures.
+ */
+async function connectorGatedRecall({ arm, homeDir, setup, gate }) {
+  if (!gate || !gate.agent) {
+    throw new Error("memory_injection 'connector-gated' requires agent context (harness bug)");
+  }
+  const { agent, workDir, runEnv, config, metrics, taskText } = gate;
+  const oracleIds = setup.oracle_memory_ids;
+  const miss = () => (oracleIds ? scoreRetrieval([], oracleIds) : null);
+
+  let decision;
+  try {
+    const result = await runAgentWithRetry(agent, buildGatePrompt(taskText), {
+      cwd: workDir, timeout: config.timeouts.prompt_ms, env: runEnv,
+    });
+    if (metrics) recordPrompt(metrics, result, 'connector-gate');
+    decision = parseGateDecision(result.output);
+  } catch (err) {
+    // A failed gate call means no memory reached the task — the honest
+    // outcome, recorded rather than silently retried into an always-on arm.
+    return {
+      text: '', retrieval: miss(),
+      gate: { invoked: false, error: String(err.message).slice(0, 120) },
+    };
+  }
+
+  if (!decision.recall) {
+    return {
+      text: '', retrieval: miss(),
+      gate: { invoked: false, declined: true, parse_failed: !!decision.parse_failed },
+    };
+  }
+
+  const top = arm.recall_top || 5;
+  const ranked = await recall({
+    homeDir,
+    query: decision.query,
+    project: setup.context?.project,
+    topics: (setup.context?.topics || []).join(','),
+    task: setup.context?.task_type,
+    top: Math.max(top, 10),
+  });
+  const text = formatRecallForPrompt(ranked.slice(0, top));
+  const retrieval = oracleIds ? scoreRetrieval(ranked, oracleIds) : null;
+  return { text, retrieval, gate: { invoked: true, query: decision.query, hits: ranked.length } };
 }
 
 /* ─────────────── context-block wrapper & retriever plumbing ─────────────── */
@@ -848,4 +1011,13 @@ function walk(dir, base, cb) {
   }
 }
 
-module.exports = { runArms };
+module.exports = {
+  runArms,
+  // Exported for tests — the connector-gated policy is the one arm whose
+  // behaviour depends on model output, so its parsing and fallbacks are
+  // covered directly rather than only through a live run.
+  buildGatePrompt,
+  parseGateDecision,
+  connectorGatedRecall,
+  INJECTION_MODES,
+};

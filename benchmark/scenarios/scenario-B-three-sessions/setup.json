@@ -157,6 +157,16 @@
       "skills": true
     },
     {
+      "name": "brain-connector-gated",
+      "label": "Brain via connector (model-gated recall)",
+      "seed": "scenario+distractors",
+      "distractor_size": 100,
+      "memory_injection": "connector-gated",
+      "recall_top": 5,
+      "pin": true,
+      "skills": true
+    },
+    {
       "name": "brain-no-pin",
       "label": "Brain w/ pinning OFF",
       "seed": "scenario+distractors",

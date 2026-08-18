@@ -91,6 +91,7 @@
     { "name": "context-dump-bounded",   "label": "Dump <=8k tokens (fair)",        "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents", "dump_budget_tokens": 8000 },
     { "name": "context-dump-large", "label": "Dump ~60k tokens (scaling wall)", "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "dump-contents", "dump_budget_tokens": 60000 },
     { "name": "brain-full",             "label": "Brain (production)",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": true,  "skills": true },
+    { "name": "brain-connector-gated",  "label": "Brain via connector (gated)",    "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "connector-gated", "recall_top": 5, "pin": true,  "skills": true },
     { "name": "brain-no-recall",        "label": "Brain, recall off",              "seed": "scenario",             "memory_injection": "dump-bodies" },
     { "name": "brain-no-pin",           "label": "Brain, pinning off",             "seed": "scenario+distractors", "distractor_size": 1000, "memory_injection": "session-start", "pin": false, "skills": true }
   ],

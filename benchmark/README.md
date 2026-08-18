@@ -46,12 +46,35 @@ This is a redesign of the original benchmark (the legacy 5-scenario suite is arc
 | `mem0` | Real hosted vector store (gated on `MEM0_API_KEY`), top-k injected | Hosted vector-store comparison |
 | `context-dump-bounded` | Dump corpus up to a fixed token budget (`dump_budget_tokens`) | The FAIR "just stuff the prompt" baseline (C3) |
 | `context-dump-unbounded` | Dump the whole haystack, no cap | The scaling wall — expect high `NO_COMPLETION` |
-| `brain-full` | Full brain via `brain session-start`, distractor haystack, pin+skills on | What we ship |
+| `brain-full` | Full brain via `brain session-start`, distractor haystack, pin+skills on | What we ship *locally* — always-on ranked injection |
+| `brain-connector-gated` | Same corpus, but the MODEL decides whether to call recall and with what query | What we ship *hosted* — the connector's tool-gated policy |
 | `brain-no-recall` | Oracle bodies prepended verbatim, no retrieval | Long-context vs retrieval value |
 | `brain-no-pin` | `brain-full` with pinned tier disabled | CoALA Phase-1 attribution (C4) |
 | `brain-no-skills` | `brain-full` with skills layer disabled | CoALA Phase-2 attribution |
 
 All arms inject memory into ONE canonical context-block wrapper (`wrapContextBlock`) — identical header, delimiters, and position. Only the *content* varies, never the prompt structure, so a measured difference is attributable to memory, not framing. Each scenario picks the arms relevant to what it tests.
+
+### Why `brain-connector-gated` exists
+
+Brain ships two retrieval **policies**, and until this arm only one of them was measured.
+
+The local plugin injects ranked memory at session start, unconditionally. The hosted MCP connector instead advertises memory as tools and lets the model decide whether to call `brain_recall` — so a Claude.ai user gets *gating*, not always-on recall. Every other `brain-*` arm uses `session-start` or `dump-bodies` injection, which means the connector's real behaviour went unmeasured.
+
+That matters because the one external result we have points the wrong way: Druga (Sakana AI, 2026) tested a policy ladder on local models and found a ranked ledger beat *"just gating the harness by saying do you need to use memory or do you not need to use memory."* If that holds here, the connector is on the losing side of it and the fix is architectural, not cosmetic.
+
+The arm models the policy, not the transport. It runs two phases against the same agent:
+
+1. **Gate** — the model sees the connector's real `instructions` string and `brain_recall` description (copied verbatim from `connector/src/server.ts`, and no memory content), plus the task, and returns `{"recall": bool, "query": str}`.
+2. **Recall** — if it said yes, the engine runs with *its own* query, not the scenario's curated `recall_query`. A self-authored query is part of what the policy costs.
+
+Two properties keep the comparison honest:
+
+- **The gate call's tokens are charged to the arm.** Gating is not free, and `tokens_per_success` has to show that.
+- **Declining scores as a retrieval miss (recall@k = 0), not `null`.** The oracle was there to be fetched and wasn't. Scoring it as "not measured" would quietly drop the arm from recall comparisons and flatter the policy.
+
+Each run records a `gate` block (`invoked`, `query`, `declined`, `parse_failed`, `hits`) so the two failure modes stay separable: *declined to look* is a prompt/architecture problem, *looked with a bad query* is a tool-description problem. They have different fixes.
+
+Pair it with `brain-full` on the same corpus and distractor size — that pairing is the A/B, and it is set up that way in `scenario-A-noisy-folder` and `scenario-B-three-sessions`.
 
 ## Metrics
 
