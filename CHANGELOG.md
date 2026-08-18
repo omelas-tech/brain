@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-18
+
+Adds the second time axis. Memory now records not just when it learned a
+fact but when that fact was true, so recall can answer "what was true in
+March?" instead of ranking a stale answer first — and closes two
+supersession holes that, chained, let an unverified write quietly demote a
+trusted memory.
+
 ### Added
 
 - **Bitemporal validity.** Memories now carry a valid-time window
@@ -28,6 +36,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   validity window has closed is no longer injected every session as an active
   constraint; session start reports the count as `expired_pins` so it can be
   updated or unpinned. It stays reachable through ordinary recall.
+- **Bitemporal on the hosted connector.** `brain_recall` gained `as_of` and
+  `as_known_of`; `brain_memorize` gained `valid_from`, `valid_until`, and
+  `supersedes`. Expired hits are called out in the text channel rather than only
+  as a JSON field, and a replacement held back by quarantine is stated
+  explicitly ("the replacement of X is HELD until you approve this write; those
+  memories are still current") instead of failing silently.
+- **`brain-connector-gated` benchmark arm.** Brain ships two retrieval
+  *policies* and only one was measured: the local plugin injects ranked memory
+  at session start unconditionally, while the hosted connector advertises memory
+  as tools and lets the model decide whether to recall at all. The new arm
+  models that gating policy — the model sees the connector's real tool
+  advertisement and the task, decides, and if it recalls, the engine runs with
+  *its own* query. The gate call's tokens are charged to the arm and a decline
+  scores as a retrieval miss rather than "not measured", so the policy can't
+  flatter itself. Each run records whether the model declined to look or looked
+  with a poor query — different failures, different fixes.
 
 ### Fixed
 
@@ -44,6 +68,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   (and therefore `brain verify reject` and `brain forget`) now withdraws the
   supersessions a memory imposed, reported as `released`. Automatically stamped
   validity is withdrawn with it; a window set by hand is left alone.
+- **Corrected a false MCP conformance claim in the connector.** A note in
+  `connector/src/result.ts` described its `_meta` cache marker as
+  "forward-compatible with the final spec". Checked against the final
+  2026-07-28 text (SEP-2549) it isn't: `cacheScope`/`ttlMs` are top-level fields
+  on `CacheableResult` and apply to `tools/list`, `prompts/list`,
+  `resources/list`, `resources/read`, and `resources/templates/list` —
+  `tools/call` is not a cacheable result, so a memory response carries no spec
+  `cacheScope` at all. The marker stays as deliberate defense-in-depth against
+  an intermediary that caches tool output heuristically; it is simply no longer
+  described as conformance. `connector/docs/mcp-2026-07-28-conformance.md`
+  records the verified per-item status: statelessness and the OAuth 2.1
+  resource-server requirements are met, while `server/discover`, per-request
+  `_meta`, and `tools/list` caching are blocked on the TypeScript SDK — both
+  1.29.0 and the current latest 1.30.0 still top out at protocol 2025-11-25.
 
 ## [0.1.0] - 2026-08-08
 
