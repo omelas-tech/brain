@@ -116,12 +116,23 @@ If the output contains `quarantine_pending: true`, the memory landed in the pend
 
 ### 5. Resolve contradictions (Tier B §10.2)
 
-If a stored memory's result includes `potential_conflicts`, it shares heavy tag overlap with a **pinned or stable** memory — and pinned/stable facts never decay out of contention, so a stale one is dangerous. **Do not silently keep both.** Inspect the conflicting memory (`brain recall` or read its file) and, if the new memory genuinely contradicts it, propose a resolution to the user:
-- **Supersede** — store the new fact with `"supersedes": ["<old_id>"]` (see below).
-- **Keep both, scoped** — e.g. pin each to its own project.
+If a stored memory's result includes `potential_conflicts`, the new write overlaps memories it may have ended. Each proposal carries:
+
+| Field | Meaning |
+|---|---|
+| `authority` | `pinned` / `stable` / `same-type` — how much weight the older memory carries |
+| `shared_tags` | Why it was surfaced |
+| `proposed_valid_until` | The exact boundary a supersede would stamp on the older memory |
+
+`pinned` and `stable` facts never decay out of contention, so a stale one is dangerous. `same-type` means a like-for-like memory (a `decision` that may have replaced a `decision`) — the ordinary "we changed our minds" case, which is precisely the one users never think to flag.
+
+**Do not silently keep both.** Inspect the conflicting memory (`brain recall` or read its file) and, if the new memory genuinely contradicts it, propose a resolution — quoting `proposed_valid_until` so the user sees the concrete boundary:
+
+- **Supersede** — store the new fact with `"supersedes": ["<old_id>"]`, which stamps the older memory's `valid_until` (see below). Say it plainly: *"Shall I mark 'Deploy to Fly.io' as true until 2026-08-21?"*
+- **Keep both, scoped** — e.g. pin each to its own project. Right when the two facts coexist rather than replace ("Postgres for analytics" vs "Postgres for sessions").
 - **Reject the new one** — the old fact stands.
 
-Never auto-resolve; surface the conflict and let the user decide.
+Never auto-resolve. Tag overlap is a *relatedness* signal, not a contradiction signal — only the conversation can tell whether B actually ended A, so surface the proposal and let the user decide.
 
 ### Superseding an outdated memory (temporal invalidation)
 

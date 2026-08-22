@@ -38,6 +38,8 @@ const {
 const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
 const { appendAudit } = require('../src/audit');
 const { lintMemoryContent } = require('../src/content-lint');
+const { contentHash } = require('../src/integrity');
+const { proposeSupersessions } = require('../src/contradiction');
 const { quarantineDecision } = require('../src/quarantine');
 const {
   validateValidity,
@@ -530,6 +532,12 @@ async function main() {
 
     // Update index
     const indexEntry = buildIndexEntry(mem, id, strength, decay_rate, now, origin, quarantine);
+    // Integrity baseline (OWASP ASI06, Store phase): record what this memory
+    // said the moment the brain agreed with it, hashed from the exact bytes
+    // just written. `brain audit` compares against this to catch edits that
+    // never came through a write path — the one poisoning route every other
+    // defense here is blind to. See src/integrity.js.
+    indexEntry.content_hash = contentHash(fileContent);
     addMemory(index, id, indexEntry);
 
     // CoALA Phase 1: register a born-pinned memory in the pinned manifest
@@ -579,14 +587,17 @@ async function main() {
       reinforceEdge(associations, id, overlapId, 'tag_overlap', 0.10);
     }
 
-    // Tier B §10.2: surface potential contradictions with pinned/stable memories
-    // (high tag overlap) so the agent can adjudicate — never auto-resolved here.
-    const potentialConflicts = tagOverlaps
-      .filter((oid) => {
-        const e = index.memories[oid];
-        return e && (e.pinned || e.stable);
-      })
-      .map((oid) => ({ id: oid, title: index.memories[oid].title }));
+    // Tier B §10.2: surface potential contradictions so the agent can
+    // adjudicate — never auto-resolved here. Each proposal carries the
+    // `valid_until` a supersede would stamp, so the agent can offer the
+    // boundary ("shall I mark the old one as ended on <date>?") instead of
+    // leaving two unbounded facts competing in every future recall.
+    const potentialConflicts = proposeSupersessions(
+      index,
+      { ...mem, created: now },
+      tagOverlaps,
+      { now },
+    );
 
     // Update search index
     addDocument(searchIndex, id, {
