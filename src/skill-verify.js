@@ -79,12 +79,18 @@ function resolveInside(cwd, rel) {
 function onPath(name) {
   if (typeof name !== 'string' || !/^[A-Za-z0-9._-]+$/.test(name)) return false;
   const dirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  // Windows resolves commands through PATHEXT (`node` on PATH is node.exe);
+  // POSIX has no equivalent, so the bare name is the only candidate there.
+  const exts = process.platform === 'win32'
+    ? ['', ...(process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)]
+    : [''];
   for (const dir of dirs) {
-    const candidate = path.join(dir, name);
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return true;
-    } catch { /* keep looking */ }
+    for (const ext of exts) {
+      try {
+        fs.accessSync(path.join(dir, name + ext), fs.constants.X_OK);
+        return true;
+      } catch { /* keep looking */ }
+    }
   }
   return false;
 }
