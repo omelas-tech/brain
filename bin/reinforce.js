@@ -15,6 +15,7 @@
  *   - Spaced reinforcement boost to each memory's strength
  *   - Decay rate improvement (more forgetting-resistant)
  *   - access_count++, last_accessed = now
+ *   - recall_history entry (timestamp + interval + strength delta), capped
  *   - Hebbian co-retrieval: strengthens association edges between all pairs
  *   - Updates index.json, associations.json, and memory files
  */
@@ -37,6 +38,10 @@ const {
   reinforceStrength,
   improveDecayRate,
 } = require('../src/scorer');
+
+// Recall-history rows kept per memory. Enough to fit an interval curve;
+// small enough that a hot memory's frontmatter stays cheap to parse.
+const RECALL_HISTORY_MAX = 50;
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -86,12 +91,35 @@ function main() {
     entry.last_accessed = nowISO;
     entry.access_count = accessCount + 1;
 
+    // Recall history: one row per reinforcement, capped.
+    //
+    // `access_count` says a memory was recalled N times; it cannot say *when*,
+    // and the interval is the entire signal. Spaced reinforcement is built on
+    // the premise that longer gaps produce larger, more durable boosts — but
+    // without the timestamps that premise is unfalsifiable, and the decay
+    // constants stay hand-set forever because there is nothing to fit them to.
+    // This is the series that makes calibration possible (see
+    // benchmark/harness/decay-calibration.js).
+    //
+    // Bounded at RECALL_HISTORY_MAX: a frequently-recalled memory would
+    // otherwise grow an unbounded array inside a file that is read on every
+    // recall. Oldest rows drop first; the recent intervals carry the signal.
+    const history = Array.isArray(entry.recall_history) ? entry.recall_history : [];
+    history.push({
+      at: nowISO,
+      days_since_last: Math.round(daysSince * 100) / 100,
+      strength_before: oldStrength,
+      strength_after: entry.strength,
+    });
+    entry.recall_history = history.slice(-RECALL_HISTORY_MAX);
+
     // Update the memory file's frontmatter on disk
     updateMemoryFile(brainDir, entry.path, {
       strength: entry.strength,
       decay_rate: entry.decay_rate,
       last_accessed: nowISO,
       access_count: entry.access_count,
+      recall_history: entry.recall_history,
     });
 
     reinforced.push({
@@ -157,7 +185,12 @@ function updateMemoryFile(brainDir, memPath, updates) {
     // Update each field in the YAML
     for (const [key, value] of Object.entries(updates)) {
       const regex = new RegExp(`^(${key}:\\s*).*$`, 'm');
-      const formatted = typeof value === 'string' ? `"${value}"` : String(value);
+      // Arrays and objects must be JSON-encoded: `String(value)` renders an
+      // array of objects as "[object Object]", which is both lossy and invalid
+      // YAML. JSON is a YAML subset, so a flow-style array round-trips cleanly.
+      const formatted = typeof value === 'string'
+        ? `"${value}"`
+        : (value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value));
       if (regex.test(frontmatter)) {
         frontmatter = frontmatter.replace(regex, `$1${formatted}`);
       }
