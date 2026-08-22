@@ -17,6 +17,7 @@ const assert = require('node:assert/strict');
 const keyword = require('../harness/retrievers/keyword');
 const vectorBaseline = require('../harness/retrievers/vector-baseline');
 const mem0 = require('../harness/retrievers/mem0');
+const dense = require('../harness/retrievers/dense');
 const { scoreRetrieval } = require('../harness/recall-probe');
 
 // ─────────────────────────────────────────────────────────
@@ -269,6 +270,103 @@ describe('mem0 retriever', () => {
       if (savedMem0 !== undefined) process.env.MEM0_API_KEY = savedMem0;
       if (savedOpenai !== undefined) process.env.OPENAI_API_KEY = savedOpenai;
       if (savedEmbed !== undefined) process.env.MEM0_EMBEDDING_API_KEY = savedEmbed;
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Dense retriever — real embeddings, no vector store.
+//
+// The pure math and the configuration gate are testable offline; the network
+// path is not exercised here on purpose (a unit test that needs an API key is
+// a test that never runs in CI).
+// ─────────────────────────────────────────────────────────
+
+describe('Dense retriever', () => {
+  it('exports name and an async retrieve', () => {
+    assert.equal(dense.name, 'dense');
+    assert.equal(typeof dense.retrieve, 'function');
+    assert.equal(dense.retrieve.constructor.name, 'AsyncFunction');
+  });
+
+  it('shares memoryText with the keyword arm so the comparison stays controlled', () => {
+    // If these ever diverge, the dense-vs-keyword delta stops measuring
+    // retrieval method and starts measuring text composition.
+    assert.equal(typeof keyword.memoryText, 'function');
+    const mem = CORPUS[0];
+    assert.equal(keyword.memoryText(mem), keyword.memoryText(mem));
+    assert.ok(keyword.memoryText(mem).includes(mem.title));
+  });
+
+  it('rejects with the configured-absence error when unconfigured', async () => {
+    const saved = {
+      url: process.env.BRAIN_EMBED_URL,
+      key: process.env.BRAIN_EMBED_KEY,
+      openai: process.env.OPENAI_API_KEY,
+    };
+    delete process.env.BRAIN_EMBED_URL;
+    delete process.env.BRAIN_EMBED_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      assert.equal(dense.isConfigured(), false);
+      await assert.rejects(
+        () => dense.retrieve(CORPUS, QUERY, { top: 10 }),
+        /dense retriever not configured/,
+      );
+    } finally {
+      for (const [env, val] of [
+        ['BRAIN_EMBED_URL', saved.url],
+        ['BRAIN_EMBED_KEY', saved.key],
+        ['OPENAI_API_KEY', saved.openai],
+      ]) {
+        if (val !== undefined) process.env[env] = val;
+      }
+    }
+  });
+
+  it('treats a custom endpoint as configured (local servers need no key)', () => {
+    const saved = process.env.BRAIN_EMBED_URL;
+    process.env.BRAIN_EMBED_URL = 'http://127.0.0.1:11434/v1/embeddings';
+    try {
+      assert.equal(dense.isConfigured(), true);
+    } finally {
+      if (saved === undefined) delete process.env.BRAIN_EMBED_URL;
+      else process.env.BRAIN_EMBED_URL = saved;
+    }
+  });
+
+  it('l2normalize produces a unit vector', () => {
+    const v = dense.l2normalize([3, 4]);
+    assert.ok(Math.abs(Math.hypot(...v) - 1) < 1e-12);
+  });
+
+  it('l2normalize leaves the zero vector alone', () => {
+    assert.deepEqual(dense.l2normalize([0, 0, 0]), [0, 0, 0]);
+  });
+
+  it('cosine of a normalized vector with itself is 1', () => {
+    const v = dense.l2normalize([1, 2, 3]);
+    assert.ok(Math.abs(dense.cosine(v, v) - 1) < 1e-12);
+  });
+
+  it('cosine of orthogonal vectors is 0', () => {
+    assert.equal(dense.cosine([1, 0], [0, 1]), 0);
+  });
+
+  it('cosine scores mismatched dimensions as 0 rather than throwing', () => {
+    // A corpus embedded by a previous model should degrade the arm, not crash
+    // the suite.
+    assert.equal(dense.cosine([1, 0, 0], [1, 0]), 0);
+  });
+
+  it('returns an empty ranking for an empty corpus without calling the API', async () => {
+    const saved = process.env.BRAIN_EMBED_URL;
+    process.env.BRAIN_EMBED_URL = 'http://127.0.0.1:1/v1/embeddings'; // unreachable on purpose
+    try {
+      assert.deepEqual(await dense.retrieve([], QUERY, { top: 5 }), []);
+    } finally {
+      if (saved === undefined) delete process.env.BRAIN_EMBED_URL;
+      else process.env.BRAIN_EMBED_URL = saved;
     }
   });
 });

@@ -61,6 +61,7 @@ const INJECTION_MODES = new Set([
   'keyword',                // baseline retriever: lexical/BM25 over the corpus
   'vector',                 // baseline retriever: local dense embeddings (vector-store stand-in)
   'mem0',                   // baseline retriever: real hosted vector store (gated on keys)
+  'dense',                  // baseline retriever: REAL embeddings, no vector store (gated on keys)
   'connector-gated',        // MODEL decides whether to recall at all (the hosted-connector policy)
 ]);
 
@@ -509,7 +510,7 @@ async function buildMemoryBlock({ arm, homeDir, setup, gate }) {
     return connectorGatedRecall({ arm, homeDir, setup, gate });
   }
 
-  if (mode === 'keyword' || mode === 'vector' || mode === 'mem0') {
+  if (mode === 'keyword' || mode === 'vector' || mode === 'mem0' || mode === 'dense') {
     // Baseline retrievers over the same corpus Brain sees. Only the retrieval
     // METHOD differs from the brain-real arm — same wrapper, same budget.
     const retriever = loadRetriever(mode);
@@ -688,6 +689,7 @@ function loadRetriever(mode) {
   if (mode === 'keyword') return require('./retrievers/keyword');
   if (mode === 'vector') return require('./retrievers/vector-baseline');
   if (mode === 'mem0') return require('./retrievers/mem0');
+  if (mode === 'dense') return require('./retrievers/dense');
   throw new Error(`no retriever for mode: ${mode}`);
 }
 

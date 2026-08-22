@@ -47,3 +47,9 @@ benchmark/results/jc*
 # Organize as: .local/<topic>/<description>/
 .local/
 benchmark/brain.code-workspace
+
+# Benchmark embedding cache (deterministic, regenerable — see benchmark/harness/retrievers/dense.js)
+.embed-cache/
+
+# LongMemEval-S dataset (277MB, fetched on demand — see benchmark/harness/longmemeval.js)
+benchmark/data/

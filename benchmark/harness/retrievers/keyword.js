@@ -124,4 +124,4 @@ function retrieve(memories, query, opts = {}) {
   return ranked.slice(0, top);
 }
 
-module.exports = { name: 'keyword', retrieve, tokenize };
+module.exports = { name: 'keyword', retrieve, tokenize, memoryText };
