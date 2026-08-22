@@ -83,7 +83,7 @@ export default function SecurityPage() {
               entrenching, trust-weighted recall, a write-time lint for instruction-shaped payloads,{" "}
               <strong className="text-[var(--text-primary)]">quarantine</strong> of untrusted writes
               for review, anomaly detection (<code className="font-mono text-xs bg-[var(--surface-2)] border border-[var(--border)] px-1.5 py-0.5 rounded">brain audit</code>),
-              and an append-only audit log with one-command rollback. See{" "}
+              and an append-only audit log with one-command rollback. Because memories are plain files, Brain additionally records a <strong className="text-[var(--text-primary)]">SHA-256 baseline</strong> of every memory at write time, so <code className="text-[var(--accent)]">brain audit</code> also detects edits made outside any write path — the one poisoning route the write-path defenses are blind to. See{" "}
               <a
                 href="/docs/concepts/provenance-trust/"
                 className="text-[var(--accent)] hover:underline"

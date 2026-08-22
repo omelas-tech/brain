@@ -19,6 +19,7 @@
  */
 
 const { isLowTrust } = require('./provenance');
+const { detectContentDrift } = require('./integrity');
 const { readAudit } = require('./audit');
 const { listPending, applyQuarantine } = require('./quarantine');
 
@@ -204,11 +205,16 @@ function runAudit(brainDir, deps, opts = {}) {
     ...detectWriteBursts(auditEvents, { windowHours }),
     ...detectLowTrustCliques(index, associations),
     ...detectReinforcedLowTrust(index),
+    // Store-phase tamper detection. Advisory only — legitimate edits (sleep
+    // consolidation, a user fixing a typo) also move the hash, so these
+    // findings are reported but never fed to the --apply quarantine path.
+    ...detectContentDrift(brainDir, index),
   ];
 
   const memories = (index && index.memories) || {};
   const proposed = new Set();
   for (const f of findings) {
+    if (f.advisory) continue;   // integrity drift is reported, never auto-quarantined
     for (const id of f.ids || (f.id ? [f.id] : [])) {
       const e = memories[id];
       if (!e) continue;
@@ -253,6 +259,7 @@ function runAudit(brainDir, deps, opts = {}) {
 
 module.exports = {
   detectWriteBursts,
+  detectContentDrift,
   detectLowTrustCliques,
   detectReinforcedLowTrust,
   runAudit,
