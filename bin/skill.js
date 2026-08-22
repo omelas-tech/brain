@@ -8,6 +8,9 @@
  *   brain skill show <name>             Full SKILL.md (L1 disclosure)
  *   brain skill use <name> [--failed]   Record a use; success strengthens,
  *                                       --failed weakens (demotion feedback)
+ *   brain skill verify <name>           Check the skill's declared
+ *                                       preconditions against the current
+ *                                       directory. Read-only, never executes.
  *   brain skill remove <name>           Delete a skill
  *   brain skill add                     Create a skill from JSON on stdin:
  *                                       { name, description, triggers[], body }
@@ -15,14 +18,14 @@
 
 const fs = require('fs');
 const {
-  addSkill, listSkills, showSkill, useSkill, removeSkill, exportSkill,
+  addSkill, listSkills, showSkill, useSkill, removeSkill, exportSkill, verifySkillByName,
 } = require('../src/skills');
 
 function emit(obj) { console.log(JSON.stringify(obj, null, 2)); }
 function fail(obj) { console.error(JSON.stringify(obj)); process.exit(1); }
 function done(result) { return result && result.error ? fail(result) : emit(result); }
 
-const USAGE = 'Usage: brain skill <list|show <name>|use <name> [--failed]|add|remove <name>|export <name> [--target claude|gemini]>';
+const USAGE = 'Usage: brain skill <list|show <name>|use <name> [--failed]|verify <name>|add|remove <name>|export <name> [--target claude|gemini]>';
 
 function main(argv) {
   const args = argv || process.argv.slice(2);
@@ -39,6 +42,9 @@ function main(argv) {
     case 'use':
       if (!firstName) return fail({ error: USAGE });
       return done(useSkill(undefined, firstName, { failed: rest.includes('--failed') }));
+    case 'verify':
+      if (!firstName) return fail({ error: USAGE });
+      return done(verifySkillByName(undefined, firstName));
     case 'remove':
       if (!firstName) return fail({ error: USAGE });
       return done(removeSkill(undefined, firstName));

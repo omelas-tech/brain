@@ -58,3 +58,32 @@ brain skill export <name> [--target claude|gemini]
 - Advertise skills with a **crisp, matchable description** — that single line is all the agent sees at L0, so it must convey when to reach for the skill.
 - Reach for `show` only when a task genuinely matches; don't pre-load skills speculatively.
 - Always record the outcome with `use` (success or `--failed`) so the strength/demotion feedback loop stays accurate.
+
+### Verifying a skill (`brain skill verify <name>`)
+
+A skill is a claim about how a repo works, and repos move. `brain skill verify <name>` checks the skill's declared preconditions against the current directory and answers whether the claim still holds — **without running the agent**:
+
+```bash
+brain skill verify pg-migration
+# → { "status": "passed", "passed": 2, "total": 2 }
+```
+
+Skills declare preconditions as a `verify` array when they are added:
+
+```json
+{ "name": "pg-migration", "description": "...", "body": "...",
+  "verify": [
+    { "file_exists": "migrations/" },
+    { "file_contains": { "path": "package.json", "text": "\"migrate\"" } },
+    { "command_available": "psql" }
+  ] }
+```
+
+Available checks: `file_exists`, `file_absent`, `file_contains`, `command_available`, `env_set`.
+
+**Checks are declarative and read-only — nothing is ever executed.** Skills are crystallized automatically, they sync between machines, and they can be imported from other people; a `verify` field holding arbitrary shell would be a memory file that runs code, which is the OWASP ASI06 scenario with the hard part removed. There is deliberately no escape hatch. Paths that escape the working directory fail the check.
+
+Outcomes:
+- `passed` — preconditions hold. Strength is **not** raised: applicability is not the same as a good outcome, and a cheap automatic check should not let a skill climb the index.
+- `failed` — demotes exactly like a failed use (`-0.10`), because a skill describing a layout that no longer exists will confidently misdirect the next matching session.
+- `unverifiable` — no `verify` block. Most skills are prose; this is normal and changes nothing.

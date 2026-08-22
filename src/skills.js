@@ -22,6 +22,7 @@ const {
   atomicWriteSync,
 } = require('./index-manager');
 const { setFrontmatterFields } = require('./pinning');
+const { verifySkill } = require('./skill-verify');
 
 const SKILLS_DIR = '_skills';
 const DEFAULT_STRENGTH = 0.6;
@@ -83,6 +84,10 @@ function addSkill(projectRoot, skill) {
     use_count: 0,
     fail_count: 0,
     last_used: null,
+    // Declarative, read-only preconditions (src/skill-verify.js). Only set when
+    // present, so prose-only skills stay lean and are reported `unverifiable`
+    // rather than failing a check they never claimed to support.
+    ...(Array.isArray(skill.verify) && skill.verify.length ? { verify: skill.verify } : {}),
   };
   atomicWriteSync(path.join(dir, 'SKILL.md'), buildSkillFile({ ...record, body: skill.body }));
 
@@ -114,6 +119,63 @@ function showSkill(projectRoot, name) {
   } catch (_) {
     return { error: `Skill not found: ${name}` };
   }
+}
+
+/**
+ * Check a skill's declared preconditions against the current working directory.
+ *
+ * Answers "does this skill still describe reality?" without running the agent
+ * — the offline-checkable half of procedural memory (Skill-DisCo,
+ * arXiv:2606.26669). A skill distilled against a repo layout that has since
+ * changed is not weakly-supported, it is wrong, and it will keep being
+ * advertised to every matching session until enough real failures accumulate.
+ *
+ * A failed verification demotes exactly like a failed use, because the user
+ * pays the same price either way. A *passing* verification does NOT strengthen:
+ * preconditions holding says the skill is still applicable, not that following
+ * it produced a good outcome, and inflating strength on a cheap automatic check
+ * would let a skill climb the index without ever having worked.
+ *
+ * Skills with no `verify` block return `unverifiable` and are left untouched.
+ *
+ * @param {string} projectRoot
+ * @param {string} name
+ * @param {Object} [opts] - { cwd }
+ * @returns {Object} { name, status, passed, total, checks, strength? }
+ */
+function verifySkillByName(projectRoot, name, opts = {}) {
+  const idx = readSkillsIndex(projectRoot);
+  const s = idx.skills.find((x) => x.name === slug(name));
+  if (!s) return { error: `Skill not found: ${name}` };
+
+  const result = verifySkill(s, { cwd: opts.cwd || process.cwd() });
+  if (result.status === 'unverifiable') {
+    return { name: s.name, ...result };
+  }
+
+  const now = new Date().toISOString();
+  s.last_verified = now;
+  s.verify_status = result.status;
+  if (result.status === 'failed') {
+    s.fail_count = (s.fail_count || 0) + 1;
+    s.strength = Math.max(0, (s.strength ?? DEFAULT_STRENGTH) - 0.10);
+  }
+  writeSkillsIndex(idx, projectRoot);
+
+  setFrontmatterFields(getBrainDir(projectRoot), skillPath(name), {
+    last_verified: now,
+    verify_status: result.status,
+    ...(result.status === 'failed'
+      ? { strength: Math.round(s.strength * 1000) / 1000, fail_count: s.fail_count }
+      : {}),
+  });
+
+  return {
+    name: s.name,
+    ...result,
+    strength: Math.round((s.strength ?? DEFAULT_STRENGTH) * 1000) / 1000,
+    advertised: isAdvertised(s),
+  };
 }
 
 /**
@@ -202,6 +264,7 @@ module.exports = {
   advertisedSummaries,
   showSkill,
   useSkill,
+  verifySkillByName,
   removeSkill,
   exportSkill,
   DEMOTE_FAIL_RATIO,
