@@ -6,6 +6,74 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+
+- **Content integrity baselines (OWASP ASI06, Store phase).** Every memory is
+  hashed (SHA-256) at write time, and `brain audit` reports memories whose bytes
+  no longer match. Closes the one poisoning route every other defense here was
+  blind to: an editor. Provenance, content-lint, quarantine, and anomaly
+  detection all guard the *write path* and assume an attacker arrives through
+  `brain memorize` — but `~/.brain/` is plain Markdown, so anything with write
+  access to the home directory could rewrite a trusted, pinned memory without
+  touching the index, the audit log, or any origin label. Drift findings are
+  **advisory** (sleep and the user both edit files legitimately) and are never
+  auto-quarantined. Re-baseline with `brain audit --rebaseline`.
+- **Contradiction proposals carry the boundary.** `potential_conflicts` now
+  reports `proposed_valid_until` — the exact instant a supersede would stamp on
+  the older memory — plus `authority` and `shared_tags`. Detection also widened
+  beyond pinned/stable to like-for-like memories (a `decision` that may have
+  replaced a `decision`), which is the ordinary "we changed our minds" case
+  users never think to flag. Still never auto-resolved: tag overlap is a
+  relatedness signal, not a contradiction signal.
+- **Verifiable skills** (`brain skill verify <name>`). A skill may declare
+  read-only preconditions (`file_exists`, `file_absent`, `file_contains`,
+  `command_available`, `env_set`) that are checked against the working directory
+  without running the agent, so a skill distilled against a repo layout that has
+  since changed is caught in milliseconds instead of after several real
+  failures. Checks are **declarative by design** — skills are crystallized
+  automatically, they sync, and they can be imported, so a `verify` field
+  holding arbitrary shell would be a memory file that executes code. Failure
+  demotes; passing does not promote.
+- **`recall_history` is actually recorded.** The field was declared in the
+  schema, documented in all six agent prompts and three docs pages, and never
+  written — `brain reinforce` updated `access_count` but not the series, so the
+  brain knew a memory had been recalled N times and never *when*. Each
+  reinforcement now appends a capped row (timestamp, interval, strength
+  before/after).
+- **Benchmark: LongMemEval-S adapter** (`harness/longmemeval.js`). Scores the
+  retrieval half of the public 500-question benchmark with no LLM spend.
+  Brain: **R@5 = 0.909** over ~48-session haystacks.
+- **Benchmark: real-embedding arm** (`harness/retrievers/dense.js`) and a
+  **retrieval-only pilot** (`harness/retrieval-only.js`) that scores Recall@k
+  for every retriever without an agent. The existing `vector-baseline` arm is a
+  hashed bag-of-words, not a semantic model, and could not answer whether
+  embeddings help; `dense` can.
+- **Benchmark: decay calibration** (`harness/decay-calibration.js`). Compares
+  each memory type's implied half-life against observed recall intervals.
+
+### Fixed
+
+- **Frontmatter serializer corrupted arrays of objects.** `updateMemoryFile`
+  rendered them via `String(value)`, producing `[object Object]` — lossy and
+  invalid YAML. Now JSON-encoded (a YAML subset), so they round-trip.
+
+### Changed
+
+- **Positioning: two claims added, one now evidence-backed.** Deterministic
+  cross-agent ranking and poisoning resistance are stated in the README and on
+  the site. "No embeddings required" is no longer an assertion: on the hardest
+  retrieval scenario a real embedding model ranked the target memories *worse*
+  than BM25 (oracle ranks 45/20/15 plain, 21/20/8 with the model's task
+  prefixes, vs BM25's 21/20/1), and ties it at 0.909 R@5 on LongMemEval-S.
+- **`brain-bm25` is rank-identical to plain BM25** on both scenario A and all
+  500 LongMemEval-S instances. Title-3x/tags-2x field weighting and the custom
+  stemmer buy nothing measurable — Brain's advantage lives in decay, spreading
+  activation, context match, and pinning, not the relevance function.
+- **Single-principal invariant documented.** "One brain, one person" is now an
+  explicit design principle; `scope` and `principal` are reserved frontmatter
+  field names.
+
+
 ## [0.2.0] - 2026-08-18
 
 Adds the second time axis. Memory now records not just when it learned a

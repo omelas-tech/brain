@@ -478,6 +478,7 @@ const features = [
   { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
   { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, and Antigravity share one store — plus the Claude and ChatGPT apps via the hosted MCP connector, OpenClaw and Hermes as native memory engines, and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
   { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
+  { title: "Poisoning-resistant", icon: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', body: "Every memory records where it came from, and origin bounds what it may claim — planted facts can't pin, entrench, or outrank what you said. A SHA-256 baseline per file catches edits made outside any write path. All five OWASP ASI06 defense layers, in a memory you can still read in a text editor." },
   { title: "Sync your way — no lock-in", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Plain files in a folder. Point BRAIN_DIR at Google Drive, Dropbox, or iCloud — or sync via git or encrypted export. No account required." },
 ];
 
@@ -558,6 +559,14 @@ const referenceGroups = [
       { title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", id: "arXiv 2306.05685", url: "https://arxiv.org/abs/2306.05685", note: "Documents position, verbosity, and self-enhancement bias; origin of the swap-consistency check the benchmark applies to pairwise judgments." },
       { title: "When Judgment Becomes Noise", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293", note: "Judge verdicts carry large unexplained variance — report uncertainty rather than aggregate it away. Why results are published with n=3 error bars, not bare point estimates." },
       { title: "LastingBench: Defending Benchmarks Against Data Leakage", id: "arXiv 2506.21614", url: "https://arxiv.org/abs/2506.21614", note: "Synthetic, decay-driven scenarios guard against memorised public-set answers." },
+    ],
+  },
+  {
+    heading: "Memory security",
+    refs: [
+      { title: "OWASP Top 10 for Agentic Applications — ASI06: Memory & Context Poisoning", id: "OWASP 2026", url: "https://genai.owasp.org/", note: "Names the attack class: adversarial content written into persistent memory, executing days later. Its five prescribed defense layers — input moderation, provenance-bearing sanitization, trust-aware retrieval, behavioral monitoring, forensics — map one-to-one onto content lint, origin ceilings, trust-weighted recall, brain audit, and the append-only audit log." },
+      { title: "MemGhost: Persistent Manipulation of LLM Agents via Memory Injection", id: "arXiv 2607.05189", url: "https://arxiv.org/abs/2607.05189", note: "The failure mode provenance defends against: content the agent merely read persuades it to write a fact, which then hardens — pinned, decay-exempt, and boosted by its own planted neighbours." },
+      { title: "A Survey on Long-Term Memory Security in LLM Agents", id: "arXiv 2604.16548", url: "https://arxiv.org/abs/2604.16548", note: "Six-phase memory lifecycle (write, store, retrieve, execute, share, forget) and Verifiable Memory Governance. Its central finding — that integrity cannot be retrofitted at retrieval time alone — is why Brain baselines content at write time rather than validating at recall." },
     ],
   },
 ];

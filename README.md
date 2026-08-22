@@ -41,8 +41,9 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Git-friendly** — Full version history of how memories evolve
 - **Strength + decay** — Recalled memories get stronger, forgotten ones fade. Just like your brain
 - **Recall receipts** — Memory that visibly fires: every answer shaped by a memory ends with a one-line attributable receipt (`◉ memory: "<title>" (<type>, <age>)`), minted by the engine so it can't be hallucinated
-- **Provenance-bounded trust** — Every memory records where it came from (`user`, `agent-inferred`, `tool-output`, `external`), and recall weighs it: a fact planted by a web page or tool output is down-ranked, flagged `low_trust`, marked `⚠` on its receipt, and can never outrank what you said directly — no matter how many copies of it get written
+- **Provenance-bounded trust** — Every memory records where it came from (`user`, `agent-inferred`, `tool-output`, `external`), and recall weighs it: a fact planted by a web page or tool output is down-ranked, flagged `low_trust`, marked `⚠` on its receipt, and can never outrank what you said directly — no matter how many copies of it get written. And because memories are plain files, Brain records a **SHA-256 baseline** of each one at write time — so `brain audit` also catches a memory edited *outside* any write path, the one poisoning route every write-path defense is blind to
 - **Bitemporal — it knows *when* a fact was true** — Every memory separates record time (when the brain learned it) from valid time (`valid_from` / `valid_until`, when it was actually true). So "we deploy to Fly.io" and "we deploy to Render" aren't a contradiction to guess between — they're one fact with a boundary. `brain recall "deploy target" --as-of 2026-03-01` answers what was true in March; `--as-known-of` answers what the brain knew then. Facts that stopped being true are demoted and marked `⌛ expired`, never silently served as current
+- **Deterministic recall — every agent ranks identically** — Scoring is arithmetic over files, not a model call: TF-IDF/BM25 relevance, decayed strength, spreading activation, context match, salience. Claude, Codex, and Gemini asking the same question of the same brain get the *same* ranking, in the same order, offline. No embedding-model version can silently reshuffle what your agent remembers
 - **Associative network** — Memories link to each other with weighted connections. Recalling one activates related ones automatically
 - **Context-dependent recall** — Memories encoded in a similar context to the current session are scored higher
 - **Spaced reinforcement** — Memories recalled after longer intervals get bigger boosts, cramming produces diminishing returns
@@ -51,7 +52,7 @@ Existing AI memory solutions use flat databases with tag-based retrieval. Brain 
 - **Procedural skills** — Reusable how-to workflows with progressive disclosure, learned automatically from repeated experience and exportable to your agent's native skills
 - **On-demand depth** — Subcategories are created as needed, not pre-defined
 - **Consolidation** — Weak related memories merge into stronger combined knowledge
-- **Zero dependencies** — Pure file I/O, no databases, no servers, no embeddings required
+- **Zero dependencies — and measured, not assumed** — Pure file I/O: no database, no server, no embedding model. That is a deliberate result, not a shortcut. On our hardest retrieval scenario (1,021 memories, 1,000 plausible distractors) a real embedding model ranked the target memories *worse* than BM25 — see the [retrieval-only pilot](benchmark/README.md#retrieval-only-pilot-no-agent-no-llm-spend)
 
 ## Install
 
