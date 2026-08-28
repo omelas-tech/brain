@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  "name": "work.brainmemory/connector",
+  "title": "Brain Memory",
+  "description": "Persistent, provenance-stamped memory for AI agents. Deterministic recall over a user's brain (decayed strength, spreading activation, context match), structured memorize with trust-weighted quarantine for low-trust writes, pinning, verification, and bitemporal validity. One brain shared across Claude, Codex, Gemini, Copilot and other agents.",
+  "version": "0.0.1",
+  "websiteUrl": "https://brainmemory.ai",
+  "repository": {
+    "source": "github",
+    "url": "https://github.com/omelas-tech/brain",
+    "subfolder": "connector"
+  },
+  "icons": [
+    {
+      "src": "https://brainmemory.ai/favicon.svg",
+      "mimeType": "image/svg+xml"
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.brainmemory.ai/mcp",
+      "supportedProtocolVersions": ["2026-07-28"]
+    }
+  ]
+}
