@@ -12,7 +12,7 @@
       "name": "brain",
       "source": "./",
       "description": "Local-first memory: SessionStart hook injects a budget-bounded context payload from ~/.brain, /brain:* commands cover recall, memorize, verify, pin, forget, sync, skills, import and sleep. Bundles the brain CLI.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "Omelas",
         "url": "https://omelas.tech"
