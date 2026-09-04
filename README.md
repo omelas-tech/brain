@@ -136,11 +136,27 @@ The second command runs the setup wizard, which asks which runtime(s) to configu
 | Runtime | Instructions file | Commands land at |
 |---------|-------------------|------------------|
 | **Claude Code** | `CLAUDE.md` | `~/.claude/commands/brain/` (plugin slash commands) |
-| **OpenAI Codex CLI** | `AGENTS.md` (`~/.codex/`) | `~/.agents/skills/<name>/SKILL.md` |
+| **OpenAI Codex CLI** | `AGENTS.md` (`~/.codex/`) + hooks in `~/.codex/hooks.json` (SessionStart, UserPromptSubmit, SessionEnd — trust once via `/hooks`) | `~/.agents/skills/<name>/SKILL.md` |
 | **OpenCode** | `AGENTS.md` | `~/.config/opencode/commands/` |
 | **GitHub Copilot CLI** | `copilot-instructions.md` (`~/.copilot/`), repo-local `AGENTS.md` | `~/.agents/skills/<name>/SKILL.md` (shared with Codex) |
 | **Kilo** | `rules/brain-memory.md` + `kilo.jsonc` `instructions` entry (`~/.config/kilo/`), repo-local `AGENTS.md` | `~/.config/kilo/commands/` |
 | **Google Antigravity** | `GEMINI.md` | `~/.gemini/skills/` *(experimental — verify paths against a live install)* |
+
+#### Plugin install — Claude Code, Codex, ChatGPT workspaces
+
+This repository is also a plugin marketplace. Installing the `brain` plugin gives Claude Code and Codex the same `/brain:*` commands **plus deterministic hooks**: `SessionStart` injects the budget-bounded `brain session-start` payload as context (no prompt file to edit, nothing for the model to remember to run) and `SessionEnd` records the session boundary in `~/.brain/contexts.json`. The plugin bundles the CLI, so no npm install is required for the hooks.
+
+```bash
+# Claude Code
+claude plugin marketplace add omelas-tech/brain
+claude plugin install brain@brain-memory          # local-first: hooks + /brain:* commands
+claude plugin install brain-cloud@brain-memory    # optional: the hosted MCP connector
+
+# Codex CLI — same repo, same two plugins (Codex reads the Claude manifests)
+codex /plugins                                    # then add marketplace omelas-tech/brain
+```
+
+**ChatGPT Business / Enterprise / Edu:** a workspace admin imports the marketplace once (Admin → Plugins → Add → Import marketplace → `https://github.com/omelas-tech/brain`) and the workspace picks up new versions daily. `brain` (skills + hooks) serves Codex users in the workspace; `brain-cloud` (the MCP connector) serves ChatGPT desktop. Import does not grant access by itself — each user completes the connector's OAuth sign-in on first use.
 
 #### Non-interactive
 
@@ -548,6 +564,9 @@ Each recall also improves the memory's decay rate: `new_rate = rate + 0.10 * (0.
 
 **Confidence** (0.0-1.0) tracks epistemic certainty. Set at encoding based on source quality, reduced when contradictions are found during Knowledge Propagation (-0.20), boosted during validations (+0.10). Low-confidence memories are flagged during recall.
 
+### Sensitive Topics (Consent)
+Every memory carries a consent tier: `standard` (default), `sensitive` (health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation, and similar), or `blocked` (government ID numbers, criminal history, immigration status — never stored). Classify honestly when memorizing (`"sensitivity": "sensitive"`). Sensitive memories are stored only when the user has opted in (`sensitive_topics: true` in `~/.brain/config.json`); otherwise they wait quarantined and hidden until the user approves them (`brain verify approve <id>`), and their receipts carry `⚠ sensitive`. Opting in is never retroactive, and the CLI refuses `blocked` content outright.
+
 ### Consolidation
 
 When memories decay below the threshold (default: 0.3), they become candidates for consolidation. The agent groups related weak memories by path proximity, tag overlap, and temporal closeness, then merges them into a single stronger memory:
@@ -744,6 +763,10 @@ Brain configuration lives in `~/.brain/index.json` under the `config` key:
 | `association_config.link_prune_threshold` | 0.05 | Minimum weight before an association link is pruned |
 | `association_config.spreading_activation_depth` | 2 | Maximum hops for spreading activation traversal |
 | `association_config.spreading_activation_decay` | 0.5 | Decay factor per hop during spreading activation |
+
+### Sensitive Topics
+
+`sensitive_topics` (default `false`). Memories classified `sensitive` — health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation — are stored only when this is `true`; otherwise they wait quarantined and hidden until you approve them one by one (`brain verify approve <id>`). Turning it on is never retroactive. `blocked` content (government ID numbers, criminal history, immigration status) is refused whatever the setting. See `src/sensitivity.js` for the exact tiers.
 
 ### Working-Memory Budget
 

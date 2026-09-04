@@ -10,7 +10,7 @@ A new brain is empty. But your agents have been keeping transcripts for months �
 **User input:** $ARGUMENTS
 
 **Flags** (passed straight through to the CLI):
-- `--source <id>` — Which history store to read (default `claude-code`; `--sources` lists what's detected)
+- `--source <id>` — Which history store to read (`claude-code` by default, or `codex` for `~/.codex/sessions/`; `--sources` lists what's detected)
 - `--project <name>` — Only sessions from one project
 - `--since <30d|6m|2026-01-01>` — Only sessions since then
 - `--limit <N>` — Max sessions to consider (default 40)

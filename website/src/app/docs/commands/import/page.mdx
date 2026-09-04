@@ -23,7 +23,7 @@ A new brain is empty, and an empty brain is worth nothing until something fills 
 
 | Flag | Description |
 |---|---|
-| `--source <id>` | Which history store to read. Default `claude-code`. |
+| `--source <id>` | Which history store to read: `claude-code` (default) or `codex`. `--sources` lists what is detected. |
 | `--project <name>` | Only sessions from one project. |
 | `--since <when>` | Only sessions since then — `30d`, `6m`, `1y`, or `2026-01-01`. |
 | `--limit <n>` | Max sessions to consider. Default 40. |
@@ -35,7 +35,7 @@ The split is the whole design: **the CLI harvests, the agent distills.**
 
 <Steps>
   <Step title="Harvest (deterministic)">
-    `brain import` scans your agent's transcript store and builds a digest — session titles, user prompts, projects, git branches, timestamps, and edited files. It filters out harness wrappers (`<system-reminder>` blocks, slash-command tags, command output), subagent traffic, and bare acknowledgements like "yes" or "thanks".
+    `brain import` scans your agent's transcript store and builds a digest — session titles, user prompts, projects, git branches, timestamps, and edited files. It filters out harness wrappers (`<system-reminder>` blocks, slash-command tags, command output), subagent traffic, and bare acknowledgements like "yes" or "thanks". It also strips Brain's own `<brain-context>` and `<brain-session-context>` injections, so a memory a hook surfaced is never harvested back into a new one.
   </Step>
 
   <Step title="Distill (semantic)">
@@ -95,10 +95,24 @@ A good import distills rather than transcribes. Forty sessions should produce ro
 brain import --sources
 ```
 
-Lists the history stores detected on this machine.
+Lists the history stores detected on this machine. Two are supported:
+
+| Source | Reads |
+|---|---|
+| `claude-code` (default) | Claude Code's transcripts under `~/.claude/projects/` |
+| `codex` | Codex CLI rollouts under `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` (`~/.codex/` by default) |
+
+### Codex
+
+`brain import --source codex` reads the rollout files directly (format verified against Codex 0.153):
+
+- **Prompts** are the `response_item` messages whose `content_item_kinds` are `user.*` — which separates what you typed from the AGENTS.md, environment, and hook context Codex injects as user-role messages. Files written before Codex 0.148 lack that field, so the harvester falls back to matching Codex's wrapper markers.
+- **Skipped**: Codex's own background threads — subagent, guardian review, and memory consolidation.
+- **Thread names** come from `session_index.jsonl`; **touched files** come from `apply_patch` calls.
+- The import cursor is the rollout id from the filename, so a re-run offers only new rollouts.
 
 <Callout type="info">
-**Claude Code** is the first supported source. The adapter registry in `src/harvest.js` accepts additional agents without changes elsewhere, so more sources can land without touching the digest, budget, or provenance logic.
+The adapter registry in `src/harvest.js` accepts additional agents without changes elsewhere, so more sources can land without touching the digest, budget, or provenance logic.
 </Callout>
 
 ## Safety
@@ -118,6 +132,9 @@ brain import --project my-app
 
 # Just the last month
 brain import --since 30d
+
+# Cold-start from Codex CLI history
+brain import --source codex --since 30d
 
 # Re-offer everything, ignoring the cursor
 brain import --all

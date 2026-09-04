@@ -16,8 +16,9 @@ Thumbs.db
 # Brain runtime data
 .brain/
 
-# Agent-specific local config
-.agents/
+# Agent-specific local config (but .agents/plugins/ is the Codex marketplace manifest)
+.agents/*
+!.agents/plugins/
 .claude/
 .codex/
 .gemini/

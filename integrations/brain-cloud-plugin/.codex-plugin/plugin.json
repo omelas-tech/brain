@@ -1,0 +1,33 @@
+{
+  "name": "brain-cloud",
+  "version": "0.1.0",
+  "description": "Hosted Brain Memory over MCP. Sign in once (OAuth 2.1, Google) and get brain_recall, brain_memorize, brain_verify, brain_pin, brain_unpin, brain_forget, brain_status plus the Memory Inspector.",
+  "author": { "name": "Omelas", "email": "onur@omelas.tech", "url": "https://omelas.tech" },
+  "homepage": "https://brainmemory.ai",
+  "repository": "https://github.com/omelas-tech/brain",
+  "license": "MIT",
+  "keywords": ["memory", "mcp", "connector", "brain-cloud"],
+  "mcpServers": {
+    "brain": {
+      "type": "http",
+      "url": "https://mcp.brainmemory.ai/mcp"
+    }
+  },
+  "interface": {
+    "displayName": "Brain Cloud",
+    "shortDescription": "Your Brain Memory, hosted, over MCP",
+    "longDescription": "Provenance-stamped, portable agent memory served from Brain Cloud (EU-hosted, encrypted at rest with server-side KMS). Works in ChatGPT desktop, Codex and Claude without a local install; syncs with the local brain plugin.",
+    "developerName": "Omelas",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://brainmemory.ai",
+    "privacyPolicyURL": "https://brainmemory.ai/privacy",
+    "termsOfServiceURL": "https://brainmemory.ai/terms",
+    "defaultPrompt": [
+      "What do you remember about me?",
+      "Remember that I prefer concise answers.",
+      "Show my brain status."
+    ],
+    "brandColor": "#E8A33D"
+  }
+}

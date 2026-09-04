@@ -46,6 +46,9 @@ Memories store their encoding context (project, topics, task type). During recal
 - **Salience** (0.0-1.0): Emotional/motivational significance. High-salience memories (>= 0.7) are never auto-pruned.
 - **Confidence** (0.0-1.0): Epistemic certainty. Low-confidence memories are flagged during recall.
 
+### Sensitive Topics (Consent)
+Every memory carries a consent tier: `standard` (default), `sensitive` (health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation, and similar), or `blocked` (government ID numbers, criminal history, immigration status — never stored). Classify honestly when memorizing (`"sensitivity": "sensitive"`). Sensitive memories are stored only when the user has opted in (`sensitive_topics: true` in `~/.brain/config.json`); otherwise they wait quarantined and hidden until the user approves them (`brain verify approve <id>`), and their receipts carry `⚠ sensitive`. Opting in is never retroactive, and the CLI refuses `blocked` content outright.
+
 ## Available Commands
 
 The everyday loop is **ambient** — `remember` and `memorize` run automatically at session start/end; you rarely type them.

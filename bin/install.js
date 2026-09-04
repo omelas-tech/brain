@@ -79,6 +79,14 @@ function warnIfManualRegistration(result, config) {
     console.log(`    ⚠ Could not edit ${configPath} safely (${reg.reason}).`);
     console.log(`      Add "${promptPath}" to its "instructions" array to activate the global prompt.`);
   }
+  const hooks = result.hooks;
+  if (hooks && hooks.registered) {
+    console.log(`    Hooks registered in ${hooks.path} (SessionStart, UserPromptSubmit, SessionEnd).`);
+    console.log('      Run /hooks inside Codex once to review and trust them.');
+  } else if (hooks && hooks.manual) {
+    console.log(`    ⚠ Could not edit ${hooks.path} safely (${hooks.reason}).`);
+    console.log('      Merge hooks/hooks.json from the brain-memory package into it by hand.');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +238,7 @@ async function runUpdate(flags) {
     const parts = [];
     if (d.commandsFound) parts.push('commands');
     if (d.promptFound) parts.push('prompt');
+    if (d.hooksFound) parts.push('hooks');
     console.log(`    ${d.runtimeName} (${d.scope}) — ${parts.join(' + ')}`);
   }
 
@@ -272,6 +281,7 @@ async function runUninstall(flags) {
     const parts = [];
     if (d.commandsFound) parts.push('commands');
     if (d.promptFound) parts.push('prompt section');
+    if (d.hooksFound) parts.push('hooks');
     console.log(`    ${d.runtimeName} (${d.scope}) — ${parts.join(' + ')}`);
   }
 

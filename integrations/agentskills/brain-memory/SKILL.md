@@ -70,6 +70,11 @@ honestly by provenance, not confidence**:
   (you concluded it — the default) · `tool-output` (from a tool/file result) ·
   `external` (from web/email/third-party content). Non-user origins are
   confidence-capped at write and down-weighted at recall.
+- **sensitivity** (consent tier): `standard` (default) · `sensitive` (health,
+  race, ethnicity, religion, politics, gender identity or sexual orientation —
+  stored only if the user opted in via `sensitive_topics: true`, otherwise held
+  quarantined until `brain verify approve`) · `blocked` (government ID numbers,
+  criminal history, immigration status — refused). Label the topic honestly.
 - **salience**, **confidence** (0.0–1.0), **tags**, **related** ids
 
 ```bash

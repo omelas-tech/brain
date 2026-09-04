@@ -57,6 +57,10 @@ const STRIP_PATTERNS = [
   /<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g,
   /<local-command-stderr>[\s\S]*?<\/local-command-stderr>/g,
   /<user-prompt-submit-hook>[\s\S]*?<\/user-prompt-submit-hook>/g,
+  // Brain's own hook injections (hooks/*.mjs) — recalled memories must never be
+  // harvested back into new memories.
+  /<brain-session-context>[\s\S]*?<\/brain-session-context>/g,
+  /<brain-context>[\s\S]*?<\/brain-context>/g,
   /\[Image #\d+\]/g,
   /\[Request interrupted[^\]]*\]/g,
 ];
@@ -257,7 +261,174 @@ function slugToPathGuess(slug) {
   return '/' + slug.slice(1).replace(/-/g, '/');
 }
 
-const SOURCES = { [claudeCode.id]: claudeCode };
+/**
+ * OpenAI Codex CLI — one JSONL "rollout" per thread under
+ * `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<ts>-<thread>[_<rollout>].jsonl`
+ * (verified against openai/codex 0.153, codex-rs/rollout/). Every line is
+ * `{timestamp, ordinal?, type, payload}`; the user's prompts are
+ * `response_item` messages with `role: "user"`.
+ *
+ * Codex also injects context *as user-role messages* (AGENTS.md, the
+ * environment block, turn-aborted notices, hook output). Since 0.148 genuine
+ * prompts carry `internal_chat_message_metadata_passthrough.content_item_kinds`
+ * containing `user.*`, which is the reliable discriminator; older rollouts lack
+ * it, so the wrapper markers Codex renders are the fallback.
+ */
+const CODEX_INJECTED_MARKERS = [
+  /^\s*# AGENTS\.md instructions/i,
+  /^\s*<user_instructions>/i,
+  /^\s*<environment_context>/i,
+  /^\s*<turn_aborted>/i,
+  /^\s*<user_shell_command>/i,
+  /^\s*<subagent_notification>/i,
+  /^\s*<codex_internal_context/i,
+  /^\s*<goal_context>/i,
+  /^\s*<hook_prompt/i,
+  /^\s*<brain-/i,
+];
+
+// rollout-YYYY-MM-DDTHH-MM-SS-<thread>[_<rollout>].jsonl → the id token
+const CODEX_ROLLOUT_NAME = /^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$/;
+
+// Threads Codex runs for itself (subagents, guardian reviews, memory
+// consolidation) contain no user speech.
+const CODEX_BACKGROUND_THREADS = new Set(['subagent', 'guardian_review', 'memory_consolidation']);
+
+function codexHome() {
+  return process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
+}
+
+function codexInputText(payload) {
+  const content = Array.isArray(payload.content) ? payload.content : [];
+  return content
+    .filter((block) => block && block.type === 'input_text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('\n');
+}
+
+function codexIsUserAuthored(payload) {
+  const meta = payload.internal_chat_message_metadata_passthrough;
+  const kinds = meta && Array.isArray(meta.content_item_kinds) ? meta.content_item_kinds : [];
+  if (kinds.length > 0) {
+    return kinds.some((k) => typeof k === 'string' && (k.startsWith('user.') || k === 'unknown'));
+  }
+  return !CODEX_INJECTED_MARKERS.some((marker) => marker.test(codexInputText(payload)));
+}
+
+function codexIsBackgroundThread(meta) {
+  if (meta.parent_thread_id) return true;
+  if (typeof meta.thread_source === 'string' && CODEX_BACKGROUND_THREADS.has(meta.thread_source)) return true;
+  const source = meta.source;
+  return Boolean(source && typeof source === 'object' && ('subagent' in source || 'internal' in source));
+}
+
+/**
+ * User-assigned thread names from `$CODEX_HOME/session_index.jsonl` (last
+ * entry per id wins). Cached per home dir — one read per harvest.
+ */
+const codexThreadNames = new Map();
+function codexThreadName(home, threadId) {
+  if (!codexThreadNames.has(home)) {
+    const names = new Map();
+    for (const entry of readJsonl(path.join(home, 'session_index.jsonl'))) {
+      if (entry && typeof entry.id === 'string' && typeof entry.thread_name === 'string') {
+        names.set(entry.id, entry.thread_name);
+      }
+    }
+    codexThreadNames.set(home, names);
+  }
+  return codexThreadNames.get(home).get(threadId) || null;
+}
+
+const codex = {
+  id: 'codex',
+  label: 'OpenAI Codex CLI',
+  root: () => path.join(codexHome(), 'sessions'),
+
+  listFiles(root) {
+    // Exactly sessions/<year>/<month>/<day>/rollout-*.jsonl. Compressed
+    // rollouts (`.jsonl.zst`, an opt-in Codex feature) are skipped.
+    const files = [];
+    const walk = (dir, depth) => {
+      let entries;
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (_) {
+        return;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory() && depth < 3 && /^\d+$/.test(entry.name)) walk(full, depth + 1);
+        else if (entry.isFile() && depth === 3 && CODEX_ROLLOUT_NAME.test(entry.name)) files.push(full);
+      }
+    };
+    walk(root, 0);
+    return files.sort();
+  },
+
+  /** Session id = the id token in the filename (unique per rollout file). */
+  sessionIdFor(file) {
+    const match = path.basename(file).match(CODEX_ROLLOUT_NAME);
+    return match ? match[1] : path.basename(file, '.jsonl');
+  },
+
+  parse(file) {
+    const records = readJsonl(file);
+    if (records.length === 0) return null;
+
+    const sessionId = codex.sessionIdFor(file);
+    const session = {
+      source: 'codex',
+      session_id: sessionId,
+      title: null,
+      cwd: null,
+      git_branch: null,
+      started: null,
+      ended: null,
+      models: new Set(),
+      prompts: [],
+      files_touched: new Set(),
+      turns: 0,
+    };
+
+    for (const record of records) {
+      if (!record || typeof record !== 'object') continue;
+      const payload = record.payload && typeof record.payload === 'object' ? record.payload : {};
+      if (record.timestamp) {
+        if (!session.started || record.timestamp < session.started) session.started = record.timestamp;
+        if (!session.ended || record.timestamp > session.ended) session.ended = record.timestamp;
+      }
+
+      if (record.type === 'session_meta') {
+        if (codexIsBackgroundThread(payload)) return null;
+        if (payload.cwd) session.cwd = payload.cwd;
+        if (payload.git && payload.git.branch) session.git_branch = payload.git.branch;
+      } else if (record.type === 'turn_context') {
+        if (payload.model) session.models.add(payload.model);
+        if (payload.cwd && !session.cwd) session.cwd = payload.cwd;
+      } else if (record.type === 'response_item') {
+        if (payload.type === 'message' && payload.role === 'user') {
+          if (!codexIsUserAuthored(payload)) continue;
+          const text = cleanPromptText(codexInputText(payload));
+          if (text) session.prompts.push(text);
+        } else if (payload.type === 'message' && payload.role === 'assistant') {
+          session.turns++;
+        } else if (payload.type === 'custom_tool_call' && payload.name === 'apply_patch' && typeof payload.input === 'string') {
+          for (const match of payload.input.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)) {
+            session.files_touched.add(match[1].trim());
+          }
+        }
+      }
+    }
+
+    // <home>/sessions/YYYY/MM/DD/<file> → <home>; names are keyed by thread id.
+    const home = path.resolve(path.dirname(file), '..', '..', '..', '..');
+    session.title = codexThreadName(home, sessionId.split('_')[0]);
+    return session;
+  },
+};
+
+const SOURCES = { [claudeCode.id]: claudeCode, [codex.id]: codex };
 
 /** Sources that actually have a history store on this machine. */
 function availableSources() {
@@ -327,7 +498,8 @@ function markImported(sourceId, sessionIds, projectRoot, knownIds) {
     if (adapter) {
       const root = adapter.root();
       if (fs.existsSync(root)) {
-        known = new Set(adapter.listFiles(root).map((f) => path.basename(f, '.jsonl')));
+        known = new Set(adapter.listFiles(root).map((f) =>
+          (adapter.sessionIdFor ? adapter.sessionIdFor(f) : path.basename(f, '.jsonl'))));
       }
     }
   }

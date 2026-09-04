@@ -1,0 +1,17 @@
+{
+  "name": "brain-cloud",
+  "displayName": "Brain Cloud",
+  "version": "0.1.0",
+  "description": "Hosted Brain Memory over MCP for hosts without a local ~/.brain. Sign in once (OAuth 2.1, Google) and get brain_recall, brain_memorize, brain_verify, brain_pin, brain_unpin, brain_forget, brain_status plus the Memory Inspector — the same memories as the local plugin when synced with /brain:sync.",
+  "author": { "name": "Omelas", "email": "onur@omelas.tech", "url": "https://omelas.tech" },
+  "homepage": "https://brainmemory.ai",
+  "repository": "https://github.com/omelas-tech/brain",
+  "license": "MIT",
+  "keywords": ["memory", "mcp", "connector", "brain-cloud"],
+  "mcpServers": {
+    "brain": {
+      "type": "http",
+      "url": "https://mcp.brainmemory.ai/mcp"
+    }
+  }
+}

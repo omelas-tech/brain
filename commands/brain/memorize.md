@@ -56,6 +56,16 @@ For each memory, determine:
 
 Label honestly by **provenance, not confidence**. A fact you are certain about but read in an email is still `external`. Untrusted origins get capped salience/confidence and faster decay, so a planted fact fades instead of hardening — and the CLI reports any value it had to lower.
 
+**Sensitivity** (consent tier — classify every memory; the CLI has a narrow backstop but you read the conversation):
+
+| sensitivity | Use when | What the CLI does |
+|---|---|---|
+| `standard` | Everything else. **Default.** | Stores normally. |
+| `sensitive` | Health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation, and similar personal topics. | Stored **only if** `sensitive_topics: true` in `~/.brain/config.json`; otherwise it lands quarantined (`sensitive_opt_out`) and hidden from recall until the user approves it with `brain verify approve <id>`. Receipts carry `⚠ sensitive`. |
+| `blocked` | Government / national ID numbers, criminal history, immigration status. | **Refused.** Never stored, whatever the toggle says. |
+
+Label the topic, not the person's wish to remember it: "user is diabetic" is `sensitive` even when the user asked you to remember it. If the CLI reports `sensitive_opt_out: true`, tell the user plainly that the memory is held until they opt in (`sensitive_topics: true`) or approve it, and never re-store it as `standard` to get around the gate. Opting in is never retroactive.
+
 **Pinned & stable** (optional, CoALA Phase 1) — **requires `origin: "user"`; the CLI rejects the write otherwise:**
 - `pinned: true` — always inject this memory at session start regardless of recall score (and decay-exempt). Optionally `pin_scope: "project:<name>"` (default `"global"`) and `pin_priority: <N>`.
 - `stable: true` — exempt from decay (never fades) without forcing it to always load — for timeless facts recalled on demand.

@@ -345,3 +345,71 @@ describe('memorize: provenance policy', () => {
     assert.equal(lines.length, 2, 'a later write must not truncate the earlier trail');
   });
 });
+
+// ===========================================================================
+// Sensitive-topic consent (src/sensitivity.js)
+// ===========================================================================
+describe('memorize: sensitivity consent', () => {
+  beforeEach(() => { setup(); initBrain(); });
+  afterEach(teardown);
+
+  const { writeConfig: writeCfg, readConfig: readCfg } = require('../src/index-manager');
+
+  it('stores standard memories without a sensitivity field', () => {
+    const r = run({ memories: [baseMem()] });
+    assert.equal(r.status, 0);
+    assert.equal(r.json.stored[0].sensitivity, undefined);
+    const file = fs.readFileSync(path.join(tmpDir, '.brain', 'professional/notes/learn.md'), 'utf-8');
+    assert.doesNotMatch(file, /^sensitivity:/m);
+  });
+
+  it('quarantines a declared-sensitive memory while the user has not opted in', () => {
+    const r = run({ memories: [baseMem({ title: 'Health note', content: 'Prefers to avoid late meetings.', sensitivity: 'sensitive', origin: 'user' })] });
+    assert.equal(r.status, 0);
+    const stored = r.json.stored[0];
+    assert.equal(stored.sensitivity, 'sensitive');
+    assert.equal(stored.sensitive_opt_out, true);
+    assert.equal(stored.quarantine_pending, true);
+    assert.ok(stored.quarantine_reasons.includes('sensitive_opt_out'));
+    const entry = readIndex(tmpDir).memories[stored.id];
+    assert.equal(entry.sensitivity, 'sensitive');
+    assert.equal(entry.quarantined, true);
+    const file = fs.readFileSync(path.join(tmpDir, '.brain', 'professional/notes/learn.md'), 'utf-8');
+    assert.match(file, /^sensitivity: "sensitive"$/m);
+    assert.match(file, /sensitive_opt_out/);
+  });
+
+  it('stores sensitive memories unquarantined once the user opted in', () => {
+    writeCfg({ ...readCfg(tmpDir), sensitive_topics: true }, tmpDir);
+    const r = run({ memories: [baseMem({ content: 'ok', sensitivity: 'sensitive', origin: 'user' })] });
+    assert.equal(r.status, 0);
+    const stored = r.json.stored[0];
+    assert.equal(stored.sensitivity, 'sensitive');
+    assert.equal(stored.sensitive_opt_out, undefined);
+    assert.equal(stored.quarantine_pending, undefined);
+  });
+
+  it('raises an under-labelled memory via the backstop', () => {
+    const r = run({ memories: [baseMem({ content: 'User was diagnosed with ADHD last year.', origin: 'user' })] });
+    assert.equal(r.status, 0);
+    assert.equal(r.json.stored[0].sensitivity, 'sensitive');
+    assert.equal(r.json.stored[0].sensitive_opt_out, true);
+  });
+
+  it('refuses blocked content even when opted in, and rejects unknown labels', () => {
+    writeCfg({ ...readCfg(tmpDir), sensitive_topics: true }, tmpDir);
+    const refused = run({ memories: [baseMem({ content: 'Client SSN is 123-45-6789.', origin: 'user' })] });
+    assert.equal(refused.status, 1);
+    assert.match(refused.json.error, /Refused: content classified "blocked" \(government_id\)/);
+    assert.equal(refused.json.sensitivity, 'blocked');
+    assert.equal(Object.keys(readIndex(tmpDir).memories).length, 0, 'nothing written');
+
+    const declared = run({ memories: [baseMem({ sensitivity: 'blocked' })] });
+    assert.equal(declared.status, 1);
+    assert.match(declared.json.error, /declared by caller/);
+
+    const unknown = run({ memories: [baseMem({ sensitivity: 'private' })] });
+    assert.equal(unknown.status, 1);
+    assert.match(unknown.json.error, /Unknown sensitivity "private"/);
+  });
+});

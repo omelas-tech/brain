@@ -6,8 +6,79 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-04
+
+Ships brain as a plugin and moves its session behaviour from prompts into
+hooks. The repository is now a Claude Code plugin and a Codex plugin, and a
+marketplace ChatGPT workspaces can import; `SessionStart`, `UserPromptSubmit`
+and `SessionEnd` hooks inject memory deterministically on both hosts instead
+of asking the model to remember to run anything. Memories gain a consent tier
+(`sensitivity`) that matches the published Anthropic vocabulary so the two
+models interoperate, `brain import` learns Codex rollouts, and the earlier
+unreleased work lands: content-integrity baselines, verifiable skills,
+contradiction boundaries, recorded recall history and the benchmark harness.
+
 ### Added
 
+- **Plugin packaging: one repo, three hosts.** The repository root is now a
+  Claude Code plugin (`.claude-plugin/plugin.json`, name `brain` so commands stay
+  `/brain:*`), a Codex plugin (`.codex-plugin/plugin.json` overlay — Codex reads
+  the Claude manifest and exports `CLAUDE_PLUGIN_ROOT` to plugin hooks), and a
+  marketplace for both (`.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json`). ChatGPT Business/Enterprise admins can
+  import the same repo (Admin → Plugins → Import marketplace) with daily sync.
+  Two plugins: `brain` (local-first: hooks + commands + the bundled CLI via a
+  `bin/brain` shim) and `brain-cloud` (the hosted MCP connector only, so
+  local-CLI users are never pushed into cloud OAuth).
+- **Sensitive-topic consent tier** (`src/sensitivity.js`). Every memory now
+  carries `sensitivity: standard | sensitive | blocked`, using the vocabulary
+  of the largest deployed consent model for assistant memory (Anthropic, Aug
+  2026) so brains interoperate with it instead of inventing a schema.
+  `sensitive` (health, race, ethnicity, religious beliefs, politics, gender
+  identity or sexual orientation) is stored only after the user opts in
+  (`sensitive_topics: true` in config.json); until then the write lands
+  quarantined (`sensitive_opt_out`) and is hidden from recall and
+  session-start, and `brain verify approve` is the per-item consent. `blocked`
+  (government ID numbers, criminal history, immigration status) is refused
+  outright. The agent classifies; the CLI's patterns are a narrow backstop that
+  can raise a label but never lower it. Receipts carry `⚠ sensitive`. Opting in
+  is never retroactive. This turns the positioning claim "provenance *and
+  consent* on every fragment" from copy into a shipped property.
+- **Codex integration, as hooks.** `brain --codex` now registers brain's three
+  hooks in `~/.codex/hooks.json` (non-destructive merge; `/hooks` once to trust)
+  in addition to the `AGENTS.md` prompt and skills — the same scripts the plugin
+  ships, with `${CLAUDE_PLUGIN_ROOT}` expanded to the npm package path. Codex's
+  extension API for rewriting MCP tool results (0.151.0) is compile-time Rust
+  inside the Codex binary, so hooks are the integration surface a third party
+  actually has. The unshipped `integrations/codex/hooks/` copies and the
+  `Stop`-hook turn queue are gone: `brain import --source codex` reads
+  `$CODEX_HOME/sessions/` directly.
+- **Prompt-time recall hook** (`UserPromptSubmit`, both hosts). Each substantive
+  prompt gets a deterministic `brain recall` pass; the top `prompt_recall_top` (3)
+  matches within `prompt_recall_budget_tokens` (600) are injected with receipts
+  and a short excerpt, wrapped in `<brain-context>`. The relevance floor means
+  unrelated prompts inject nothing; short prompts, slash commands and
+  acknowledgements are skipped; nothing is reinforced unless the model uses it.
+- **`brain import --source codex`.** A Codex rollout adapter for
+  `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` (format verified against
+  Codex 0.153): genuine prompts are told apart from injected AGENTS.md /
+  environment / hook context by `content_item_kinds` (marker matching for
+  pre-0.148 files), background threads (subagent, guardian, consolidation) are
+  skipped, thread names come from `session_index.jsonl`, touched files from
+  `apply_patch` calls. Harvest now also strips brain's own `<brain-context>`
+  and `<brain-session-context>` injections, so recalled memories are never
+  harvested back into new ones.
+- **`brain session-start --budget N`** tightens the working-memory cap for one
+  call (never raises it) — for hosts with a smaller injection window than
+  config.json assumes. `brain recall` is now importable in-process
+  (`computeRecall`) with byte-identical scoring to the CLI.
+- **Deterministic hooks for Claude Code and Codex** (`hooks/hooks.json`,
+  shared by both hosts). `SessionStart` injects the `brain session-start`
+  payload plus the ambient rules as `additionalContext` — the first time Claude
+  Code gets brain's session-start behaviour from the host rather than from a
+  prompt the model has to obey. `SessionEnd` appends a session-boundary entry
+  to `~/.brain/contexts.json`. Hooks run the engine in-process from the plugin
+  root, fail soft (`{}` + exit 0), and never touch a brain that does not exist.
 - **Content integrity baselines (OWASP ASI06, Store phase).** Every memory is
   hashed (SHA-256) at write time, and `brain audit` reports memories whose bytes
   no longer match. Closes the one poisoning route every other defense here was

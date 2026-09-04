@@ -1,0 +1,4 @@
+#!/bin/sh
+# Plugin-install shim: Claude Code adds a plugin's bin/ to PATH, so `brain` resolves
+# to the bundled CLI without an npm install. npm installs use bin/brain.js directly.
+exec node "$(dirname "$0")/brain.js" "$@"

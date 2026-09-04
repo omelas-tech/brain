@@ -731,3 +731,130 @@ describe('uninstallForRuntime', () => {
       !fs.readFileSync(promptPath, 'utf-8').includes(BRAIN_MARKER_START));
   });
 });
+
+// ===========================================================================
+// Host hooks (Codex): registration merges into hooks.json non-destructively
+// ===========================================================================
+const {
+  renderHooksConfig,
+  mergeHooksConfig,
+  stripHooksConfig,
+  installHooks,
+  uninstallHooks,
+  hooksInstalled,
+  PACKAGE_ROOT,
+} = require('../src/installer');
+
+describe('hooks registration helpers', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('renders hooks/hooks.json with the package root in place of ${CLAUDE_PLUGIN_ROOT}', () => {
+    const cfg = renderHooksConfig('/opt/brain');
+    assert.deepEqual(Object.keys(cfg.hooks), ['SessionStart', 'UserPromptSubmit', 'SessionEnd']);
+    assert.equal(cfg.hooks.SessionStart[0].hooks[0].command, 'node "/opt/brain/hooks/session-start.mjs"');
+    assert.equal(cfg.hooks.UserPromptSubmit[0].hooks[0].command, 'node "/opt/brain/hooks/prompt-recall.mjs"');
+    assert.ok(!JSON.stringify(cfg).includes('${CLAUDE_PLUGIN_ROOT}'));
+    // Default root is this package, and the scripts exist there.
+    for (const groups of Object.values(renderHooksConfig().hooks)) {
+      const file = groups[0].hooks[0].command.match(/^node "(.+)"$/)[1];
+      assert.ok(fs.existsSync(file), `${file} missing`);
+    }
+  });
+
+  it('merges into an existing config, replacing stale brain groups and keeping foreign ones', () => {
+    const foreign = { hooks: [{ type: 'command', command: 'node /elsewhere/lint.mjs' }] };
+    const stale = { hooks: [{ type: 'command', command: 'node "/old/brain/hooks/session-start.mjs"' }] };
+    const existing = { hooks: { SessionStart: [foreign, stale], PreToolUse: [foreign] }, other: 1 };
+    const merged = mergeHooksConfig(existing, renderHooksConfig('/new'));
+    assert.equal(merged.other, 1);
+    assert.deepEqual(merged.hooks.PreToolUse, [foreign]);
+    assert.equal(merged.hooks.SessionStart.length, 2);
+    assert.deepEqual(merged.hooks.SessionStart[0], foreign);
+    assert.equal(merged.hooks.SessionStart[1].hooks[0].command, 'node "/new/hooks/session-start.mjs"');
+    assert.equal(merged.hooks.SessionEnd.length, 1);
+    // Garbage in → still a valid config out.
+    assert.equal(mergeHooksConfig('nope', renderHooksConfig('/x')).hooks.SessionStart.length, 1);
+    assert.equal(mergeHooksConfig({ hooks: [] }, renderHooksConfig('/x')).hooks.SessionEnd.length, 1);
+  });
+
+  it('strips only brain groups and drops events left empty', () => {
+    const foreign = { hooks: [{ type: 'command', command: 'echo hi' }] };
+    const merged = mergeHooksConfig({ hooks: { Stop: [foreign] } }, renderHooksConfig('/x'));
+    const { config, removed } = stripHooksConfig(merged);
+    assert.equal(removed, 3);
+    assert.deepEqual(config.hooks, { Stop: [foreign] });
+    assert.deepEqual(stripHooksConfig({ hooks: { Stop: [foreign] } }).removed, 0);
+    assert.deepEqual(stripHooksConfig(null), { config: null, removed: 0 });
+  });
+
+  it('installs into a fresh file, is idempotent, and uninstalls back to nothing', () => {
+    const file = path.join(tmpDir, '.codex', 'hooks.json');
+    const first = installHooks(file, '/pkg');
+    assert.deepEqual(first, { registered: true, created: true, path: file });
+    assert.ok(hooksInstalled(file));
+    installHooks(file, '/pkg');
+    const cfg = readJSON(file);
+    assert.equal(cfg.hooks.SessionStart.length, 1, 'no duplicate groups on re-install');
+    const removed = uninstallHooks(file);
+    assert.deepEqual(removed, { removed: 3, fileDeleted: true });
+    assert.ok(!fs.existsSync(file));
+    assert.deepEqual(uninstallHooks(file), { removed: 0, reason: 'file-not-found' });
+  });
+
+  it('keeps foreign hooks when uninstalling and never rewrites unparseable files', () => {
+    const file = path.join(tmpDir, 'hooks.json');
+    fs.writeFileSync(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo' }] }] } }));
+    installHooks(file, '/pkg');
+    const result = uninstallHooks(file);
+    assert.equal(result.removed, 3);
+    assert.equal(result.fileDeleted, false);
+    assert.deepEqual(Object.keys(readJSON(file).hooks), ['Stop']);
+    assert.ok(!hooksInstalled(file));
+
+    fs.writeFileSync(file, '{ not json');
+    assert.equal(installHooks(file, '/pkg').manual, true);
+    assert.equal(uninstallHooks(file).manual, true);
+    assert.equal(fs.readFileSync(file, 'utf-8'), '{ not json');
+    assert.equal(hooksInstalled(file), false);
+  });
+});
+
+describe('installForRuntime registers Codex hooks (local scope)', () => {
+  let saved;
+  beforeEach(() => {
+    setup();
+    saved = { localDir: RUNTIMES.openai.localDir, skills: RUNTIMES.openai.skillsLocalDir };
+    RUNTIMES.openai.localDir = path.join(tmpDir, '.codex');
+    RUNTIMES.openai.skillsLocalDir = path.join(tmpDir, '.agents', 'skills');
+  });
+  afterEach(() => {
+    RUNTIMES.openai.localDir = saved.localDir;
+    RUNTIMES.openai.skillsLocalDir = saved.skills;
+    teardown();
+  });
+
+  it('writes .codex/hooks.json pointing at this package and removes it on uninstall', () => {
+    const result = installForRuntime('openai', 'local');
+    const file = path.join(tmpDir, '.codex', 'hooks.json');
+    assert.equal(result.hooks.registered, true);
+    assert.equal(result.hooks.path, file);
+    const cfg = readJSON(file);
+    assert.equal(
+      cfg.hooks.SessionStart[0].hooks[0].command,
+      `node "${PACKAGE_ROOT.replace(/\\/g, '/')}/hooks/session-start.mjs"`,
+    );
+    const un = uninstallForRuntime('openai', 'local');
+    assert.equal(un.hooksResult.removed, 3);
+    assert.ok(!fs.existsSync(file));
+  });
+
+  it('claude runtime registers no hooks (the plugin is Claude Code\'s hook path)', () => {
+    RUNTIMES.claude.localDir = path.join(tmpDir, '.claude');
+    try {
+      assert.equal(installForRuntime('claude', 'local').hooks, undefined);
+    } finally {
+      RUNTIMES.claude.localDir = '.claude';
+    }
+  });
+});

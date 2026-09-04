@@ -1,98 +1,66 @@
-# Codex CLI hooks integration
+# Codex CLI integration
 
-Deep integration with OpenAI Codex CLI's hooks engine (Codex **0.148.0+**), layered on
-the installer's existing `--codex` runtime (prompt → `~/.codex/AGENTS.md`, skills →
-`~/.agents/skills/`). Hooks add the two things prompts can't do:
+Brain reaches OpenAI Codex CLI three ways. They share one `~/.brain/`.
 
-1. **Deterministic session-start injection.** A `SessionStart` command hook runs
-   `brain session-start --project <cwd>` and returns the budget-bounded payload
-   (pinned facts, skills index, context recall) as
-   `hookSpecificOutput.additionalContext` — the same ambient-awareness injection the
-   Claude Code, Copilot, Kilo, OpenClaw, and Hermes integrations perform at their
-   hosts' canonical injection points.
-2. **Turn bookkeeping for import.** An async `Stop` hook appends
-   `{ts, session_id, turn_id, transcript_path, cwd}` to
-   `~/.brain/_import/codex-turns.jsonl`, so `/brain:import` and the sleep cycle know
-   exactly which Codex transcripts are new instead of re-scanning
-   `~/.codex/sessions/`.
+| Path | What Codex gets | Install |
+|------|-----------------|---------|
+| **Plugin** (recommended) | `SessionStart` context injection, `UserPromptSubmit` recall, `SessionEnd` tracking, the `brain-memory` skill | `codex /plugins` → add marketplace `omelas-tech/brain` → install `brain`. Also how ChatGPT workspace admins distribute it (Admin → Plugins → Import marketplace). |
+| **Installer** | The same three hooks (registered in `~/.codex/hooks.json`), `AGENTS.md` prompt, `brain-*` skills in `~/.agents/skills/` | `npm i -g brain-memory && brain --codex --global`, then `/hooks` once inside Codex to trust them |
+| **Hosted connector** | `brain_recall` / `brain_memorize` / … over MCP, no local brain | `codex mcp add brain --url https://mcp.brainmemory.ai/mcp` (or the `brain-cloud` plugin) |
 
-**What the Stop hook deliberately does NOT do:** memorize. Capture happens through
-`brain memorize` when the *model* decides something is worth remembering
-([design principle 1](../README.md)) — a hook that pipes `last_assistant_message`
-into memory is mechanical transcript dumping and produces observation-grade noise.
+## The hooks
 
-## Install (manual, until wired into `bin/install.js`)
+The scripts live at the repository root in [`hooks/`](../../hooks/) and are shared with
+the Claude Code plugin — Codex exports `CLAUDE_PLUGIN_ROOT` to plugin hooks for exactly
+this kind of compatibility, and the installer expands the same placeholder to the npm
+package path. They run the brain engine in-process (no `brain` binary needed) and fail
+soft: any error is one stderr line, `{}` on stdout, exit 0.
 
-```bash
-mkdir -p ~/.codex/brain-hooks
-cp hooks/session-start-hook.mjs hooks/stop-hook.mjs ~/.codex/brain-hooks/
-# merge hooks/hooks.json into ~/.codex/hooks.json (create it if absent)
-```
+- **`SessionStart`** → `brain session-start` payload (pinned facts, relevant memories,
+  skills index) plus the ambient rules, as `hookSpecificOutput.additionalContext`.
+  Codex caps hook context at ~2,500 tokens; brain's default working-memory budget is
+  3,000, so lower `working_memory_budget_tokens` in `~/.brain/config.json` (2,000 is
+  comfortable) or raise Codex's `additionalContextLimit` for the handler.
+- **`UserPromptSubmit`** → deterministic recall against the prompt; top
+  `prompt_recall_top` (3) memories within `prompt_recall_budget_tokens` (600), with
+  receipts and a short excerpt. Unrelated prompts inject nothing (relevance floor);
+  short prompts, slash commands and acknowledgements are skipped. Nothing is
+  reinforced by the hook — only by the model, when it actually uses a memory.
+- **`SessionEnd`** → one boundary entry in `~/.brain/contexts.json` (Codex allows 1 s
+  here, so this is a single in-process write).
 
-Then run `/hooks` inside Codex to review/trust the hook layer. Kill switch:
-`[features] hooks = false` in `~/.codex/config.toml`.
+What the hooks deliberately do **not** do: memorize. Capture is the model's decision
+via `brain memorize` ([design principle 1](../README.md)); a hook that pipes
+`last_assistant_message` into memory is transcript dumping.
 
-## The hook contract we rely on (verified 2026-08-25)
+Injected blocks are wrapped in `<brain-session-context>` / `<brain-context>` so
+`brain import` strips them — recalled memories never get harvested back in.
 
-- Events arrive as JSON on stdin: `session_id`, `transcript_path`, `cwd`,
-  `hook_event_name`, plus `turn_id` on turn-scoped events; `Stop` adds
-  `stop_hook_active` and optional `last_assistant_message`.
-- Handler types: `command` and `mcp_tool` are supported (`prompt`/`agent` parsed but
-  skipped). `async = true` exists **only for command hooks** (max 8 concurrent per
-  session; cannot block/approve/rewrite; output delivered at the next safe point).
-- Output: exit 0 continues; stdout JSON may carry
-  `hookSpecificOutput.additionalContext` (capped ~2,500 tokens — brain's payload is
-  budget-bounded well below that; raise with `additionalContextLimit` if needed).
-- Config layers merge (user `~/.codex/hooks.json` / `[hooks]` in config.toml →
-  project `.codex/` after trust review → plugin → enterprise `requirements.toml`).
-- Sources: Codex hooks docs (`developers.openai.com/codex/hooks`), PR #37533 (async
-  command hooks), PR #38705 (`mcp_tool` handlers).
+## Cold start from Codex history
 
-## Alternative: `mcp_tool` handler against the hosted connector
-
-Hooks can call a tool on an **already-connected** MCP server without any approval
-prompt ("MCP tool hooks run synchronously. They don't request tool approval or
-trigger other hooks"). If you use the hosted connector, register it first:
-
-```toml
-[mcp_servers.brain]
-url = "https://mcp.brainmemory.ai/mcp"
-```
-
-and a `Stop` entry in `hooks.json` could then call `brain_memorize` directly with
-`${...}` placeholders over the event payload. We ship the command-hook variant as the
-default because (a) `mcp_tool` handlers are synchronous-only — they run before the
-turn settles and add latency; (b) auto-memorizing on every turn violates the
-model-decides capture principle; (c) hooks reuse the session's MCP connection and
-fail open if the server is down. The `mcp_tool` path is the right shape for
-*explicit* workflows (e.g. a `PostToolUse` matcher on a specific tool whose results
-should always be archived) — not ambient capture.
+`brain import --source codex` reads `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`
+directly (format verified against Codex 0.153): user prompts are the `response_item`
+messages whose `content_item_kinds` are `user.*` (marker matching for pre-0.148
+files), subagent / guardian / consolidation threads are skipped, thread names come
+from `session_index.jsonl`, and touched files are read out of `apply_patch` calls.
+The import cursor is the rollout id from the filename.
 
 ## Codex-native memories (`~/.codex/memories/`) — hands off
 
-Codex's own memory pipeline consolidates plain-Markdown memories under
-`~/.codex/memories/` with a git baseline. Since 0.149.0 the workspace **rejects and
-strips symlinks** (PR #39205), so never symlink `~/.brain` content in; out-of-band
-writes may be rewritten by consolidation and surface in its diffs. Brain reads Codex
-memories only through the normal `/brain:import` transcript path — the hooks above
-are the sanctioned integration surface.
+Codex 0.15x ships its own `memories` extension (`memories/list|read|search`) over
+plain-Markdown files with a git baseline. Since 0.149.0 that workspace rejects and
+strips symlinks (PR #39205), so never symlink `~/.brain` content in; out-of-band
+writes may be rewritten by consolidation. Brain reads Codex only through the
+transcript import path above.
 
 ## Testing
 
-Both hook scripts fail soft (missing `brain` CLI → single stderr line, exit 0, host
-unaffected). Manual smoke test:
-
 ```bash
-echo '{"cwd":"'$PWD'","session_id":"thr_test","hook_event_name":"SessionStart"}' \
-  | node hooks/session-start-hook.mjs
-echo '{"cwd":"'$PWD'","session_id":"thr_test","turn_id":"t1","transcript_path":"/tmp/x.jsonl","hook_event_name":"Stop"}' \
-  | node hooks/stop-hook.mjs && tail -1 ~/.brain/_import/codex-turns.jsonl
+npm test                                   # includes test/plugin-hooks.test.js, test/install.test.js, test/harvest.test.js
+echo '{"cwd":"'$PWD'","session_id":"t","hook_event_name":"SessionStart"}' | node hooks/session-start.mjs
+echo '{"cwd":"'$PWD'","prompt":"what did we decide about pooling?"}' | node hooks/prompt-recall.mjs
 ```
 
-## Installer wiring (TODO)
-
-`--codex` in `bin/install.js` should additionally: copy the two scripts to
-`~/.codex/brain-hooks/`, merge `hooks/hooks.json` into `~/.codex/hooks.json`
-(non-destructive merge — Codex merges layers itself but two files in one layer warn
-at startup), and print a reminder to trust via `/hooks`. Follow the
-`INSTALLER-FACTS.md` pattern used by the Copilot integration.
+Contract references: Codex hooks (`learn.chatgpt.com/docs/hooks`), rollout format
+(`openai/codex` `codex-rs/rollout/`, `codex-rs/history/`), plugin hook env
+(`codex-rs/hooks/src/engine/discovery.rs`).

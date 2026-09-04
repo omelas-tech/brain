@@ -64,6 +64,31 @@ Settings for the [Associative Network](/docs/concepts/associative-network/):
 | `spreading_activation_depth` | integer | 2 | Maximum number of hops for spreading activation during recall. Higher values surface more distantly related memories. |
 | `spreading_activation_decay` | float | 0.5 | Activation decay factor per hop. At depth 2 with decay 0.5, activation at the second hop is 25% of the original. |
 
+## Runtime Config (`~/.brain/config.json`)
+
+A second, smaller file — `~/.brain/config.json`, created lazily — holds what the CLI and hooks read at runtime: token budgets, quarantine mode, prompt-time recall, and sensitive-topic consent. Missing keys fall back to these defaults:
+
+```json
+{
+  "working_memory_budget_tokens": 3000,
+  "pin_budget_tokens": 1500,
+  "skills_index_budget_tokens": 800,
+  "recall_budget_tokens": 700,
+  "prompt_recall_top": 3,
+  "prompt_recall_budget_tokens": 600,
+  "sensitive_topics": false,
+  "quarantine_mode": "flag"
+}
+```
+
+| Setting | Type | Default | Description |
+|---|---|:---:|---|
+| `prompt_recall_top` | integer | 3 | Maximum memories the `UserPromptSubmit` hook injects alongside a prompt. `0` disables prompt-time recall. |
+| `prompt_recall_budget_tokens` | integer | 600 | Token cap for that injection. The weakest matches are dropped first. |
+| `sensitive_topics` | boolean | false | Opt in to storing `sensitive` memories (health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation). While `false`, such writes are quarantined as `sensitive_opt_out` and hidden until approved one by one with `brain verify approve`. Never retroactive. |
+
+The four `*_budget_tokens` keys are described in [Working Memory](/docs/advanced/working-memory/#the-budget) and `quarantine_mode` in [Provenance & Trust](/docs/concepts/provenance-trust/#quarantine-untrusted-writes-wait-for-review).
+
 ## Tuning Guide
 
 ### Making Memories Last Longer

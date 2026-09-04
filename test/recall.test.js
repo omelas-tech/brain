@@ -190,3 +190,66 @@ describe('Reinforcement', () => {
     assert.equal(assoc.edges['mem_a']['mem_b'].co_retrievals, 1);
   });
 });
+
+// ===========================================================================
+// computeRecall: sensitive-topic consent gate
+// ===========================================================================
+describe('computeRecall sensitivity gate', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { writeIndex, writeConfig, readConfig } = require('../src/index-manager');
+  const { computeRecall } = require('../bin/recall');
+  let root;
+
+  const mems = (over = {}) => ({
+    s1: {
+      title: 'Therapy schedule', path: 'personal/health/therapy.md', type: 'preference', cognitive_type: 'semantic',
+      created: new Date().toISOString(), last_accessed: new Date().toISOString(), strength: 0.9, decay_rate: 0.998,
+      salience: 0.8, confidence: 0.9, tags: ['therapy'], sensitivity: 'sensitive', ...over,
+    },
+    n1: {
+      title: 'Therapy app deploy target', path: 'professional/therapy-app/deploy.md', type: 'decision', cognitive_type: 'semantic',
+      created: new Date().toISOString(), last_accessed: new Date().toISOString(), strength: 0.9, decay_rate: 0.998,
+      salience: 0.6, confidence: 0.9, tags: ['therapy', 'deploy'],
+    },
+  });
+
+  function seedBrain(memories) {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-recall-sens-'));
+    const brain = path.join(root, '.brain');
+    for (const m of Object.values(memories)) {
+      const file = path.join(brain, m.path);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, `---\ntitle: ${m.title}\n---\n${m.title} body\n`);
+    }
+    writeIndex({ version: '2.0', memory_count: Object.keys(memories).length, memories, last_updated: new Date().toISOString() }, root);
+  }
+
+  it('omits sensitive memories until opted in, then marks their receipts', () => {
+    seedBrain(mems());
+    try {
+      const hidden = computeRecall({ query: 'therapy', top: 10 }, root).map((r) => r.id);
+      assert.deepEqual(hidden, ['n1']);
+
+      writeConfig({ ...readConfig(root), sensitive_topics: true }, root);
+      const shown = computeRecall({ query: 'therapy', top: 10 }, root);
+      const s1 = shown.find((r) => r.id === 's1');
+      assert.ok(s1, 'sensitive memory recalled after opt-in');
+      assert.equal(s1.sensitivity, 'sensitive');
+      assert.match(s1.receipt, /⚠ sensitive\)$/);
+      assert.equal(shown.find((r) => r.id === 'n1').sensitivity, undefined);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('treats a vetted sensitive memory as individually approved', () => {
+    seedBrain(mems({ vetted: true }));
+    try {
+      assert.ok(computeRecall({ query: 'therapy', top: 10 }, root).some((r) => r.id === 's1'));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

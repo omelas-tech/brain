@@ -14,6 +14,8 @@ const {
   readJsonl,
   readImportState,
   markImported,
+  availableSources,
+  harvest,
   importStatePath,
   SOURCES,
 } = require('../src/harvest');
@@ -376,5 +378,143 @@ describe('import arg parsing', () => {
     assert.equal(args.since, '30d');
     assert.equal(args.limit, 5);
     assert.equal(args.all, true);
+  });
+});
+
+// ===========================================================================
+// codex adapter — $CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl
+// ===========================================================================
+describe('codex adapter', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  const line = (type, payload, extra = {}) => JSON.stringify({ timestamp: '2026-09-03T14:05:12.345Z', type, payload, ...extra });
+  const userMsg = (text, kinds = ['user.text']) => line('response_item', {
+    type: 'message', role: 'user', content: [{ type: 'input_text', text }],
+    internal_chat_message_metadata_passthrough: { content_item_kinds: kinds },
+  });
+
+  function writeRollout(name, lines, home = path.join(tmpDir, '.codex')) {
+    const dir = path.join(home, 'sessions', '2026', '09', '03');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, lines.join('\n') + '\n');
+    return file;
+  }
+
+  const META = line('session_meta', {
+    id: 'thread-1', session_id: 'thread-1', cwd: '/Users/me/code/app', originator: 'codex_cli_rs',
+    cli_version: '0.153.1', source: 'cli', thread_source: 'user', history_mode: 'paginated',
+    git: { branch: 'main', commit_hash: 'abc' },
+  }, { ordinal: 0 });
+
+  it('reads prompts, cwd, branch, model, turns and patched files from a paginated rollout', () => {
+    const file = writeRollout('rollout-2026-09-03T14-05-12-thread-1.jsonl', [
+      META,
+      line('turn_context', { cwd: '/Users/me/code/app', model: 'gpt-5.6-codex', approval_policy: 'on-request' }),
+      userMsg('fix the failing test in auth.rs'),
+      line('response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'On it.' }] }),
+      line('response_item', { type: 'custom_tool_call', name: 'apply_patch', call_id: 'c1', input: '*** Begin Patch\n*** Update File: src/auth.rs\n@@\n-a\n+b\n*** End Patch' }),
+      line('response_item', { type: 'function_call', name: 'shell_command', arguments: '{"command":"cargo test"}', call_id: 'c2' }),
+      userMsg('now add a regression test for it'),
+      line('event_msg', { type: 'turn_complete', turn_id: 't1' }, { timestamp: '2026-09-03T14:09:00.000Z' }),
+    ]);
+    const session = SOURCES.codex.parse(file);
+    assert.equal(session.source, 'codex');
+    assert.equal(session.session_id, 'thread-1');
+    assert.equal(session.cwd, '/Users/me/code/app');
+    assert.equal(session.git_branch, 'main');
+    assert.deepEqual([...session.models], ['gpt-5.6-codex']);
+    assert.deepEqual(session.prompts, ['fix the failing test in auth.rs', 'now add a regression test for it']);
+    assert.deepEqual([...session.files_touched], ['src/auth.rs']);
+    assert.equal(session.turns, 1);
+    assert.equal(session.started, '2026-09-03T14:05:12.345Z');
+    assert.equal(session.ended, '2026-09-03T14:09:00.000Z');
+    assert.equal(session.title, null);
+  });
+
+  it('ignores context Codex injects as user-role messages, by kind and by marker', () => {
+    const file = writeRollout('rollout-2026-09-03T14-05-12-thread-1.jsonl', [
+      META,
+      userMsg('# AGENTS.md instructions for /app\n\n<INSTRUCTIONS>\nbe nice\n</INSTRUCTIONS>', ['agents_md.instructions']),
+      userMsg('<environment_context>\n  <cwd>/app</cwd>\n</environment_context>', ['environments.environment_context']),
+      // Pre-0.148 rollout: no passthrough at all → marker fallback.
+      line('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<user_instructions>\nold agents.md\n</user_instructions>' }] }),
+      line('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<turn_aborted>interrupted</turn_aborted>' }] }),
+      line('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<brain-context>\n- ◉ memory: "x"\n</brain-context>' }] }),
+      line('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'genuine old-format ask' }] }),
+      userMsg('genuine new-format ask'),
+      // Hook additionalContext arrives as a developer message, never as user text.
+      line('response_item', { type: 'message', role: 'developer', content: [{ type: 'input_text', text: 'hook context' }] }),
+    ]);
+    assert.deepEqual(SOURCES.codex.parse(file).prompts, ['genuine old-format ask', 'genuine new-format ask']);
+  });
+
+  it('drops background threads: subagents, guardian reviews, memory consolidation', () => {
+    const variants = [
+      { thread_source: 'subagent', parent_thread_id: 'thread-0' },
+      { thread_source: 'guardian_review' },
+      { thread_source: 'memory_consolidation' },
+      { source: { subagent: 'review' } },
+      { source: { internal: 'memory_consolidation' } },
+    ];
+    variants.forEach((meta, i) => {
+      const file = writeRollout(`rollout-2026-09-03T14-05-1${i}-bg-${i}.jsonl`, [
+        line('session_meta', { id: `bg-${i}`, cwd: '/x', ...meta }),
+        userMsg('a prompt that should never surface'),
+      ]);
+      assert.equal(SOURCES.codex.parse(file), null, JSON.stringify(meta));
+    });
+  });
+
+  it('names sessions from session_index.jsonl, keyed by thread id even for reverted rollouts', () => {
+    const home = path.join(tmpDir, '.codex');
+    fs.mkdirSync(home, { recursive: true });
+    fs.writeFileSync(path.join(home, 'session_index.jsonl'), [
+      JSON.stringify({ id: 'thread-9', thread_name: 'old name', updated_at: '2026-09-01T00:00:00Z' }),
+      JSON.stringify({ id: 'thread-9', thread_name: 'Auth test fix', updated_at: '2026-09-02T00:00:00Z' }),
+    ].join('\n') + '\n');
+    const file = writeRollout('rollout-2026-09-03T14-05-12-thread-9_rollout-2.jsonl', [
+      line('session_meta', { id: 'thread-9', cwd: '/x', thread_source: 'user' }),
+      userMsg('first'), userMsg('second'),
+    ], home);
+    const session = SOURCES.codex.parse(file);
+    assert.equal(session.session_id, 'thread-9_rollout-2');
+    assert.equal(session.title, 'Auth test fix');
+    assert.equal(SOURCES.codex.sessionIdFor(file), 'thread-9_rollout-2');
+  });
+
+  it('lists only rollout files exactly three date levels deep, skipping compressed ones', () => {
+    const home = path.join(tmpDir, '.codex');
+    const root = path.join(home, 'sessions');
+    writeRollout('rollout-2026-09-03T14-05-12-a.jsonl', [META], home);
+    writeRollout('rollout-2026-09-03T14-05-13-b.jsonl.zst', ['zstd'], home);
+    writeRollout('notes.jsonl', ['{}'], home);
+    fs.mkdirSync(path.join(root, '2026', '09'), { recursive: true });
+    fs.writeFileSync(path.join(root, '2026', '09', 'rollout-2026-09-03T14-05-14-c.jsonl'), META + '\n');
+    fs.mkdirSync(path.join(root, 'junk', '09', '03'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'junk', '09', '03', 'rollout-2026-09-03T14-05-15-d.jsonl'), META + '\n');
+    const files = SOURCES.codex.listFiles(root).map((f) => path.basename(f));
+    assert.deepEqual(files, ['rollout-2026-09-03T14-05-12-a.jsonl']);
+    assert.deepEqual(SOURCES.codex.listFiles(path.join(tmpDir, 'missing')), []);
+  });
+
+  it('is discoverable through harvest() and honors the import cursor by rollout id', () => {
+    const home = path.join(tmpDir, '.codex');
+    const saved = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = home;
+    try {
+      writeRollout('rollout-2026-09-03T14-05-12-thread-1.jsonl', [META, userMsg('one thing'), userMsg('another thing')], home);
+      const digest = harvest({ source: 'codex', projectRoot: tmpDir });
+      assert.equal(digest.source, 'codex');
+      assert.equal(digest.sessions.length, 1);
+      assert.equal(digest.sessions[0].session_id, 'thread-1');
+      const marked = markImported('codex', ['thread-1', 'nope'], tmpDir);
+      assert.deepEqual(marked.unknown, ['nope']);
+      assert.equal(harvest({ source: 'codex', projectRoot: tmpDir }).sessions.length, 0);
+      assert.ok(availableSources().some((s) => s.id === 'codex' && s.available && s.sessions === 1));
+    } finally {
+      if (saved === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = saved;
+    }
   });
 });

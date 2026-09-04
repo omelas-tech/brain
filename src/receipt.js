@@ -14,8 +14,9 @@
  * wherever its receipt appears:  ◉ memory: "<title>" (<type>, <age>, ⚠ external)
  * Memories pending verification (quarantined — see src/quarantine.js) carry a
  * further "⊘ unverified" segment, and memories whose validity window has closed
- * (see src/temporal.js) a "⌛ expired" one. User/agent-inferred, vetted, current
- * receipts are byte-identical to the base format.
+ * (see src/temporal.js) a "⌛ expired" one, and sensitive-topic memories (see
+ * src/sensitivity.js) a "⚠ sensitive" one. User/agent-inferred, vetted, current,
+ * standard receipts are byte-identical to the base format.
  *
  * Age is derived from the memory's `created` timestamp (falling back to
  * `last_accessed`; omitted entirely when neither parses):
@@ -78,10 +79,13 @@ function receiptFor(memoryLike, nowFn) {
   // still be the right answer ("that was true until March") — but it must
   // never look current, so the marker rides along with the receipt.
   const expired = temporalState(mem, now.getTime()) === 'expired' ? ', ⌛ expired' : '';
+  // Consent: a sensitive-topic memory stays visibly marked even after the user
+  // opted in or approved it, so the agent knows to handle it with care.
+  const sensitive = mem.sensitivity === 'sensitive' ? ', ⚠ sensitive' : '';
 
   return age
-    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending}${expired})`
-    : `◉ memory: "${title}" (${type}${trust}${pending}${expired})`;
+    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending}${expired}${sensitive})`
+    : `◉ memory: "${title}" (${type}${trust}${pending}${expired}${sensitive})`;
 }
 
 module.exports = { receiptFor, ageLabel };

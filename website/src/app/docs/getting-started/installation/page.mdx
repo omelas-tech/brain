@@ -19,6 +19,8 @@ There are two ways to give an agent a brain:
    the Claude.ai and ChatGPT apps. Nothing to install locally.
 2. **The local-first native plugin** — free, stores everything in `~/.brain/` on your
    machine, and wires slash commands and prompt sections into the agent's own config.
+   Claude Code and Codex can also take it as a [marketplace plugin](#plugin-install)
+   that adds deterministic session hooks.
 
 Most people start with the connector; reach for the native plugin when you want a
 fully local, no-account brain.
@@ -93,7 +95,7 @@ npm install -g brain-memory
 # Claude Code, global
 brain --claude --global
 
-# OpenAI Codex CLI, global
+# OpenAI Codex CLI, global (also registers hooks in ~/.codex/hooks.json)
 brain --codex --global
 
 # OpenCode, local project
@@ -121,12 +123,63 @@ brain --all --global
   does the same through Kilo's plugin system.
 </Callout>
 
+`brain --codex` also registers Brain's three hooks — `SessionStart`, `UserPromptSubmit`,
+`SessionEnd` — in `~/.codex/hooks.json`. The merge is non-destructive (your other hooks
+stay), and Codex asks you to trust them once: run `/hooks` inside Codex. The scripts are
+the same ones the plugin ships and run the engine in-process, so they work without the
+`brain` binary on `PATH`. Codex caps hook context at roughly 2,500 tokens, below Brain's
+default 3,000-token working-memory budget — lower `working_memory_budget_tokens` in
+`~/.brain/config.json` to about 2,000, or raise Codex's `additionalContextLimit`. See
+[Hook injection points](/docs/advanced/working-memory/#hook-injection-points) for what
+each hook injects. The Claude Code installer stays prompt-based; Claude Code gets hooks
+through the plugin below.
+
+## Plugin Install
+
+The repository is also a plugin marketplace (`omelas-tech/brain`) for Claude Code, Codex,
+and ChatGPT workspaces. It lists two plugins:
+
+| Plugin | What it installs |
+|---|---|
+| `brain` | Local-first: the `/brain:*` commands, three deterministic hooks (`SessionStart`, `UserPromptSubmit`, `SessionEnd`), and the bundled `brain` CLI via a `bin/brain` shim — no npm install needed. |
+| `brain-cloud` | Only the hosted MCP connector (`https://mcp.brainmemory.ai/mcp`), for hosts without a local `~/.brain/`. Local-CLI users are never pushed into cloud OAuth. |
+
+### Claude Code
+
+```bash
+claude plugin marketplace add omelas-tech/brain
+claude plugin install brain@brain-memory          # local-first: hooks + /brain:* commands
+claude plugin install brain-cloud@brain-memory    # optional: the hosted MCP connector
+```
+
+The plugin is named `brain`, so commands stay `/brain:*`. This is the hook path for Claude
+Code — `SessionStart` injects the budget-bounded session payload as context and
+`UserPromptSubmit` runs prompt-time recall, with nothing for the model to remember to run.
+
+### OpenAI Codex CLI
+
+Run `codex /plugins`, add the marketplace `omelas-tech/brain`, then install `brain` (and
+optionally `brain-cloud`). Codex reads the Claude manifest (`.claude-plugin/plugin.json`,
+with a `.codex-plugin/plugin.json` overlay) and exports `CLAUDE_PLUGIN_ROOT` to plugin
+hooks, so both hosts run the same hook scripts.
+
+### ChatGPT workspaces
+
+For ChatGPT Business, Enterprise, and Edu, a workspace admin imports the marketplace once
+— **Admin → Plugins → Add → Import marketplace** → the repository URL
+(`https://github.com/omelas-tech/brain`) — and the workspace picks up new versions daily.
+
+- Plugins that declare MCP servers (`brain-cloud`) are Desktop-only in ChatGPT.
+- Import does not grant access by itself: each user completes the connector's OAuth
+  sign-in on first use.
+
 ## What Gets Installed
 
-The installer copies two things to your agent's configuration directory:
+The installer copies two things to your agent's configuration directory (three for Codex CLI):
 
 1. **Command prompts** — Slash command definitions (e.g., `/brain:memorize`, `/brain:remember`) that teach the agent how to use the memory system
 2. **Prompt section** — Instructions appended to your agent's main prompt file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `copilot-instructions.md`, or Kilo's `rules/brain-memory.md`) that enable session lifecycle behavior (auto-loading memories at start, suggesting memorization at end)
+3. **Hooks** (Codex CLI only) — `SessionStart`, `UserPromptSubmit`, and `SessionEnd` entries merged into `~/.codex/hooks.json`, pointing at the package's `hooks/*.mjs`
 
 Your actual memories live in `~/.brain/`, which the installer creates for you (it's also auto-created on your first `/brain:memorize` or `/brain:sync`).
 
@@ -156,6 +209,9 @@ done
 
 # Append prompt section to AGENTS.md
 cat prompts/openai.md >> ~/.codex/AGENTS.md
+
+# Hooks (optional): merge hooks/hooks.json into ~/.codex/hooks.json with
+# ${CLAUDE_PLUGIN_ROOT} replaced by the package path, then run /hooks in Codex
 ```
 
 ### OpenCode
@@ -244,7 +300,7 @@ brain uninstall
 npm uninstall -g brain-memory
 ```
 
-The first command removes slash commands and prompt sections from your agent's configuration. The second removes the package and CLI tools. Your `~/.brain/` directory (all your memories) is preserved by default.
+The first command removes slash commands, prompt sections, and Codex hooks from your agent's configuration. The second removes the package and CLI tools. Your `~/.brain/` directory (all your memories) is preserved by default.
 
 To also delete your memories:
 

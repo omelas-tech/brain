@@ -185,7 +185,11 @@ const { parseArgs } = require('../bin/session-start');
 
 describe('parseArgs', () => {
   it('returns sensible defaults for no args', () => {
-    assert.deepEqual(parseArgs([]), { project: null, topics: null, task: null, top: 5 });
+    assert.deepEqual(parseArgs([]), { project: null, topics: null, task: null, top: 5, budget: null });
+  });
+  it('parses --budget and ignores a non-numeric value', () => {
+    assert.equal(parseArgs(['--budget', '1800']).budget, 1800);
+    assert.equal(parseArgs(['--budget', 'lots']).budget, null);
   });
   it('parses every recognized flag', () => {
     const a = parseArgs(['--project', 'app', '--topics', 'x,y', '--task', 'impl', '--top', '3']);
@@ -252,5 +256,62 @@ describe('computeSessionStart pinned tier', () => {
     const pinned = computeSessionStart(tmpDir, {}).pinned;
     assert.equal(pinned.find((p) => p.id === 'present').content, 'VISIBLE BODY');
     assert.equal(pinned.find((p) => p.id === 'gone').content, '', 'missing file → empty body, no throw');
+  });
+});
+
+// ===========================================================================
+// --budget: a caller can only tighten the configured working-memory cap
+// ===========================================================================
+describe('computeSessionStart --budget', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('lowers the cap for the call without touching config.json', () => {
+    seed({});
+    const p = computeSessionStart(tmpDir, { budget: 120 });
+    assert.equal(p.budget.cap, 120);
+    assert.equal(readConfig(tmpDir).working_memory_budget_tokens, DEFAULT_CONFIG.working_memory_budget_tokens);
+  });
+
+  it('never raises the cap above the configured budget', () => {
+    seed({});
+    const p = computeSessionStart(tmpDir, { budget: 999999 });
+    assert.equal(p.budget.cap, DEFAULT_CONFIG.working_memory_budget_tokens);
+    assert.equal(computeSessionStart(tmpDir, { budget: 0 }).budget.cap, DEFAULT_CONFIG.working_memory_budget_tokens);
+  });
+});
+
+// ===========================================================================
+// Sensitive-topic consent: hidden from working memory until opted in / vetted
+// ===========================================================================
+describe('computeSessionStart sensitivity gate', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  const sensitiveMem = (over = {}) => ({
+    title: 'Health preference', path: 'personal/health/pref.md', type: 'preference',
+    cognitive_type: 'semantic', created: new Date().toISOString(), strength: 0.9, decay_rate: 0.998,
+    salience: 0.8, confidence: 0.9, tags: ['health'], sensitivity: 'sensitive', ...over,
+  });
+
+  it('hides sensitive memories from recall and pins by default', () => {
+    seed({ m1: sensitiveMem({ pinned: true, pin_scope: 'global' }), m2: sensitiveMem({ title: 'Other', path: 'personal/health/other.md' }) });
+    const p = computeSessionStart(tmpDir, { project: 'health' });
+    assert.deepEqual(p.pinned, []);
+    assert.deepEqual(p.context_recall, []);
+    assert.equal(p.memory_count, 2, 'still counted — hidden, not gone');
+  });
+
+  it('shows them once the user opted in, or approved the memory', () => {
+    seed({ m1: sensitiveMem({ pinned: true, pin_scope: 'global' }) });
+    writeConfig({ ...readConfig(tmpDir), sensitive_topics: true }, tmpDir);
+    const opted = computeSessionStart(tmpDir, { project: 'health' });
+    assert.equal(opted.pinned.length, 1);
+    assert.match(opted.pinned[0].receipt, /⚠ sensitive/);
+
+    writeConfig({ ...readConfig(tmpDir), sensitive_topics: false }, tmpDir);
+    seed({ m1: sensitiveMem({ pinned: true, pin_scope: 'global', vetted: true }) });
+    const vetted = computeSessionStart(tmpDir, { project: 'health' });
+    assert.equal(vetted.pinned.length, 1);
   });
 });

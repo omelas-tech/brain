@@ -83,9 +83,18 @@ npm run release:major   # 0.2.0 → 1.0.0
 
 Each release command:
 1. Runs the full test suite
-2. Bumps the version in `package.json`
+2. Bumps the version in `package.json` — the `version` lifecycle script then
+   syncs `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json` and the
+   marketplace entry to the same version (`test/plugin-manifests.test.js`
+   fails if they drift)
 3. Creates a git commit and tag
 4. Publishes to npm
+
+Cut the changelog first: move the `[Unreleased]` items under a new
+`## [x.y.z] - YYYY-MM-DD` header with a short summary paragraph, then run
+`node scripts/release.mjs sync-web` so the website feed picks it up. Plugin
+installs (Claude Code, Codex, ChatGPT workspace imports) update from the
+tagged repository on their own sync schedule; nothing extra to publish.
 
 After publishing, push the commit and tag:
 

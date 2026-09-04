@@ -1,0 +1,52 @@
+{
+  "name": "brain-memory",
+  "owner": {
+    "name": "Omelas",
+    "email": "onur@omelas.tech",
+    "url": "https://omelas.tech"
+  },
+  "description": "Brain Memory — neuroscience-inspired persistent memory for AI agents. Local-first plugin (hooks + /brain:* commands over ~/.brain) and the hosted Brain Cloud MCP connector.",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "name": "brain",
+      "source": "./",
+      "description": "Local-first memory: SessionStart hook injects a budget-bounded context payload from ~/.brain, /brain:* commands cover recall, memorize, verify, pin, forget, sync, skills, import and sleep. Bundles the brain CLI.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Omelas",
+        "url": "https://omelas.tech"
+      },
+      "homepage": "https://brainmemory.ai",
+      "repository": "https://github.com/omelas-tech/brain",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "memory",
+        "agent-memory",
+        "recall",
+        "provenance"
+      ]
+    },
+    {
+      "name": "brain-cloud",
+      "source": "./integrations/brain-cloud-plugin",
+      "description": "Hosted Brain Cloud MCP connector (https://mcp.brainmemory.ai/mcp) for hosts without a local ~/.brain — Claude.ai, ChatGPT desktop, mobile. OAuth 2.1 sign-in; same memories as the local plugin when synced.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Omelas",
+        "url": "https://omelas.tech"
+      },
+      "homepage": "https://brainmemory.ai",
+      "repository": "https://github.com/omelas-tech/brain",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "memory",
+        "mcp",
+        "connector",
+        "brain-cloud"
+      ]
+    }
+  ]
+}

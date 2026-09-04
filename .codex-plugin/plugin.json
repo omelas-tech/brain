@@ -1,0 +1,44 @@
+{
+  "name": "brain",
+  "version": "0.2.0",
+  "description": "Persistent, neuroscience-inspired memory for Codex. A SessionStart hook injects a budget-bounded context payload from the user's ~/.brain; the brain-memory skill teaches deterministic recall and provenance-stamped memorization via the brain CLI.",
+  "author": {
+    "name": "Omelas",
+    "email": "onur@omelas.tech",
+    "url": "https://omelas.tech"
+  },
+  "homepage": "https://brainmemory.ai",
+  "repository": "https://github.com/omelas-tech/brain",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "agent-memory",
+    "recall",
+    "provenance",
+    "brain"
+  ],
+  "skills": "./integrations/agentskills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Brain Memory",
+    "shortDescription": "Persistent memory your agent can explain",
+    "longDescription": "One human-readable ~/.brain shared across Codex, Claude Code and other agents. Every memory carries provenance (origin, trust weighting, quarantine until verified) and a validity window; recall is deterministic with spreading activation and visible receipts. Requires the brain CLI (npm i -g brain-memory) for the skill; the session-start hook runs from the plugin itself.",
+    "developerName": "Omelas",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://brainmemory.ai",
+    "privacyPolicyURL": "https://brainmemory.ai/privacy",
+    "termsOfServiceURL": "https://brainmemory.ai/terms",
+    "defaultPrompt": [
+      "What do you remember about this project?",
+      "Memorize the decision we just made.",
+      "Show my brain status."
+    ],
+    "brandColor": "#E8A33D",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  }
+}

@@ -42,6 +42,14 @@ It returns one deterministic, token-budget-bounded JSON payload — replacing wh
 
 The agent treats `pinned` facts as active constraints, notes which `skills_index` skills exist (loading full instructions only on a match), and keeps `context_recall` in mind — all without dumping any of it to the user.
 
+### Tightening the cap for one call
+
+```bash
+brain session-start --project "<current project>" --budget 2000
+```
+
+`--budget N` lowers the working-memory cap for that call only. It can never raise it above `working_memory_budget_tokens`, so a host with a smaller injection window gets a payload that fits without changing the config every other host reads.
+
 ## The budget
 
 A separate `~/.brain/config.json` (created lazily with safe defaults) caps how much each part of the payload may consume:
@@ -51,7 +59,9 @@ A separate `~/.brain/config.json` (created lazily with safe defaults) caps how m
   "working_memory_budget_tokens": 3000,
   "pin_budget_tokens": 1500,
   "skills_index_budget_tokens": 800,
-  "recall_budget_tokens": 700
+  "recall_budget_tokens": 700,
+  "prompt_recall_top": 3,
+  "prompt_recall_budget_tokens": 600
 }
 ```
 
@@ -61,6 +71,8 @@ A separate `~/.brain/config.json` (created lazily with safe defaults) caps how m
 | `pin_budget_tokens` | 1500 | [Pinned](/docs/concepts/pinned-memory/) always-present memories |
 | `skills_index_budget_tokens` | 800 | The [skills](/docs/concepts/procedural-skills/) L0 index |
 | `recall_budget_tokens` | 700 | Context-relevant recalled memories |
+| `prompt_recall_top` | 3 | Memories injected per prompt by the `UserPromptSubmit` hook (see below) |
+| `prompt_recall_budget_tokens` | 600 | Tokens for that per-prompt injection |
 
 ### Token estimation
 
@@ -72,6 +84,24 @@ The aggregator fills the budget in priority order: applicable pins first (by [pr
 
 <Callout type="tip">
   Raise <code>working_memory_budget_tokens</code> if you run with very large context windows and want more memory loaded up front; lower it to keep Brain's footprint minimal on smaller models.
+</Callout>
+
+## Hook injection points
+
+With the [`brain` plugin](/docs/getting-started/installation/#plugin-install) (Claude Code, Codex) or the hooks `brain --codex` registers in `~/.codex/hooks.json`, the host injects Brain's context itself — the model never has to remember to run anything. Three hooks, shared by both hosts, each answering with `hookSpecificOutput.additionalContext`:
+
+| Hook | Injects | Budget |
+|---|---|---|
+| `SessionStart` | The `brain session-start` payload plus the ambient rules (status line, receipts, memorize etiquette), wrapped in `<brain-session-context>` | `working_memory_budget_tokens` |
+| `UserPromptSubmit` | Deterministic recall against the prompt: up to `prompt_recall_top` memories with receipts and a short excerpt, wrapped in `<brain-context>` | `prompt_recall_budget_tokens` |
+| `SessionEnd` | Nothing — appends a session-boundary entry to `~/.brain/contexts.json` | — |
+
+Prompt-time recall is conservative because it fires on every prompt. It applies the relevance floor, so an unrelated prompt injects nothing at all; short prompts, bare slash commands, and acknowledgements ("yes", "thanks") are skipped; and the weakest matches are dropped first when the budget is tight. Nothing is reinforced by the hook — strength grows only when the model actually uses a memory and runs `brain reinforce`.
+
+The hooks run the engine in-process, fail soft (any error is one stderr line, `{}` on stdout, exit 0), and do nothing when no brain exists. The wrapper tags let [`brain import`](/docs/commands/import/) strip injected context from transcripts, so a recalled memory is never harvested back into a new one.
+
+<Callout type="info">
+  Codex caps hook context at roughly 2,500 tokens, below the default 3,000-token session-start budget. Lower `working_memory_budget_tokens` to about 2,000, or raise Codex's `additionalContextLimit` for the handler.
 </Callout>
 
 ## Primacy & recency ordering

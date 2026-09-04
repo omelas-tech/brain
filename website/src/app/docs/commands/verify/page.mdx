@@ -11,7 +11,7 @@ export const metadata = docMeta("/docs/commands/verify", {
 
 # /brain:verify
 
-Writes from untrusted sources — tool output, external content, or text that looks instruction-shaped — are held in a **pending-verification** state (see [Provenance & Trust](/docs/concepts/provenance-trust/)). `verify` is how they get resolved. Resolution is always the user's call; the agent never approves on its own judgment.
+Writes from untrusted sources — tool output, external content, or text that looks instruction-shaped — are held in a **pending-verification** state (see [Provenance & Trust](/docs/concepts/provenance-trust/)). `verify` is how they get resolved. Sensitive-topic writes are held the same way (reason `sensitive_opt_out`) until you opt in or approve them one by one. Resolution is always the user's call; the agent never approves on its own judgment.
 
 <Callout type="info">
 "Verify" is distinct from the spaced-repetition **review queue** (`due_for_review`). Verification is a one-time trust decision on a quarantined write; review is ongoing reinforcement scheduling.
@@ -32,6 +32,12 @@ brain verify reject  <id> [<id>…]    # archive (recoverable)
 - **Reject** archives the memory to `~/.brain/_archived/` (recoverable). Pass `--force` only if the CLI refuses a high-salience entry and you're sure.
 
 Every approve and reject is written to the append-only audit log.
+
+## Sensitive-topic writes
+
+A memory classified `sensitive` — health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation (see [Sensitivity](/docs/commands/memorize/#sensitivity)) — is quarantined with reason `sensitive_opt_out` unless `sensitive_topics: true` is set in `~/.brain/config.json`. Unlike an ordinary pending write, it is **hidden** from recall and session start whatever `quarantine_mode` says, so nothing surfaces while it waits.
+
+`brain verify list` shows the reason. Approving is **per-item consent**: it lifts the exclusion for that memory only, and its receipt keeps the `⚠ sensitive` marker. Setting `sensitive_topics: true` opts in for future writes; it is never retroactive — it does not approve memories already held, and never recovers a refused `blocked` write.
 
 ## Related
 

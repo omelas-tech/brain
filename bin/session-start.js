@@ -8,7 +8,11 @@
  * Brain can never bloat the host's context window.
  *
  * Usage:
- *   brain session-start [--project P] [--topics a,b] [--task T] [--top N]
+ *   brain session-start [--project P] [--topics a,b] [--task T] [--top N] [--budget TOKENS]
+ *
+ * --budget lowers the working-memory cap for this call only (never raises it):
+ * hosts with a smaller injection window than config.json assumes — Codex caps
+ * hook context at ~2,500 tokens — pass the room they actually have.
  *
  * Output (JSON):
  *   {
@@ -45,15 +49,17 @@ const { advertisedSummaries } = require('../src/skills');
 const { receiptFor } = require('../src/receipt');
 const { temporalState } = require('../src/temporal');
 const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
+const { isSensitiveHidden } = require('../src/sensitivity');
 
 function parseArgs(argv) {
-  const args = { project: null, topics: null, task: null, top: 5 };
+  const args = { project: null, topics: null, task: null, top: 5, budget: null };
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--project': args.project = argv[++i]; break;
       case '--topics': args.topics = argv[++i]; break;
       case '--task': args.task = argv[++i]; break;
       case '--top': args.top = parseInt(argv[++i], 10) || 5; break;
+      case '--budget': args.budget = parseInt(argv[++i], 10) || null; break;
       default: break;
     }
   }
@@ -110,14 +116,17 @@ function buildContextQuery(args) {
  * it is directly unit-testable.
  *
  * @param {string} [projectRoot] - Filesystem root whose .brain/ to read
- * @param {Object} [args] - { project, topics, task, top }
+ * @param {Object} [args] - { project, topics, task, top, budget }
  * @returns {Object} The session-start payload
  */
 function computeSessionStart(projectRoot, args = {}) {
   const top = args.top || 5;
   const brainDir = getBrainDir(projectRoot);
   const config = readConfig(projectRoot);
-  const cap = config.working_memory_budget_tokens;
+  // A caller-supplied budget can only tighten the configured cap.
+  const cap = args.budget > 0
+    ? Math.min(config.working_memory_budget_tokens, args.budget)
+    : config.working_memory_budget_tokens;
 
   const empty = {
     memory_count: 0,
@@ -160,6 +169,9 @@ function computeSessionStart(projectRoot, args = {}) {
   const quarantineMode = config.quarantine_mode || 'flag';
   const memories = Object.entries(index.memories)
     .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
+    // Consent: sensitive-topic memories stay out of working memory until the
+    // user opts in or approves them one by one.
+    .filter(([, entry]) => !isSensitiveHidden(entry, config))
     .map(([id, entry]) => ({ id, ...entry }));
 
   let associations = null;
@@ -190,6 +202,7 @@ function computeSessionStart(projectRoot, args = {}) {
     // Defensive: pinning a quarantined memory is refused, but state synced
     // from another device could carry both flags — never load it every session.
     if (entry.quarantined && quarantineMode !== 'off') continue;
+    if (isSensitiveHidden(entry, config)) continue;
     // Bitemporal: the pinned tier is presented to the agent as always-apply
     // active constraints, and a fact whose validity window has closed is not a
     // constraint any more. Drop it here rather than asserting it every session

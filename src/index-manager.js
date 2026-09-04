@@ -29,6 +29,14 @@ const DEFAULT_CONFIG = {
   pin_budget_tokens: 1500,
   skills_index_budget_tokens: 800,
   recall_budget_tokens: 700,
+  // Prompt-time recall (UserPromptSubmit hook): memories injected alongside a
+  // user prompt. Small on purpose — it fires on every substantive prompt.
+  prompt_recall_top: 3,
+  prompt_recall_budget_tokens: 600,
+  // Sensitive-topic consent (see src/sensitivity.js). Off by default: writes
+  // classified `sensitive` are quarantined and hidden until the user opts in
+  // here or approves them one by one with `brain verify approve`.
+  sensitive_topics: false,
   // ASI06 quarantine for low-trust writes: 'off' (never flag), 'flag'
   // (recallable but marked + surfaced for verification — the default), or
   // 'enforce' (excluded from recall/session-start until approved). Exclusion

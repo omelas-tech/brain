@@ -90,6 +90,7 @@ const COGNITIVE_ADJUSTMENTS = {
 // that holds regardless of caller honesty: entrenchment is simply not
 // reachable from this path without an explicit user origin.
 const { ORIGIN_POLICY, DEFAULT_ORIGIN } = require('../src/provenance');
+const { sensitivityDecision, SENSITIVE_OPT_OUT_REASON } = require('../src/sensitivity');
 
 // --- Args ---
 
@@ -224,6 +225,8 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, qua
   // (when it was recorded). Emitted only when the author bounded it.
   if (mem.valid_from) fmLines.push(`valid_from: "${mem.valid_from}"`);
   if (mem.valid_until) fmLines.push(`valid_until: "${mem.valid_until}"`);
+  // Consent tier (src/sensitivity.js) — only non-standard levels are written.
+  if (mem.sensitivity && mem.sensitivity !== 'standard') fmLines.push(`sensitivity: "${mem.sensitivity}"`);
   fmLines.push(
     `tags: [${(mem.tags || []).map(t => `"${t}"`).join(', ')}]`,
     `related: [${(mem.related || []).map(r => `"${r}"`).join(', ')}]`,
@@ -279,6 +282,7 @@ function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) 
   if (mem.supersedes && mem.supersedes.length) entry.supersedes = mem.supersedes;
   if (mem.valid_from) entry.valid_from = mem.valid_from;
   if (mem.valid_until) entry.valid_until = mem.valid_until;
+  if (mem.sensitivity && mem.sensitivity !== 'standard') entry.sensitivity = mem.sensitivity;
   return entry;
 }
 
@@ -488,6 +492,31 @@ async function main() {
     const lint = lintMemoryContent(mem);
     const quarantine = quarantineDecision({ origin, lintResult: lint, config });
 
+    // Sensitive-topic consent (src/sensitivity.js). `blocked` content is
+    // refused outright; `sensitive` content is stored only after the user
+    // opted in — otherwise it lands quarantined and hidden, and approving it
+    // is the per-item consent. Evaluated after the origin gate so a refusal
+    // names the real reason, and before anything reaches disk.
+    const sensitivity = sensitivityDecision(mem, config);
+    if (sensitivity.error) {
+      console.error(JSON.stringify({ error: `${sensitivity.error} — memory: ${JSON.stringify(rawMem.title)}` }));
+      process.exit(1);
+    }
+    if (sensitivity.action === 'refuse') {
+      console.error(JSON.stringify({
+        error: `Refused: content classified "blocked" (${sensitivity.categories.join(', ') || 'declared by caller'}) — ` +
+               `identification numbers, criminal history and immigration status are never stored — memory: ${JSON.stringify(rawMem.title)}`,
+        sensitivity: 'blocked',
+        categories: sensitivity.categories,
+      }));
+      process.exit(1);
+    }
+    if (sensitivity.action === 'quarantine') {
+      quarantine.quarantined = true;
+      quarantine.reasons = [...quarantine.reasons, SENSITIVE_OPT_OUT_REASON];
+    }
+    mem.sensitivity = sensitivity.level;
+
     // Generate ID
     const id = generateId();
     newIds.push(id);
@@ -525,6 +554,7 @@ async function main() {
         clamped: policy.clamps.map((c) => c.field),
         ...(lint.flags.length ? { lint: lint.flags.map((f) => f.rule) } : {}),
         ...(quarantine.quarantined ? { quarantined: true, quarantine_reasons: quarantine.reasons } : {}),
+        ...(mem.sensitivity !== 'standard' ? { sensitivity: mem.sensitivity, sensitivity_categories: sensitivity.categories } : {}),
       });
     } catch (err) {
       auditErrors.push({ id, error: err.message });
@@ -631,6 +661,10 @@ async function main() {
         ? { quarantine_pending: true, quarantine_reasons: quarantine.reasons }
         : {}),
       ...(lint.flags.length ? { lint_flags: lint.flags.map((f) => f.rule) } : {}),
+      // Consent tier. `sensitive_opt_out` means the memory is stored but hidden
+      // until the user opts in (config) or approves it (`brain verify approve`).
+      ...(mem.sensitivity !== 'standard' ? { sensitivity: mem.sensitivity } : {}),
+      ...(sensitivity.action === 'quarantine' ? { sensitive_opt_out: true } : {}),
       ...(supersededNow.length ? { superseded: supersededNow } : {}),
       // Held back until verification — surfaced so the agent can tell the user
       // the replacement it asked for has not taken effect yet.

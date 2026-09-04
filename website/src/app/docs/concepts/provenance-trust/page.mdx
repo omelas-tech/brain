@@ -102,6 +102,24 @@ brain verify reject  <id>         # archive it
 
 Approval clears the flag and marks the memory `vetted`; it does **not** promote it to `user` trust.
 
+## Consent tier: sensitive topics
+
+Origin answers *who is speaking*. A second label, `sensitivity`, answers whether the memory may be kept at all. Every memory carries one of three tiers, using the vocabulary of Anthropic's published memory consent model (August 2026) so a brain interoperates with it rather than inventing a schema:
+
+| Tier | Covers | At write time |
+|---|---|---|
+| `standard` | Everything else (the default) | Stored normally |
+| `sensitive` | Health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation, and similar | Stored only if `sensitive_topics: true` in `~/.brain/config.json`; otherwise quarantined with reason `sensitive_opt_out` and hidden from recall and session start |
+| `blocked` | Government or national ID numbers, criminal history, immigration status | Refused, whatever the toggle says |
+
+The agent classifies, since it read the conversation; the CLI's patterns are a narrow backstop that can raise a label but never lower it. Consent is per item — `brain verify approve <id>` lifts the exclusion for that memory only — or global, by opting in. Neither is retroactive: opting in does not recover refused writes or approve memories already held. Sensitive memories stay visibly marked at recall, before and after approval:
+
+```
+◉ memory: "Prefers morning appointments — insulin schedule" (preference, 5d ago, ⚠ sensitive)
+```
+
+Only non-`standard` values are written to frontmatter. Provenance bounds what a memory may *claim*; consent bounds what may be *kept*.
+
 ## Detection: `brain audit`
 
 `brain audit` scans `audit.log`, the index, and the association graph for the patterns an attack leaves behind — write bursts per origin, co-tagged cliques of low-trust memories, and unverified memories quietly accumulating recall reinforcement. `--apply` quarantines what it finds (capped per run, so a scan can never mass-quarantine a large brain). It runs automatically as Phase 0 of [`brain sleep`](/docs/commands/sleep/).

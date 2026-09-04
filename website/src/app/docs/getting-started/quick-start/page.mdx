@@ -32,6 +32,11 @@ Get Brain Memory working in under five minutes. This guide walks you through ins
     (Codex CLI, OpenCode, and Antigravity work too — swap in `--codex`, `--opencode`,
     or `--antigravity`.)
 
+    On Claude Code or Codex you can install Brain as a plugin instead — `claude plugin
+    marketplace add omelas-tech/brain`, then `claude plugin install brain@brain-memory`
+    (Codex: `codex /plugins`). The plugin adds deterministic session hooks and bundles the
+    CLI; see [Plugin Install](/docs/getting-started/installation/#plugin-install).
+
     <Callout type="tip">
       Want the Claude.ai or ChatGPT apps, or zero local setup? Skip the install and add the
       hosted **MCP connector** (`https://mcp.brainmemory.ai/mcp`) instead — see
@@ -92,7 +97,8 @@ Get Brain Memory working in under five minutes. This guide walks you through ins
 
 Once installed, Brain Memory works in the background without any commands:
 
-- **Session start** — The agent silently loads the top 5 memories relevant to your current project and checks for memories due for review
+- **Session start** — The agent silently loads the top 5 memories relevant to your current project and checks for memories due for review (with the plugin or Codex hooks, the host injects this payload itself)
+- **Each prompt** — With hooks, up to 3 memories relevant to what you just typed are injected alongside the prompt; unrelated prompts get nothing
 - **During the session** — The agent tracks notable events (decisions, learnings, insights) and periodically nudges you to memorize when enough have accumulated
 - **Session end** — If significant content occurred, the agent saves session context and suggests running `/brain:memorize`
 

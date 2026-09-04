@@ -47,6 +47,7 @@ const {
 const { receiptFor } = require('../src/receipt');
 const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
 const { parseInstant } = require('../src/temporal');
+const { isSensitiveHidden } = require('../src/sensitivity');
 
 // Minimum relevance (or spreading bonus) for a memory to appear in explicit-
 // query results. Filters the zero/near-zero-relevance memories that would
@@ -85,19 +86,32 @@ function main() {
     process.exit(1);
   }
 
-  let index;
+  let results;
   try {
-    index = readIndex();
+    results = computeRecall(args);
   } catch (err) {
     console.error(JSON.stringify({
       error: `Corrupt index.json in ~/.brain/ — ${err.message}. Fix the JSON manually or restore from sync/backup.`,
     }));
     process.exit(1);
   }
-  if (!index || !index.memories || Object.keys(index.memories).length === 0) {
-    console.log(JSON.stringify([]));
-    return;
-  }
+
+  console.log(JSON.stringify(results, null, 2));
+}
+
+/**
+ * Rank memories for a query — the engine behind `brain recall`, callable
+ * in-process (plugin hooks, tests) with byte-identical scoring to the CLI.
+ * Throws when index.json is corrupt; returns [] for an empty brain.
+ *
+ * @param {Object} args - { query, project, task, topics, top, context, asOf, asKnownOf }
+ * @param {string} [projectRoot] - Filesystem root whose .brain/ to read
+ * @returns {Object[]} scored results, best first
+ */
+function computeRecall(args, projectRoot) {
+  const brainDir = getBrainDir(projectRoot);
+  const index = readIndex(projectRoot);
+  if (!index || !index.memories || Object.keys(index.memories).length === 0) return [];
 
   // Ensure search index exists
   let searchIndex;
@@ -129,9 +143,13 @@ function main() {
   // verification) memories are excluded here — before ranking — which also
   // removes them as spreading-activation sources. readConfig tolerates a
   // missing/corrupt config.json (falls back to the 'flag' default).
-  const quarantineMode = readConfig().quarantine_mode || 'flag';
+  const config = readConfig(projectRoot);
+  const quarantineMode = config.quarantine_mode || 'flag';
+  // Sensitive-topic memories are hidden until the user opts in (config) or
+  // approves them individually — consent is evaluated at read time too.
   const memories = Object.entries(index.memories)
     .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
+    .filter(([, entry]) => !isSensitiveHidden(entry, config))
     .map(([id, entry]) => ({
       id,
       ...entry,
@@ -140,7 +158,7 @@ function main() {
   // Load associations for spreading activation
   let associations;
   try {
-    associations = readAssociations();
+    associations = readAssociations(projectRoot);
   } catch (_) {
     associations = null;
   }
@@ -149,7 +167,7 @@ function main() {
   const recallContext = {};
   if (args.project) recallContext.project = args.project;
   if (args.task) recallContext.task_type = args.task;
-  if (args.topics) recallContext.topics = args.topics.split(',');
+  if (args.topics) recallContext.topics = String(args.topics).split(',');
 
   // Rank using scorer.js with TF-IDF as the relevance function
   const ranked = rankMemories(
@@ -168,7 +186,7 @@ function main() {
 
   // Return top N
   const top = args.top || 10;
-  const results = ranked.slice(0, top).map((mem) => {
+  return ranked.slice(0, top).map((mem) => {
     const title = mem.title || path.basename(mem.path, '.md');
     const origin = mem.origin || DEFAULT_ORIGIN;
     return {
@@ -199,14 +217,13 @@ function main() {
       ...(mem.valid_from ? { valid_from: mem.valid_from } : {}),
       ...(mem.valid_until ? { valid_until: mem.valid_until } : {}),
       ...(mem.temporal_state === 'expired' ? { expired: true } : {}),
+      ...(mem.sensitivity && mem.sensitivity !== 'standard' ? { sensitivity: mem.sensitivity } : {}),
       tags: mem.tags,
       // Recall receipt — the engine mints it, agents copy it verbatim when
       // this memory materially shapes an answer (so it can't be hallucinated).
       receipt: receiptFor({ ...mem, title }),
     };
   });
-
-  console.log(JSON.stringify(results, null, 2));
 }
 
 /**
@@ -316,4 +333,6 @@ function parseArgs(argv) {
   return args;
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { main, computeRecall, parseArgs, RELEVANCE_FLOOR };

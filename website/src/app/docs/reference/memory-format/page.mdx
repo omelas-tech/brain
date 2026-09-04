@@ -129,6 +129,14 @@ Tags are used to create automatic association links (when 2+ tags overlap with a
 
 See [Context-Dependent Recall](/docs/concepts/context-recall/) for how encoding context is used.
 
+### Consent Field
+
+| Field | Type | Required | Description |
+|---|---|:---:|---|
+| `sensitivity` | string | No | Consent tier. `standard` (default — omitted from the file), `sensitive` (health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation; stored only with consent), or `blocked` (government ID numbers, criminal history, immigration status; refused at write time, so never present on disk) |
+
+Only non-`standard` values are written to frontmatter and the index. See [Sensitivity](/docs/commands/memorize/#sensitivity) for the write-time and recall behavior.
+
 ## Content Structure
 
 The Markdown content after the frontmatter follows a recommended structure:

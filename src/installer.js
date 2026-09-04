@@ -39,6 +39,10 @@ const RUNTIMES = {
     promptSource: 'openai.md',
     commandStyle: 'skills',
     skillName: true,
+    // Codex hooks engine (0.148+): SessionStart / UserPromptSubmit / SessionEnd
+    // command hooks pointing at this package's hooks/*.mjs. Merged into the
+    // host's hooks.json non-destructively; the user trusts them via /hooks.
+    hooksFile: 'hooks.json',
   },
   antigravity: {
     name: 'Google Antigravity',
@@ -248,6 +252,110 @@ function removeInstructionsEntry(configPath, entry) {
   return { removed: true };
 }
 
+// ---------------------------------------------------------------------------
+// Host hooks (Codex). The hook scripts in <package>/hooks/ run the engine
+// in-process, so registering them is just writing their absolute paths into
+// the host's hooks.json. hooks/hooks.json is the single source of truth (the
+// plugin install uses the same file with ${CLAUDE_PLUGIN_ROOT} expanded by the
+// host); here the placeholder is expanded to this package's root.
+// ---------------------------------------------------------------------------
+
+const HOOK_SCRIPT_RE = /[\\/]hooks[\\/](session-start|prompt-recall|session-end)\.mjs"?$/;
+
+function isBrainHook(hook) {
+  return Boolean(hook) && typeof hook.command === 'string' && HOOK_SCRIPT_RE.test(hook.command);
+}
+
+/** hooks/hooks.json with ${CLAUDE_PLUGIN_ROOT} resolved to `root`. */
+function renderHooksConfig(root = PACKAGE_ROOT) {
+  const raw = fs.readFileSync(path.join(PACKAGE_ROOT, 'hooks', 'hooks.json'), 'utf-8');
+  return JSON.parse(raw.split('${CLAUDE_PLUGIN_ROOT}').join(root.replace(/\\/g, '/')));
+}
+
+/**
+ * Merge brain's hook groups into an existing hooks config, replacing any
+ * earlier brain groups and leaving everything else untouched.
+ */
+function mergeHooksConfig(existing, ours) {
+  const base = existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {};
+  const hooks = base.hooks && typeof base.hooks === 'object' && !Array.isArray(base.hooks) ? { ...base.hooks } : {};
+  for (const [event, groups] of Object.entries(ours.hooks)) {
+    const kept = (Array.isArray(hooks[event]) ? hooks[event] : [])
+      .filter((group) => !(group && Array.isArray(group.hooks) && group.hooks.some(isBrainHook)));
+    hooks[event] = kept.concat(groups);
+  }
+  base.hooks = hooks;
+  return base;
+}
+
+/** Remove brain's hook groups; returns the config and how many were removed. */
+function stripHooksConfig(existing) {
+  if (!existing || typeof existing !== 'object' || Array.isArray(existing)) return { config: existing, removed: 0 };
+  const hooks = existing.hooks && typeof existing.hooks === 'object' ? existing.hooks : {};
+  let removed = 0;
+  const next = {};
+  for (const [event, groups] of Object.entries(hooks)) {
+    if (!Array.isArray(groups)) { next[event] = groups; continue; }
+    const kept = groups.filter((group) => {
+      const mine = group && Array.isArray(group.hooks) && group.hooks.some(isBrainHook);
+      if (mine) removed++;
+      return !mine;
+    });
+    if (kept.length > 0) next[event] = kept;
+  }
+  return { config: { ...existing, hooks: next }, removed };
+}
+
+function readJsonFile(file) {
+  if (!fs.existsSync(file)) return { exists: false, data: null };
+  try {
+    return { exists: true, data: JSON.parse(fs.readFileSync(file, 'utf-8')) };
+  } catch {
+    return { exists: true, data: null, corrupt: true };
+  }
+}
+
+/**
+ * Register brain's hooks in a host hooks.json. A file we cannot parse is
+ * never rewritten — the caller prints the one manual step instead.
+ */
+function installHooks(hooksFile, root = PACKAGE_ROOT) {
+  const { exists, data, corrupt } = readJsonFile(hooksFile);
+  if (corrupt) return { registered: false, manual: true, reason: 'not-json', path: hooksFile };
+  fs.mkdirSync(path.dirname(hooksFile), { recursive: true });
+  const merged = mergeHooksConfig(exists ? data : null, renderHooksConfig(root));
+  fs.writeFileSync(hooksFile, JSON.stringify(merged, null, 2) + '\n');
+  return { registered: true, created: !exists, path: hooksFile };
+}
+
+function uninstallHooks(hooksFile) {
+  const { exists, data, corrupt } = readJsonFile(hooksFile);
+  if (!exists) return { removed: 0, reason: 'file-not-found' };
+  if (corrupt) return { removed: 0, manual: true, reason: 'not-json', path: hooksFile };
+  const { config, removed } = stripHooksConfig(data);
+  if (removed === 0) return { removed: 0, reason: 'not-registered' };
+  const onlyHooks = Object.keys(config).every((k) => k === 'hooks');
+  if (onlyHooks && Object.keys(config.hooks).length === 0) {
+    fs.unlinkSync(hooksFile);
+    return { removed, fileDeleted: true };
+  }
+  fs.writeFileSync(hooksFile, JSON.stringify(config, null, 2) + '\n');
+  return { removed, fileDeleted: false };
+}
+
+function hooksFileFor(config, scope) {
+  if (!config.hooksFile) return null;
+  return path.join(scope === 'global' ? config.globalDir : config.localDir, config.hooksFile);
+}
+
+function hooksInstalled(hooksFile) {
+  const { data } = readJsonFile(hooksFile);
+  if (!data || !data.hooks || typeof data.hooks !== 'object') return false;
+  return Object.values(data.hooks).some(
+    (groups) => Array.isArray(groups) && groups.some((g) => g && Array.isArray(g.hooks) && g.hooks.some(isBrainHook))
+  );
+}
+
 function detectInstallations() {
   const results = [];
   for (const [runtime, config] of Object.entries(RUNTIMES)) {
@@ -278,13 +386,17 @@ function detectInstallations() {
         promptFound = content.includes(BRAIN_MARKER_START) && content.includes(BRAIN_MARKER_END);
       }
 
-      if (commandsFound || promptFound) {
+      const hooksFile = hooksFileFor(config, scope);
+      const hooksFound = Boolean(hooksFile) && hooksInstalled(hooksFile);
+
+      if (commandsFound || promptFound || hooksFound) {
         results.push({
           runtime,
           scope,
           runtimeName: config.name,
           commandsFound,
           promptFound,
+          hooksFound,
           targetDir,
           promptPath,
         });
@@ -361,6 +473,8 @@ function uninstallForRuntime(runtime, scope) {
 
   const removedCommands = removeCommands(targetDir, config, scope);
   const promptResult = removePromptSection(promptPath);
+  const hooksFile = hooksFileFor(config, scope);
+  const hooksResult = hooksFile ? uninstallHooks(hooksFile) : undefined;
 
   let promptRegistration;
   if (scope === 'global' && config.instructionsConfig) {
@@ -370,7 +484,7 @@ function uninstallForRuntime(runtime, scope) {
     );
   }
 
-  return { removedCommands, promptResult, promptRegistration };
+  return { removedCommands, promptResult, promptRegistration, hooksResult };
 }
 
 function installForRuntime(runtime, scope) {
@@ -418,7 +532,10 @@ function installForRuntime(runtime, scope) {
     );
   }
 
-  return { promptRegistration };
+  const hooksFile = hooksFileFor(config, scope);
+  const hooks = hooksFile ? installHooks(hooksFile) : undefined;
+
+  return { promptRegistration, hooks };
 }
 
 function initializeBrain(overrideBase) {
@@ -557,4 +674,10 @@ module.exports = {
   removePromptSection,
   removeCommands,
   uninstallForRuntime,
+  renderHooksConfig,
+  mergeHooksConfig,
+  stripHooksConfig,
+  installHooks,
+  uninstallHooks,
+  hooksInstalled,
 };

@@ -9,7 +9,7 @@
  * anything else. Nothing here writes a memory.
  *
  * Usage:
- *   brain import [--source claude-code] [--project P] [--since ISO] [--limit N] [--all]
+ *   brain import [--source claude-code|codex] [--project P] [--since ISO] [--limit N] [--all]
  *   brain import --sources                 List detected history stores
  *   brain import --mark <id> [<id>...]     Record sessions as imported
  *

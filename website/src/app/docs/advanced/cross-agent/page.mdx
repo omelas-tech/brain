@@ -72,7 +72,7 @@ Everything in `~/.brain/` is automatically shared:
 
 ## What Does Not Get Shared
 
-- **Agent configuration** — Each agent's command prompts and prompt sections are installed separately in their own config directories (`~/.claude/`, `~/.codex/`, `~/.config/opencode/`, `~/.gemini/`)
+- **Agent configuration** — Each agent's command prompts and prompt sections are installed separately in their own config directories (`~/.claude/`, `~/.codex/`, `~/.config/opencode/`, `~/.gemini/`), as are the `brain` plugin and its hooks on Claude Code and Codex
 - **Session state** — Each agent maintains its own session context during active use
 - **Sync state** — The `~/.brain/.sync/` directory is local and agent-independent
 
@@ -112,6 +112,8 @@ brain --all --global
 ```
 
 This installs the CLI tools and configures command prompts for Claude Code, OpenAI Codex CLI, OpenCode, and Antigravity simultaneously, all pointing to the same `~/.brain/` directory.
+
+Claude Code and Codex can take the [`brain` plugin](/docs/getting-started/installation/#plugin-install) instead. It ships the same `/brain:*` commands plus three deterministic hooks shared by both hosts — `SessionStart`, `UserPromptSubmit`, `SessionEnd` — so session-start context and prompt-time recall are [injected by the host](/docs/advanced/working-memory/#hook-injection-points) rather than left to the model. `brain --codex` registers the same hooks in `~/.codex/hooks.json`. Either way, the brain underneath is the same directory.
 
 <Callout type="info">
   Each agent has slightly different command syntax (slash commands for Claude Code and OpenCode, skills for Codex and Antigravity), but they all operate on the same underlying brain structure and data format.

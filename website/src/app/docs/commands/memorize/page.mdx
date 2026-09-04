@@ -47,6 +47,20 @@ The agent decides placement depth based on how specific the memory is:
 
 Subdirectories are created on demand — the agent creates deeper nesting when the content warrants it, up to the configured `max_depth` (default: 6).
 
+## Sensitivity
+
+Every memory carries a consent tier, `sensitivity`. The agent classifies it — it read the conversation — and the CLI keeps a narrow pattern backstop that can raise a label but never lower it.
+
+| `sensitivity` | Covers | What the CLI does |
+|---|---|---|
+| `standard` | Everything else. **Default.** | Stores normally. |
+| `sensitive` | Health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation, and similar personal topics. | Stored only if `sensitive_topics: true` in `~/.brain/config.json` (default `false`). Otherwise the write lands quarantined with reason `sensitive_opt_out`, hidden from recall and session start until you approve it with `brain verify approve <id>` or opt in globally. |
+| `blocked` | Government or national ID numbers, criminal history, immigration status. | Refused at write time, whatever the toggle says. The error names the category. |
+
+The label describes the topic, not whether you asked to remember it — "user is diabetic" is `sensitive` even after "remember that". Approval is per-item consent. Opting in is never retroactive: it does not recover a refused write, and memories already held keep their pending flag until you approve them. Receipts for sensitive memories carry `⚠ sensitive`, before and after approval.
+
+Only non-`standard` values are written to frontmatter and the index. The vocabulary deliberately matches Anthropic's published memory consent model (August 2026), so a brain interoperates with it instead of inventing a schema. See [Provenance & Trust](/docs/concepts/provenance-trust/#consent-tier-sensitive-topics) for how consent sits beside origin.
+
 ## Memory File Format
 
 Each memory is created as a Markdown file with YAML frontmatter:
@@ -166,6 +180,8 @@ brain memorize <<'EOF'
 }
 EOF
 ```
+
+Add `"sensitivity": "sensitive"` (or `"blocked"`) to a memory to classify it; omit the field for `standard`. Each stored memory in the result reports `sensitivity` when it is not `standard`, plus `sensitive_opt_out: true` — alongside `quarantine_pending: true` and `quarantine_reasons` — when the write was held for consent. A `blocked` memory is not stored; the CLI returns an error naming the category.
 
 Add `--sync` to auto-push after storing:
 
