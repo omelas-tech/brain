@@ -5,6 +5,11 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import BrainField from "./components/BrainField";
 import DecayCurve from "./components/DecayCurve";
+import { changelog } from "../lib/changelog-data";
+
+// Latest released version, baked in at build time from CHANGELOG.md (the
+// changelog is cut at every release, so this never drifts from npm).
+const VERSION = changelog[0]?.version ?? "0.0.0";
 
 // FAQ structured data — eligible for FAQ rich results and used as direct
 // answer fuel by AI search engines. Every answer below is factual.
@@ -77,7 +82,7 @@ export default function Home() {
         <div className="hero-inner">
           <div className="hero-copy">
             <span className="hero-tag">
-              <span className="dot" />v0.1.0 · live on npm
+              <span className="dot" />v{VERSION} · live on npm
             </span>
             <h1>
               Memory for AI&nbsp;agents,
@@ -114,7 +119,7 @@ export default function Home() {
               </CopyButton>
             </div>
             <div className="hero-badges">
-              <span className="badge"><span className="k">npm</span><span className="v">v0.1.0</span></span>
+              <span className="badge"><span className="k">npm</span><span className="v">v{VERSION}</span></span>
               <span className="badge"><span className="k">license</span><span className="v">MIT</span></span>
               <span className="badge"><span className="k">deterministic</span><span className="v">recall</span></span>
             </div>
