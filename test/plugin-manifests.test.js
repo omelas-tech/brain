@@ -54,7 +54,10 @@ describe('root plugin manifests', () => {
   it('bundles a `brain` shim so plugin-only installs can call the CLI', () => {
     const shim = path.join(ROOT, 'bin', 'brain');
     assert.ok(fs.existsSync(shim));
-    assert.ok(fs.statSync(shim).mode & 0o111, 'bin/brain must be executable');
+    // Git records the mode; a Windows checkout has no execute bits to inspect.
+    if (process.platform !== 'win32') {
+      assert.ok(fs.statSync(shim).mode & 0o111, 'bin/brain must be executable');
+    }
     assert.match(fs.readFileSync(shim, 'utf-8'), /brain\.js/);
   });
 });
