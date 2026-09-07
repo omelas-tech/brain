@@ -13,6 +13,15 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "We tried to add embeddings. Our own benchmark said no.",
+    description:
+      "A real embedding model, given every advantage, failed to beat BM25 on a 1,021-memory corpus with 1,000 distractors. Here is the experiment, the numbers, and what would change our mind.",
+    href: "/blog/we-tried-embeddings",
+    date: "2026-09-07",
+    readingTime: "7 min",
+    tag: "Benchmarks",
+  },
+  {
     title: "When a memory stops being true",
     description:
       "Decay handles memories that fade. It doesn't handle memories that were true and then, on a specific day, weren't. Brain now models truth-based invalidation: supersede the old fact, keep it answerable, let the new one win.",

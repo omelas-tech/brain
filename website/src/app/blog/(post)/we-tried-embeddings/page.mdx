@@ -1,0 +1,98 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/we-tried-embeddings", {
+  title: "We tried to add embeddings. Our own benchmark said no.",
+  description:
+    "A real embedding model, given every advantage, failed to beat BM25 on a 1,021-memory corpus with 1,000 distractors. Here is the experiment, the numbers, and what would change our mind.",
+  publishedTime: "2026-09-07",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Benchmarks</span> · 7 September 2026 · 7 min
+</div>
+
+# We tried to add embeddings. Our own benchmark said no.
+
+There is no embedding model in Brain. That is not a purity stance about dependencies — it is a result. We built the arm, ran it, and it lost.
+
+Claims like that are cheap to assert and annoying to verify, so here is the whole experiment, including the parts that don't flatter us.
+
+## The question we actually had
+
+Brain's recall is [arithmetic over files](/blog/introducing-brain-memory/): BM25 relevance, strength decayed by time since last access, spreading activation across the association graph, a context-match term for the project you're in, salience. No model call anywhere in the path.
+
+The obvious hole in that design is semantics. BM25 matches words. "How do we ship this?" and "deploy target is Fly.io" share almost no terms, and a human would call them the same question. Every competing memory system reaches for embeddings precisely here, and the reasoning is sound.
+
+So the question was narrow and answerable: **does adding a semantic stream to the scorer actually buy a rank?**
+
+It had better, because the price is not small. An embedding model means a download, a runtime dependency, and — the one we cared about most — the loss of determinism. Today, Claude Code, Codex, and Gemini querying the same brain get the same ranking, in the same order, offline. Add a model and an embedding-version bump can silently reshuffle what your agent remembers. That is a real cost, so it deserved a real measurement rather than a vibe.
+
+## Most comparisons like this are rigged
+
+Before the result, the methodology, because this is where these comparisons usually go wrong.
+
+Our harness has an arm called `vector-baseline`: a hashed bag-of-words projected into vector geometry. It is a *lexical control wearing a vector costume* — its own docstring says so. It needs no model, no keys, and no network, which makes it very convenient and completely unsuitable as a stand-in for a real vector store.
+
+When we finally ran both, the gap was embarrassing. On the same corpus, the hash ranked the three target memories **260, 221, 45**. A real embedding model ranked them **45, 20, 15**. Any "our thing vs. vector search" claim resting on an arm like the first one has proven nothing at all, and a lot of them do.
+
+So the comparison here uses `dense`: a real model — `nomic-embed-text`, served locally through Ollama — with plain cosine similarity. And we gave it the advantages it asks for, including the `search_query:` / `search_document:` task prefixes it was trained to expect, because a benchmark that cripples the opponent isn't worth running.
+
+## The setup
+
+Retrieval only. No agent, no generation, no LLM judge, no API spend — just Recall@k against labeled oracle memories, which makes the whole thing reproducible in seconds by anyone who doubts it.
+
+- **1,021 memories.** The scenario's own, plus 1,000 deterministic plausible-but-irrelevant distractors. Retrieval under noise is the entire problem; a corpus of five memories where everything is relevant measures nothing.
+- **Three labeled oracle memories** — the ones a correct system must surface.
+- **Whole-corpus ranking, not top-k.** This one matters more than it sounds. A top-k cutoff renders a miss at rank 11 and a miss at rank 900 identically, as "a miss," and hides which methods were close. We rank all 1,021 and report the positions.
+
+## The result
+
+| retriever | oracle ranks (of 1021) | R@10 |
+|---|---|---|
+| `keyword` (BM25) | 21, 20, **1** | 0.33 |
+| `brain-bm25` (Brain's own relevance function) | 21, 20, **1** | 0.33 |
+| `dense` (real embeddings, plain cosine) | 45, 20, 15 | 0.00 |
+| `dense` (with the model's own task prefixes) | 21, 20, 8 | 0.33 |
+| `vector-baseline` (hashed bag-of-words) | 260, 221, 45 | 0.00 |
+
+Read the third row and then the fourth. Plain cosine loses outright — R@10 of zero, nothing in the top ten. Given the prefixes it expects, the model climbs back to parity on two of the three oracles and still loses the third, **rank 8 against rank 1**.
+
+That is the entire case. Not a rout — a tie on two, a loss on the one that matters most, in exchange for a model download, a new runtime dependency, and non-determinism.
+
+## Three things this says
+
+**1. The semantic stream doesn't pay for itself here.** This was the decision gate for adding one to the production scorer, and it reads *no*. If dense had won even narrowly we'd have shipped it and eaten the dependency.
+
+**2. Our own clever relevance function bought nothing.** `brain-bm25` is rank-identical to plain BM25 — the title-3×, tags-2× field weighting and the stemmer changed not a single position. That is humbling, and it is also useful: whatever advantage the full brain shows over these baselines is *not* coming from the relevance function. It comes from decay, spreading activation, context matching, and pinning. That is where the moat is, and now we know to aim the ablations there instead of tuning term weights.
+
+**3. The convenient baseline is a trap.** We'd have looked much better publishing `vector-baseline` as "vector search" and moving on. It would also have been false.
+
+## What would change our mind
+
+<Callout type="info">
+**n=1 query, one scenario, synthetic distractors.** This is a pilot, not a settled finding. The prior moved; it did not close.
+</Callout>
+
+The honest limits are worth naming precisely, because they're also the roadmap. One query is one query. The distractors are generated, and generated text may be lexically distinctive in ways real memories aren't — which would flatter BM25. And the query here is fairly literal; we'd expect dense to close ground on paraphrase-heavy asks where the vocabulary genuinely diverges.
+
+If you have a corpus where a real embedding model clearly wins, we want it. The result that changes the product is the one that goes against it.
+
+## Run it yourself
+
+The harness is MIT, offline, and needs no API keys for the lexical arms:
+
+```bash
+node harness/retrieval-only.js --scenario A --distractor-size 1000
+```
+
+It prints whole-corpus ranks per retriever, so you can see not just whether a method missed but by how far. The `dense` arm is gated on `BRAIN_EMBED_URL` or `OPENAI_API_KEY` if you want to reproduce the embedding rows too.
+
+Everything is in [the benchmark directory](https://github.com/omelas-tech/brain/tree/main/benchmark), including the arm matrix and the scenario definitions.
+
+## What we shipped instead
+
+The version of this post we expected to write ended with "…and so we added a hybrid retriever." Instead the measurement sent us back to the mechanisms that were already earning their place: [truth-based invalidation](/blog/when-a-memory-stops-being-true/) so a stale fact stops being served as current, [provenance weighting](/blog/provenance-memory-poisoning/) so a fact scraped off a web page can't outrank one you stated, and the association graph that pulls in what you didn't think to ask for.
+
+None of those are retrieval-relevance problems. Which, in hindsight, is the actual finding: for agent memory, *knowing which fact is still true and where it came from* turns out to matter more than measuring how close two sentences are.

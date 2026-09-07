@@ -62,6 +62,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 
 ## Blog
 
+- [We tried to add embeddings. Our own benchmark said no.](https://brainmemory.ai/blog/we-tried-embeddings) (2026-09-07): A real embedding model, given every advantage, failed to beat BM25 on a 1,021-memory corpus with 1,000 distractors. Here is the experiment, the numbers, and what would change our mind.
 - [When a memory stops being true](https://brainmemory.ai/blog/when-a-memory-stops-being-true) (2026-08-08): Decay handles memories that fade. It doesn't handle memories that were true and then, on a specific day, weren't. Brain now models truth-based invalidation: supersede the old fact, keep it answerable, let the new one win.
 - [One skill, every agent: Brain as a portable SKILL.md](https://brainmemory.ai/blog/one-skill-every-agent) (2026-08-08): Brain already installed natively into a handful of coding agents. Now it ships as a single portable Agent Skill folder that runs unmodified across ~40 clients — the ones we support, and the ones we've never heard of.
 - [Closing the loop on memory poisoning: quarantine, audit, and rollback](https://brainmemory.ai/blog/quarantine-and-audit) (2026-08-07): The write-path gate stopped planted memories from entrenching. Now brain flags untrusted writes for review, detects the patterns an attack leaves behind, and can roll the whole brain back — all five OWASP ASI06 layers, shipped.
