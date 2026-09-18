@@ -64,8 +64,10 @@ connector** (a remote MCP server) are entirely optional. When you do use them, t
 is how your data is protected:
 
 - **Encrypted at rest.** Brains stored in Brain Cloud are encrypted on disk with
-  **AES-256-GCM** using a **per-user key** (HKDF-derived from a server master key).
-  A stolen disk, backup, or snapshot yields no readable memories.
+  **AES-256-GCM** envelope encryption: each user's data is encrypted with a
+  **per-user data key**, and that key is itself wrapped by a key held in a cloud
+  **key management service (KMS)**, not on the server's disk. A stolen disk,
+  backup, or snapshot yields no readable memories.
 - **No plaintext on the connector.** The connector keeps each user's working copy
   in **RAM only** (a tmpfs, wiped on restart) — it is never written to the
   connector's disk.
@@ -87,11 +89,50 @@ your memories in memory. If you require that the server never sees plaintext, ke
 your brain **local-only** (the default) or use Git/export sync with a passphrase
 (below) instead of Brain Cloud.
 
+## Self-hosted store (`brain-store`)
+
+`store/` contains a reference store server you can run yourself
+(`store/SELF-HOSTING.md`). What it does and does not protect:
+
+- **Tokens are never stored.** A token is 256 random bits, shown once; the server
+  keeps its SHA-256 and compares in constant time. Tokens are never logged.
+- **Failed logins are rate limited** per client address, and each user's request
+  and upload rates are bounded.
+- **Uploads are untrusted input.** Size is bounded before and while reading. The
+  archive is inflated as a stream and only tar headers are examined, with bounds on
+  inflated size and entry count, so a compression bomb cannot exhaust memory. The
+  server never extracts an archive to disk.
+- **Identifiers cannot leave the data directory.** User ids, brain ids and
+  snapshot names are matched against strict patterns before any path is built.
+- **Tenant isolation.** Another user's brain is indistinguishable from one that
+  does not exist.
+- **Optional encryption at rest** (AES-256-GCM, per-user key derived by
+  HKDF-SHA256 from `STORE_ENCRYPTION_KEY`). This protects a stolen disk or backup.
+  It is server-side encryption: the running server holds the key.
+- **No TLS of its own.** The server speaks plain HTTP and binds to loopback by
+  default. Terminate TLS in a reverse proxy; the provided Compose setup does.
+- **Conditional writes.** The precondition check and the replacement of an archive
+  happen under one in-process lock. Run one server process per data directory.
+
+- **OpenID Connect sign-in is opt-in and narrow.** Only RS256 and ES256 are
+  accepted; `none` and HMAC algorithms are refused, and the key type must agree
+  with the algorithm named in the token. Issuer, audience, expiry and nonce are
+  checked, the issuer must be reached over HTTPS, and its discovery document must
+  name itself. A public issuer (Google) is refused unless an allow-list is set,
+  and allow-lists only honour addresses the issuer marks verified.
+
+The connector's `static` identity provider sends the pasted store token only to
+the store named in `BRAIN_CLOUD_API_URL`, and refuses to start unless that address
+is set explicitly. Its sign-in page loads nothing from other hosts and cannot be
+framed. The token is kept with the refresh grant encrypted under
+`CONNECTOR_STATE_KEY`; without that key it is held in memory only.
+
 ## Supported Versions
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x (beta) | Yes |
+| 0.3.x | Yes |
+| < 0.3 | No — please upgrade |
 
 ## Design Principles
 

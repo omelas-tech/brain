@@ -1,55 +1,82 @@
-# tasks/todo.md — Aug-31 scan build (items 3 → 1 → 5)
+# tasks/todo.md — open store contract + `brain-store` reference server
 
-Source: brain-cloud/docs/scan-actions-2026-08-31.md. Started 2026-09-03.
-No commits until the user asks; verify with `npm test` + integration tests after each item.
+Started 2026-09-18. Decisions made: Node.js with no runtime dependencies, written
+fresh; static bearer tokens first, OIDC last; working name `brain-store`.
+No commits until the user asks; `npm test` after each stage. The working tree
+already carries unrelated uncommitted work (verify command, prompts, installer,
+quarantine) — do not touch those files.
 
-## Item 3 — Plugin + GitHub-synced marketplace (S–M)
-- [x] `.claude-plugin/plugin.json` at repo root — plugin `brain` (commands stay `/brain:*`), commands `./commands/brain/`, hooks `./hooks/hooks.json`
-- [x] `hooks/hooks.json` + `hooks/session-start.mjs` (+ `session-end.mjs`) — deterministic Claude Code injection via `node ${CLAUDE_PLUGIN_ROOT}/bin/session-start.js` (no npm dependency)
-- [x] `.claude-plugin/marketplace.json` — `brain` (source `./`) + `brain-cloud` (MCP connector only)
-- [x] `integrations/brain-cloud-plugin/` — `.claude-plugin/plugin.json` + `.codex-plugin/plugin.json` with inline http MCP server
-- [x] `.codex-plugin/plugin.json` (Codex overlay: skills + hooks + interface) and `.agents/plugins/marketplace.json`
-- [x] `claude plugin validate .` passes; README install section; CHANGELOG Unreleased entry
-- [x] Tests: manifest JSON validity + referenced paths exist (test/plugin-manifests.test.js)
+The previous plan in this file (Aug-31 scan build, finished 2026-09-03) is in git
+history.
 
-## Item 1 — Codex integration as hooks (M)
-- [x] `integrations/codex/hooks/prompt-hook.mjs` — UserPromptSubmit → `brain recall` → additionalContext with `◉ brain-context` marker, token ceiling
-- [x] Installer wiring: `--codex` copies hooks to `~/.codex/brain-hooks/`, merges `~/.codex/hooks.json` non-destructively; uninstall reverses; `files` includes `integrations/codex/hooks/`
-- [x] Codex harvest adapter in `src/harvest.js` (rollout JSONL) — waits on format research
-- [x] Loop prevention: strip brain-injected blocks in harvest; `_import` vs `.import` path fix
-- [x] Per-agent budget override (Codex 2,500-token cap)
-- [x] Tests: installer wiring, prompt hook, codex adapter; update `integrations/codex/README.md`
+## Stage 1 — contract, reference server, conformance suite, CLI
 
-## Item 5 — Consent taxonomy + positioning refresh (S–M)
-- [x] `sensitivity: standard | sensitive | blocked` frontmatter + index; `memorize --sensitivity`; lint backstop (ID patterns → blocked; category keywords → sensitive)
-- [x] `config.json` `sensitive_topics` (default false) → `sensitive` quarantined with `sensitive_opt_out`; `blocked` refused
-- [x] session-start / recall exclude `sensitive` unless opted in; receipt `⚠ sensitive`
-- [x] Docs: README consent section, prompts/*.md memorize guidance; brain-cloud `positioning-2026-08.md` §6
-- [x] Tests: memorize sensitivity, lint, recall exclusion
+- [x] `store/CONTRACT.md` — prose spec, v1 (what clients use today) + v1.1 (`ETag`, `If-None-Match`, `If-Match` → `412`)
+- [x] `store/openapi.yaml` — OpenAPI 3.1 for the same surface
+- [x] `store/lib/tar.js` — zero-dep gzip+tar reader: count regular files, bounded against tar/gzip bombs
+- [x] `store/lib/storage.js` — file-only storage: `DATA_DIR/brains/<user>/<brain>/{current.bin,meta.json,versions/}`, atomic swap, 5 snapshots, optional AES-256-GCM at rest
+- [x] `store/lib/auth.js` — static bearer tokens, stored as SHA-256 hashes in `users.json`, constant-time compare
+- [x] `store/server.js` — `createStore(opts)` HTTP handler: `/health`, `/auth/me`, `/api/brains` CRUD, `/sync` up/down, `/versions`, restore; empty-push guard, upload limit, per-token rate limit
+- [x] `store/bin/brain-store.js` — `serve`, `user add|list|rotate|remove`, `keygen`
+- [x] `store/conformance/` — black-box suite over `STORE_URL` + `STORE_TOKEN`; spins up the reference server when unset
+- [x] CLI: `brain cloud login --api-url URL --token-stdin | --token T | BRAIN_STORE_TOKEN`; no refresh for a static token
+- [x] CLI: remember the last pulled/pushed checksum, send `If-Match` on push, explain `412`; `--force` to override
+- [x] `package.json`: `brain-store` bin, `store/` in `files`, store + conformance suites in `npm test`
+- [x] `npm test` green
 
-## Review (2026-09-03)
+## Stage 2 — stateless MCP server with remote memory
 
-All three items built in the `brain` repo, uncommitted, unstaged. Verification:
-`npm test` 874 → 900+ tests passing (full suite green), all five integration suites
-green, `claude plugin validate .` passes (one benign warning about CLAUDE.md at the
-plugin root).
+- [x] Connector: identity seam `CONNECTOR_IDP=firebase|static` behind one interface (`src/identity.ts`); Firebase stays the default
+- [x] Connector: `static` provider — login page takes the store token; token forwarded to the store
+- [x] Connector: `If-Match` on sync-back; on `412` discard the copy, re-pull, re-apply the write, push again
+- [x] `store/deploy/` — Docker Compose (store + connector + Caddy TLS), `.env.example`, two Dockerfiles, root `.dockerignore`
+- [x] `store/SELF-HOSTING.md`, `store/README.md`, self-hosting section in `SECURITY.md`, connector README
+- [x] brain-cloud (Go): `ETag` / `If-None-Match` / `If-Match` on `/sync` and restore, archive validation, `/health` discovery fields, tests
+
+## Stage 3 — OIDC
+
+- [x] Store: verify OIDC ID tokens (discovery + JWKS, RS256/ES256), auto-provision by issuer + `sub` (`store/lib/oidc.js`)
+- [x] Connector: `CONNECTOR_IDP=oidc` — authorization code + PKCE + nonce against any OIDC issuer, refresh (`src/oidc-idp.ts`, `/oidc/callback`)
+- [x] Tests against an in-process mock issuer that signs real tokens (`store/test/mock-issuer.js`)
+- [x] Docs
+
+## Review (2026-09-18)
+
+All three stages built, uncommitted. Nothing pushed, published or deployed.
+
+Verification:
+- `npm test` in `brain`: 920 → 1034 tests, all passing. New: 35 conformance, 38 reference-server,
+  28 OIDC, 13 CLI-against-store.
+- `npm test` in `brain/connector`: all 12 existing suites still pass, plus `selfhost` and `oidc`.
+- `go test -race ./...` in `brain-cloud`: all passing, 14 new tests.
+- The conformance suite also passes (35/35) against the Dockerised store through Caddy, which is
+  the only run that was truly black-box over a network path. The Compose stack was built, started,
+  smoke-tested and torn down locally.
 
 What changed vs. the plan:
-- Codex "extension" became Codex *hooks* (the extension API is compile-time). One
-  `hooks/hooks.json` at the repo root now serves Claude Code and Codex; the old
-  `integrations/codex/hooks/` copies and the Stop-hook turn queue were deleted
-  because `brain import --source codex` reads `~/.codex/sessions/` directly.
-- The prompt-time recall hook (`UserPromptSubmit`) landed for both hosts, not only
-  Codex, since the contract is identical.
-- `brain recall` gained an in-process `computeRecall` export; `brain session-start`
-  gained `--budget`.
-- `brain-cloud` docs: `positioning-2026-08.md` §6 addendum.
+- Encryption at rest is store-local HKDF + AES-256-GCM, not a reuse of `src/crypto.js`: that module is
+  passphrase/PBKDF2-shaped, and `store/` should be movable to its own repository without importing `../src`.
+- The 412 retry lives in the connector's write path (`writeThenSync` in `server.ts`), not in
+  `store.ts`. Unpacking a newer archive over a working copy would leave the index and the memory
+  files inconsistent; discarding the copy and re-running the write on a fresh one does not.
+- Found and fixed on the way:
+  - macOS `tar` added an AppleDouble `._name` entry per file to every pushed archive (file count 10 for 3 files). `COPYFILE_DISABLE`.
+  - Connector: a user with a brain record but no archive was treated as a store outage on session renewal.
+  - brain-cloud: `RestoreVersion` never updated the brain record, so `X-Checksum` and `file_count`
+    described the replaced archive. With `ETag` that would have broken conditional sync after any restore.
+- `CONNECTOR_TRUST_PROXY` was needed: the connector trusted only a loopback proxy, which is wrong
+  when Caddy is another container. `true` is refused.
 
 Not done / follow-ups:
-- Codex plugin loading was not exercised on a real Codex install (no `codex` binary
-  on this machine); manifests follow the published spec and Codex's own
-  `manifest.rs`. Claude Code plugin was validated but not installed into the live
-  config (`claude plugin marketplace add ./` to try it).
-- brain-cloud Inspector `TreeNode` does not yet surface `sensitivity`.
-- Consider registering hooks into `~/.claude/settings.json` from `brain --claude`
-  for npm-path users (the plugin is the hook path for Claude Code today).
+- The conformance suite has not been run against a live Brain Cloud: that needs a database and a
+  disposable account. The Go unit tests cover the same behaviours.
+- OIDC is verified against a mock issuer only. It has not met Entra, Google or Keycloak.
+- `README.md` does not mention the store: it carries someone else's uncommitted edits, so it was left alone.
+- GOVERNANCE.md says contract changes go through a public `rfc` issue. The `rfc` label and the issue
+  for this contract still have to be created on GitHub.
+- The brain-cloud change needs a deploy to take effect for hosted users. Until then Brain Cloud
+  ignores `If-Match` and the CLI behaves as before.
+- Pull is still "unpack over the local brain". After a 412 the CLI tells the user to pull then push,
+  which is right for append-mostly memories but still overwrites same-named local files, `index.json`
+  included. A real merge is the per-memory contract's job (future RFC).
+- `npm run test:integrations` was not run; nothing under `integrations/` changed.

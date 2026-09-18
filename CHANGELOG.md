@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- **An open store contract and a self-hostable store.** `store/CONTRACT.md` (with
+  `store/openapi.yaml`) specifies the HTTP interface between a Brain client and a
+  remote store. `brain-store` is a reference server for it: Node.js, no
+  dependencies, files only, static bearer tokens stored as hashes, optional
+  AES-256-GCM encryption at rest. `store/conformance/` is a black-box suite that
+  checks any implementation over HTTP. See `store/SELF-HOSTING.md`.
+- **Conditional sync (store contract 1.1).** `brain cloud push` now names the
+  archive it started from (`If-Match`). If another device pushed in the meantime
+  the store answers `412` and nothing is overwritten; pull, then push again, or
+  `brain cloud push --force`. Stores that predate 1.1 ignore the header, so
+  behaviour against them is unchanged.
+- **Token login for self-hosted stores:** `brain cloud login --api-url URL
+  --token-stdin` (also `--token`, or `BRAIN_STORE_TOKEN`). The CLI refuses to send
+  a token over plain HTTP to another host unless `--allow-http` is given.
+- **Connector: pluggable identity.** `CONNECTOR_IDP=static` lets the MCP connector
+  run in front of a self-hosted store with no Firebase: the sign-in page takes the
+  store token, and the store decides who the user is. Firebase remains the default
+  for the hosted service and its behaviour is unchanged.
+  `CONNECTOR_TRUST_PROXY` names the reverse proxy when it is not on loopback.
+- **Sign-in through an organisation's identity provider (OpenID Connect).** The
+  store accepts ID tokens from a configured issuer (`STORE_OIDC_ISSUER`,
+  `STORE_OIDC_AUDIENCE`) and creates users on first sign-in; `CONNECTOR_IDP=oidc`
+  sends people to that issuer (authorization code, PKCE, nonce). RS256 and ES256
+  only; a public issuer such as Google requires an allow-list. Tested against a
+  mock issuer, not yet against each real provider.
+- **Connector: no lost writes.** Sync-back is conditional. When another device
+  pushed first, the connector discards its working copy, starts again from the
+  store's brain, re-applies the write and pushes, so both sides' memories survive.
+- Docker Compose for a store, a connector and Caddy (`store/deploy/`).
+- `GOVERNANCE.md`, `MAINTAINERS.md`, `CODE_OF_CONDUCT.md`.
+
+### Fixed
+- `brain cloud push` on macOS no longer uploads an AppleDouble `._name` entry
+  beside every file with extended attributes (`COPYFILE_DISABLE`), which inflated
+  the archive and its reported file count.
+- Connector: a user whose brain exists but has never been pushed to is treated as
+  new rather than as a store outage, so their session can be renewed.
+- `CONTRIBUTING.md` described a project layout several releases old.
+- `SECURITY.md` described the hosted service's retired key-derivation scheme.
+
 ## [0.3.0] - 2026-09-04
 
 Ships brain as a plugin and moves its session behaviour from prompts into
