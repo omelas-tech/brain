@@ -18,6 +18,10 @@ jobs:
   # ─── Tests ───────────────────────────────────────────────
   test:
     runs-on: ${{ matrix.os }}
+    # A healthy run takes well under a minute. Without a bound, a test process that
+    # fails to exit holds the runner (and the website deploy behind it) for the
+    # default six hours.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +39,7 @@ jobs:
   # excluded from the root matrix) with its own deps and tsx-run test suite.
   connector:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

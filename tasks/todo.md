@@ -79,4 +79,21 @@ Not done / follow-ups:
 - Pull is still "unpack over the local brain". After a 412 the CLI tells the user to pull then push,
   which is right for append-mostly memories but still overwrites same-named local files, `index.json`
   included. A real merge is the per-memory contract's job (future RFC).
-- `npm run test:integrations` was not run; nothing under `integrations/` changed.
+- `npm run test:integrations` was run afterwards: all five suites pass.
+
+## After the push (2026-09-18)
+
+- Pushed as four commits (`c4435ca`, `c2c9fd9`, `20bc4eb`, `6142516`). The contract RFC is open as #6.
+- CI: 14 of 15 jobs passed first time, on Linux, macOS and Windows with Node 18 to 24. The
+  Node 18 / Ubuntu job hung once: `npm test` printed the conformance suite's results and then
+  nothing for 16 minutes, until cancelled. Node 18 runs files in sorted order, so the process that
+  never exited was the next one, `store/test/oidc.test.js`. A re-run of the same job passed in 17
+  seconds. It did not reproduce in 25 runs of that file, 10 of the conformance suite and 4 full
+  suites under `node:18` on Linux in Docker. Cause not found. The likeliest suspect is a `fetch`
+  keep-alive socket keeping the event loop alive at exit on Node 18, but that is a guess.
+  The CI jobs now have a time limit so a repeat fails in minutes instead of holding a runner for
+  six hours. If it recurs, the next step is to move the test helpers from `fetch` to `http.request`
+  with `agent: false`, so no connection pool outlives a test.
+- At the committed state on this machine, `test/harvest.test.js` has one failing test. It failed
+  before this work too: it enumerates the real `~/.codex` of whoever runs it. CI has no `~/.codex`,
+  so it passes there, and an uncommitted change already in the working tree fixes it.
