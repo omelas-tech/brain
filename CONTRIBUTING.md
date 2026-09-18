@@ -24,38 +24,48 @@ Tests use Node.js built-in test runner (`node --test`) with no external test fra
 
 ```
 brain/
-├── bin/
-│   └── install.js              # Interactive setup wizard (brain-memory)
-├── commands/
-│   └── brain/                  # Slash command definitions
-│       ├── init.md
-│       ├── memorize.md
-│       ├── remember.md
-│       ├── review.md
-│       ├── explore.md
-│       ├── consolidate.md
-│       ├── forget.md
-│       ├── sunshine.md
-│       ├── sleep.md
-│       ├── status.md
-│       └── sync.md
-├── prompts/
-│   ├── claude.md               # CLAUDE.md content (injected by installer)
-│   ├── gemini.md               # GEMINI.md content (injected by installer)
-│   └── openai.md               # AGENTS.md content (injected by installer)
-├── hooks/
-│   ├── session-start.md        # Ambient memory loading + review notifications
-│   └── session-end.md          # Auto-memorize suggestion + context capture
-├── templates/
-│   └── default-categories.json # Default brain category definitions
+├── bin/                        # The `brain` CLI: one entry point (brain.js) plus a
+│                               #   script per subcommand (recall, memorize, reinforce,
+│                               #   pin, forget, verify, audit, restore, import, …)
+│                               #   and the interactive installer (install.js)
+├── commands/brain/             # Slash command prompts (/brain:remember, /brain:memorize,
+│                               #   /brain:status, /brain:pin, /brain:forget, /brain:import,
+│                               #   /brain:sync, /brain:skills, /brain:sleep, /brain:verify)
+├── prompts/                    # Instruction files the installer injects, one per agent
+├── hooks/                      # Session lifecycle hooks (session start/end, prompt recall)
+├── integrations/               # Native integrations for individual agents
+├── templates/                  # Default brain category definitions
 ├── src/
-│   ├── scorer.js               # Decay, spreading activation, context matching, spaced reinforcement
-│   ├── index-manager.js        # Index, associations, contexts, review queue, archive CRUD
+│   ├── scorer.js               # Decay, spreading activation, context match, reinforcement
+│   ├── tfidf.js                # TF-IDF / BM25 search
+│   ├── index-manager.js        # Index, associations, contexts, review queue, archive
+│   ├── temporal.js             # Bitemporal validity (valid time vs record time)
+│   ├── contradiction.js        # Validity-boundary suggestions for conflicting memories
+│   ├── pinning.js              # The always-present tier
+│   ├── skills.js               # Procedural skills
+│   ├── skill-verify.js         # Skill verification
+│   ├── receipt.js              # Recall receipts
+│   ├── provenance.js           # Origin and trust policy
+│   ├── content-lint.js         # Flags instruction-shaped writes
+│   ├── quarantine.js           # Pending-verification state
+│   ├── anomaly.js              # Anomalous-write detection
+│   ├── integrity.js            # SHA-256 baselines and content-drift detection
+│   ├── audit.js                # Append-only audit trail
+│   ├── sensitivity.js          # Sensitive-topic consent tiers
+│   ├── harvest.js              # Cold-start import from agent transcripts
 │   ├── crypto.js               # AES-256-GCM encryption (PBKDF2 key derivation)
-│   ├── git-sync.js             # Git-based sync engine (push/pull via system git)
-│   └── export-import.js        # Single-file encrypted export/import
+│   ├── git-sync.js             # Git-based sync (push/pull via system git)
+│   ├── export-import.js        # Single-file encrypted export/import
+│   ├── cloud-sync.js           # Optional Brain Cloud sync client
+│   └── installer.js            # Per-agent install targets
+├── connector/                  # Remote MCP server used by the optional hosted service
+├── benchmark/                  # Recall benchmark harness and data
+├── scripts/                    # Release and maintenance scripts
+├── test/                       # node --test suites
+├── website/                    # brainmemory.ai source
 ├── CLAUDE.md                   # Development guide for this repo
-├── package.json
+├── GOVERNANCE.md               # How the project is run
+├── MAINTAINERS.md              # Who maintains it
 └── README.md
 ```
 
@@ -66,6 +76,16 @@ brain/
 3. Add or update tests as needed
 4. Run `npm test` and ensure all tests pass
 5. Open a pull request with a clear description of what changed and why
+
+Looking for somewhere to start? Issues labelled
+[`good first issue`](https://github.com/omelas-tech/brain/labels/good%20first%20issue)
+and [`help wanted`](https://github.com/omelas-tech/brain/labels/help%20wanted)
+are the best entry points.
+
+Changes to the memory file format, the scoring model or the security model are
+discussed in a public `rfc` issue before they land. [GOVERNANCE.md](GOVERNANCE.md)
+describes that process, how decisions are made, and how to become a maintainer.
+By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Releasing
 
