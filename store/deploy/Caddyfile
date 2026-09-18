@@ -1,0 +1,14 @@
+# Caddy terminates TLS for both services and obtains certificates by itself.
+# Point two DNS names at this host, put them in .env, and open ports 80 and 443.
+
+{$STORE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy store:8787
+}
+
+{$MCP_DOMAIN} {
+	reverse_proxy connector:8788 {
+		# MCP responses can be event streams: do not buffer them.
+		flush_interval -1
+	}
+}

@@ -46,6 +46,7 @@ Parse the user's input to determine the subcommand:
 
 **Cloud Sync (Brain Cloud API):**
 - `cloud login [--api-url URL]` → Authenticate via device code flow
+- `cloud login --api-url URL --token-stdin` → Authenticate to a self-hosted `brain-store` with a token
 - `cloud push` → Upload ~/.brain/ to Brain Cloud
 - `cloud pull` → Download from Brain Cloud to ~/.brain/
 - `cloud status` → Show cloud connection info
@@ -65,6 +66,20 @@ If no subcommand is given, show available subcommands.
 ---
 
 ## `/brain:sync cloud login [--api-url URL]`
+
+### Self-hosted store
+
+If the user names their own store (an `--api-url` that is not Brain Cloud) and has a
+token from its operator, the login is a token login, not the device code flow:
+
+```
+pbpaste | brain cloud login --api-url <store URL> --token-stdin
+```
+
+**Never ask the user to paste the token into the conversation, and never echo it.**
+Have them copy it to the clipboard and run the command above themselves (`! <command>`),
+or set `BRAIN_STORE_TOKEN` in their own shell. The CLI refuses plain HTTP to a remote
+host; do not add `--allow-http` unless the user says the network is trusted.
 
 ### Steps
 
@@ -125,6 +140,14 @@ Then return — do not attempt the push.
      Files:    <count>
      Checksum: <checksum>
    ```
+
+3. **If the push is refused because the store has changes that were not pulled**
+   (`The store has changes you have not pulled`): nothing was uploaded and nothing
+   was lost. Tell the user another device pushed first, then run `brain cloud pull`
+   followed by `brain cloud push`. Only use `brain cloud push --force` when the user
+   explicitly asks to overwrite what the store holds; it discards the other
+   device's changes (the store keeps a snapshot, so it can be undone with
+   `brain restore --from cloud`).
 
 ---
 

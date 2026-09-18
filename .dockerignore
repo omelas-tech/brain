@@ -1,0 +1,16 @@
+# Keeps the Docker build context small. The images under store/ need only
+# bin/, src/, store/ and connector/ (without its node_modules).
+.git
+**/node_modules
+website
+benchmark
+assets
+pitch
+tasks
+test
+integrations
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.DS_Store

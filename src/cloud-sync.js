@@ -1,8 +1,12 @@
 /**
  * Brain Memory — Cloud Sync Engine
  *
- * Push/pull ~/.brain/ memories via the Brain Cloud API (api.brainmemory.ai).
- * Uses the device code OAuth flow for CLI authentication.
+ * Push/pull ~/.brain/ memories to a store that implements the Brain store
+ * contract (store/CONTRACT.md): Brain Cloud at api.brainmemory.ai by default, or
+ * a self-hosted brain-store.
+ *
+ * Two ways to authenticate: the device-code flow (Brain Cloud), or a static
+ * bearer token issued by the store's operator (brain-store).
  *
  * Zero external dependencies — uses Node.js built-in https, fs, child_process.
  */
@@ -109,7 +113,7 @@ async function jsonRequest(url, method, data, token) {
 /**
  * Upload a file as multipart/form-data.
  */
-async function uploadFile(url, filePath, token) {
+async function uploadFile(url, filePath, token, extraHeaders) {
   const boundary = '----BrainCloudUpload' + Date.now();
   const fileContent = fs.readFileSync(filePath);
   const header = Buffer.from(
@@ -126,6 +130,7 @@ async function uploadFile(url, filePath, token) {
       'Content-Type': `multipart/form-data; boundary=${boundary}`,
       'Content-Length': body.length.toString(),
       'Authorization': `Bearer ${token}`,
+      ...(extraHeaders || {}),
     },
     body,
   });
@@ -223,6 +228,10 @@ function deleteConfig(brainDir) {
 async function getValidToken(brainDir) {
   const config = readConfig(brainDir);
   if (!config) throw new Error('Not logged in. Run cloud login first.');
+
+  // A static token never expires and has nothing to refresh; the store's
+  // operator revokes it by rotating it.
+  if (config.token_type === 'static') return config.access_token;
 
   const now = Math.floor(Date.now() / 1000);
 
@@ -348,6 +357,66 @@ async function login(brainDir, apiUrl) {
 }
 
 /**
+ * True when `url` is safe to send a bearer token to: HTTPS, or plain HTTP to
+ * this machine only.
+ */
+function isSecureUrl(url) {
+  const parsed = new URL(url);
+  if (parsed.protocol === 'https:') return true;
+  return ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+}
+
+/**
+ * Log in to a store with a static bearer token (self-hosted brain-store).
+ *
+ * Verifies the token, links the user's first brain (creating one when the
+ * account has none), and saves the config. There is no refresh token.
+ *
+ * @param {string} brainDir
+ * @param {string} apiUrl
+ * @param {string} token
+ * @param {Object} [opts]
+ * @param {boolean} [opts.allowHttp] permit plain HTTP to a non-local host
+ * @returns {Promise<{user_email: string, brain_id: string, api_url: string}>}
+ */
+async function loginWithToken(brainDir, apiUrl, token, opts = {}) {
+  if (!apiUrl) throw new Error('A token login needs the store address: --api-url URL');
+  if (!token) throw new Error('No token given.');
+  const url = apiUrl.replace(/\/+$/, '');
+  if (!opts.allowHttp && !isSecureUrl(url)) {
+    throw new Error(
+      `Refusing to send a token over plain HTTP to ${new URL(url).host}. ` +
+      'Use an https:// address, or pass --allow-http if the network is trusted.'
+    );
+  }
+
+  const meRes = await jsonRequest(`${url}/auth/me`, 'GET', null, token);
+  if (meRes.status === 401) throw new Error('The store rejected this token.');
+  if (meRes.status !== 200) throw new Error(`Login failed (${meRes.status}): ${meRes.data.error || ''}`);
+  const user = meRes.data.user || {};
+
+  const brainsRes = await jsonRequest(`${url}/api/brains`, 'GET', null, token);
+  if (brainsRes.status !== 200) throw new Error(`Could not list brains (${brainsRes.status}).`);
+  let brainId = Array.isArray(brainsRes.data) && brainsRes.data.length > 0 ? brainsRes.data[0].id : null;
+  if (!brainId) {
+    const created = await jsonRequest(`${url}/api/brains`, 'POST', { name: 'default' }, token);
+    if (created.status !== 201) throw new Error(`Could not create a brain (${created.status}): ${created.data.error || ''}`);
+    brainId = created.data.id;
+  }
+
+  const config = {
+    api_url: url,
+    token_type: 'static',
+    access_token: token,
+    brain_id: brainId,
+    user_email: user.email || user.name || '',
+    connected_at: new Date().toISOString(),
+  };
+  writeConfig(brainDir, config);
+  return { user_email: config.user_email, brain_id: brainId, api_url: url };
+}
+
+/**
  * Logout — clear stored tokens.
  *
  * @param {string} brainDir
@@ -380,6 +449,9 @@ function packBrain(brainDir) {
   execFileSync('tar', ['czf', tmpFile, ...excludeArgs, '-C', brainDir, '.'], {
     stdio: 'pipe',
     timeout: 120000,
+    // macOS tar otherwise adds an AppleDouble "._name" entry beside every file
+    // that has extended attributes, which bloats the archive and its file count.
+    env: { ...process.env, COPYFILE_DISABLE: '1' },
   });
 
   return tmpFile;
@@ -429,12 +501,37 @@ function copyExtracted(srcDir, destDir) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Thrown when the store holds changes this brain has not pulled. Nothing was
+ * uploaded.
+ */
+class PushConflictError extends Error {
+  constructor(remoteChecksum, baseChecksum) {
+    super(
+      'The store has changes you have not pulled, so nothing was uploaded. ' +
+      'Run `brain cloud pull` and push again, or `brain cloud push --force` to overwrite the store.'
+    );
+    this.name = 'PushConflictError';
+    this.code = 'PUSH_CONFLICT';
+    this.remote_checksum = remoteChecksum || null;
+    this.base_checksum = baseChecksum || null;
+  }
+}
+
+/**
  * Push ~/.brain/ to the cloud.
  *
+ * When this brain knows the checksum of the archive it last pulled or pushed,
+ * the upload is conditional (`If-Match`): a store that has moved on answers 412
+ * and nothing is overwritten. Stores that predate contract 1.1 ignore the header
+ * and behave as before.
+ *
  * @param {string} brainDir
+ * @param {Object} [opts]
+ * @param {boolean} [opts.force] upload unconditionally, replacing whatever the store holds
  * @returns {Promise<{size_bytes: number, file_count: number, checksum: string}>}
+ * @throws {PushConflictError}
  */
-async function push(brainDir) {
+async function push(brainDir, opts = {}) {
   const config = readConfig(brainDir);
   if (!config) throw new Error('Not logged in. Run cloud login first.');
   if (!config.brain_id) throw new Error('No brain linked. Run cloud login again.');
@@ -448,17 +545,28 @@ async function push(brainDir) {
     const tarSize = fs.statSync(tarPath).size;
     const url = `${config.api_url}/api/brains/${config.brain_id}/sync`;
 
-    const res = await uploadFile(url, tarPath, token);
+    const conditional = !opts.force && config.base_checksum
+      ? { 'If-Match': `"${config.base_checksum}"` }
+      : null;
+    const res = await uploadFile(url, tarPath, token, conditional);
+
+    if (res.status === 412) {
+      let remote = null;
+      try { remote = JSON.parse(res.body).current_checksum; } catch { /* body is advisory */ }
+      throw new PushConflictError(remote, config.base_checksum);
+    }
 
     if (res.status !== 200) {
-      const data = JSON.parse(res.body);
-      throw new Error(`Push failed (${res.status}): ${data.error || res.body}`);
+      let message = res.body;
+      try { message = JSON.parse(res.body).error || res.body; } catch { /* not JSON */ }
+      throw new Error(`Push failed (${res.status}): ${message}`);
     }
 
     const result = JSON.parse(res.body);
 
-    // Update config with last push time
+    // Update config with last push time, and remember what the store now holds.
     config.last_push = new Date().toISOString();
+    if (result.checksum) config.base_checksum = result.checksum;
     writeConfig(brainDir, config);
 
     return { ...result, local_size: tarSize };
@@ -490,8 +598,9 @@ async function pull(brainDir) {
     // Extract into ~/.brain/
     unpackBrain(tmpFile, brainDir);
 
-    // Update config
+    // Update config, and remember which archive this brain is now based on.
     config.last_pull = new Date().toISOString();
+    if (checksum) config.base_checksum = checksum;
     writeConfig(brainDir, config);
 
     return { size_bytes: size, checksum };
@@ -653,7 +762,9 @@ async function status(brainDir) {
 
 module.exports = {
   login,
+  loginWithToken,
   logout,
+  PushConflictError,
   push,
   pull,
   listVersions,
@@ -668,5 +779,6 @@ module.exports = {
   packBrain,
   unpackBrain,
   resolvePaths,
+  isSecureUrl,
   DEFAULT_API_URL,
 };

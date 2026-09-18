@@ -1,0 +1,83 @@
+# Self-hosted Brain: a store, a stateless MCP connector in front of it, and Caddy
+# for TLS. See ../SELF-HOSTING.md.
+#
+#   cp .env.example .env     # then fill it in
+#   docker compose up -d --build
+#   docker compose exec store node store/bin/brain-store.js user add <name>
+
+name: brain
+
+services:
+  store:
+    build:
+      context: ../..
+      dockerfile: store/Dockerfile
+    restart: unless-stopped
+    environment:
+      STORE_ENCRYPTION_KEY: ${STORE_ENCRYPTION_KEY:?set STORE_ENCRYPTION_KEY in .env}
+      STORE_MAX_UPLOAD_MB: ${STORE_MAX_UPLOAD_MB:-50}
+      STORE_MAX_USER_MB: ${STORE_MAX_USER_MB:-0}
+      STORE_TRUST_PROXY: "1"
+    volumes:
+      - store-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [internal]
+
+  connector:
+    build:
+      context: ../..
+      dockerfile: store/deploy/connector.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      store:
+        condition: service_healthy
+    environment:
+      CONNECTOR_IDP: static
+      # The connector talks to the store over the private network, never the internet.
+      BRAIN_CLOUD_API_URL: http://store:8787
+      CONNECTOR_STATE_KEY: ${CONNECTOR_STATE_KEY:?set CONNECTOR_STATE_KEY in .env}
+      # Caddy is another container on the private network, not loopback.
+      CONNECTOR_TRUST_PROXY: uniquelocal
+    volumes:
+      - connector-state:/var/lib/brain-connector
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Users' working copies are plaintext. Keep them in memory only.
+      - /run/brain-connector:uid=1000,gid=1000,mode=0700
+      - /home/node/.npm
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [store, connector]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      STORE_DOMAIN: ${STORE_DOMAIN:?set STORE_DOMAIN in .env}
+      MCP_DOMAIN: ${MCP_DOMAIN:?set MCP_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal]
+
+volumes:
+  store-data:
+  connector-state:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:

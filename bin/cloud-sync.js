@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * brain cloud — CLI for Brain Cloud sync
+ * brain cloud — CLI for syncing with Brain Cloud or a self-hosted brain-store
  *
  * Usage:
  *   brain cloud login [--api-url URL]   Authenticate via device code flow
+ *   brain cloud login --api-url URL --token-stdin
+ *                                       Authenticate to a self-hosted store with a token
  *   brain cloud logout                  Clear stored credentials
- *   brain cloud push                    Upload ~/.brain/ to the cloud
+ *   brain cloud push [--force]          Upload ~/.brain/ to the cloud
  *   brain cloud pull                    Download from the cloud to ~/.brain/
  *   brain cloud status                  Show connection and sync status
  */
@@ -29,9 +31,18 @@ brain cloud — Brain Cloud sync CLI
 Commands:
   login [--api-url URL]   Authenticate via device code flow
   logout                  Clear stored credentials
-  push                    Upload ~/.brain/ to the cloud
+  push [--force]          Upload ~/.brain/ to the cloud
   pull                    Download from the cloud to ~/.brain/
   status                  Show connection and sync status
+
+Self-hosted store (brain-store):
+  login --api-url URL --token-stdin    Read the token from standard input, e.g.
+                                         pbpaste | brain cloud login --api-url URL --token-stdin
+  login --api-url URL --token TOKEN    Pass the token as an argument (it lands in shell history)
+  login --api-url URL                  With BRAIN_STORE_TOKEN set in the environment
+  --allow-http                         Permit plain HTTP to a host other than this machine
+
+push refuses to overwrite changes it has not pulled. --force uploads anyway.
 `.trim());
     process.exit(0);
   }
@@ -44,7 +55,7 @@ Commands:
       cmdLogout();
       break;
     case 'push':
-      await cmdPush();
+      await cmdPush(args);
       break;
     case 'pull':
       await cmdPull();
@@ -63,6 +74,17 @@ async function cmdLogin(args) {
   const urlIdx = args.indexOf('--api-url');
   if (urlIdx !== -1 && args[urlIdx + 1]) {
     apiUrl = args[urlIdx + 1];
+  }
+
+  const token = await readToken(args);
+  if (token) {
+    const result = await cloud.loginWithToken(BRAIN_DIR, apiUrl, token, {
+      allowHttp: args.includes('--allow-http'),
+    });
+    console.log(`✓ Logged in as ${result.user_email || 'unknown'}`);
+    console.log(`  Brain ID: ${result.brain_id}`);
+    console.log(`  API: ${result.api_url}`);
+    return;
   }
 
   console.log('Requesting device code...');
@@ -88,14 +110,35 @@ async function cmdLogin(args) {
   console.log(`  API: ${config.api_url}`);
 }
 
+/**
+ * A store token from --token-stdin, --token, or BRAIN_STORE_TOKEN, in that order.
+ * Standard input is preferred: it keeps the token out of shell history and out of
+ * the process list.
+ */
+async function readToken(args) {
+  if (args.includes('--token-stdin')) {
+    const chunks = [];
+    for await (const chunk of process.stdin) chunks.push(chunk);
+    const token = Buffer.concat(chunks).toString('utf8').trim();
+    if (!token) throw new Error('--token-stdin was given but standard input was empty.');
+    return token;
+  }
+  const idx = args.indexOf('--token');
+  if (idx !== -1) {
+    if (!args[idx + 1]) throw new Error('--token needs a value.');
+    return args[idx + 1];
+  }
+  return process.env.BRAIN_STORE_TOKEN || null;
+}
+
 function cmdLogout() {
   cloud.logout(BRAIN_DIR);
   console.log('✓ Logged out. Credentials cleared.');
 }
 
-async function cmdPush() {
+async function cmdPush(args) {
   console.log('Packing ~/.brain/ ...');
-  const result = await cloud.push(BRAIN_DIR);
+  const result = await cloud.push(BRAIN_DIR, { force: args.includes('--force') });
   console.log();
   console.log('✓ Push complete!');
   console.log(`  Size:     ${formatBytes(result.size_bytes)}`);

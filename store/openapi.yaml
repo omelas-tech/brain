@@ -1,0 +1,318 @@
+openapi: 3.1.0
+info:
+  title: Brain store contract
+  version: "1.1"
+  summary: The HTTP interface between a Brain client and a remote store.
+  description: >
+    Machine-readable companion to CONTRACT.md. Where the two disagree,
+    CONTRACT.md is correct.
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://store.example
+    description: Your store
+
+security:
+  - bearer: []
+
+paths:
+  /health:
+    get:
+      summary: Liveness and contract discovery
+      security: []
+      responses:
+        "200":
+          description: The store is up.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /auth/me:
+    get:
+      summary: Describe the caller
+      responses:
+        "200":
+          description: The authenticated user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+                  storage_used: { type: integer, description: Bytes stored for this user. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/brains:
+    get:
+      summary: List the caller's brains, oldest first
+      responses:
+        "200":
+          description: Brain records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Brain" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      summary: Create a brain
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, default: default }
+      responses:
+        "201":
+          description: The new brain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brain" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /api/brains/{id}:
+    parameters:
+      - $ref: "#/components/parameters/BrainId"
+    get:
+      summary: Fetch one brain record
+      responses:
+        "200":
+          description: The brain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brain" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Delete a brain, its archive and its snapshots
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /api/brains/{id}/sync:
+    parameters:
+      - $ref: "#/components/parameters/BrainId"
+    get:
+      summary: Download the archive, or a snapshot
+      parameters:
+        - name: version
+          in: query
+          required: false
+          schema: { type: string }
+          description: A snapshot name from the versions listing.
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string }
+          description: (1.1) Checksum the client already holds, as an entity tag.
+      responses:
+        "200":
+          description: The archive.
+          headers:
+            X-Checksum: { schema: { type: string }, description: SHA-256 of the archive. }
+            ETag: { schema: { type: string }, description: (1.1) The same checksum, quoted. }
+          content:
+            application/gzip:
+              schema: { type: string, format: binary }
+        "304": { description: (1.1) The client is current. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      summary: Upload the archive
+      parameters:
+        - name: force
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: Override the empty-push guard. Does not override If-Match.
+        - name: If-Match
+          in: header
+          required: false
+          schema: { type: string }
+          description: (1.1) Proceed only if the stored archive has this checksum.
+        - name: If-None-Match
+          in: header
+          required: false
+          schema: { type: string, enum: ["*"] }
+          description: (1.1) Proceed only if no archive is stored yet.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [brain]
+              properties:
+                brain:
+                  type: string
+                  format: binary
+                  description: A gzip-compressed tar archive of the brain directory.
+      responses:
+        "200":
+          description: Stored.
+          headers:
+            ETag: { schema: { type: string }, description: (1.1) Checksum of the stored archive. }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: The empty-push guard refused the upload.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/brains/{id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/BrainId"
+    get:
+      summary: List snapshots, newest first
+      responses:
+        "200":
+          description: Snapshots.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions, total]
+                properties:
+                  total: { type: integer }
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      required: [version]
+                      properties:
+                        version: { type: string, description: Opaque snapshot name. }
+                        date: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /api/brains/{id}/versions/{version}/restore:
+    parameters:
+      - $ref: "#/components/parameters/BrainId"
+      - name: version
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Make a snapshot the live archive
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          schema: { type: string }
+          description: (1.1) As for upload.
+      responses:
+        "200":
+          description: Restored. The previous live archive was kept as a snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [restored_version]
+                properties:
+                  restored_version: { type: string }
+                  checksum: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/Error" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  parameters:
+    BrainId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        contract: { type: string, description: Highest contract version implemented. Absent means "1". }
+        capabilities:
+          type: array
+          items: { type: string, examples: [static-token, device-code, conditional-sync] }
+      additionalProperties: true
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id: { type: string }
+        email: { type: string }
+      additionalProperties: true
+    Brain:
+      type: object
+      required: [id, name, size_bytes, file_count, checksum, last_synced_at, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        size_bytes: { type: integer }
+        file_count: { type: integer, description: Regular-file entries in the archive. }
+        checksum: { type: [string, "null"], description: Lowercase hex SHA-256 of the archive. }
+        last_synced_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+      additionalProperties: true
+    SyncResult:
+      type: object
+      required: [size_bytes, file_count, checksum]
+      properties:
+        size_bytes: { type: integer }
+        file_count: { type: integer }
+        checksum: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Human-readable. Do not parse. }
+      additionalProperties: true
+
+  responses:
+    Error:
+      description: The request failed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, unknown or expired token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Too many requests.
+      headers:
+        Retry-After: { schema: { type: integer }, description: Seconds to wait. }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PreconditionFailed:
+      description: (1.1) The stored archive is not the one the client named. Nothing changed.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: { type: string }
+              current_checksum: { type: [string, "null"] }
