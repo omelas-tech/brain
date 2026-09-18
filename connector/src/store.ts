@@ -3,8 +3,11 @@
 // This is the real STUB:STORE. A hosted connector can't read the user's laptop,
 // so it pulls their brain from their canonical store into `brainDir`, then the
 // engine recalls over it. Providers (selected by CONNECTOR_STORE, else inferred):
-//   • brain-cloud  — pull the user's {brainID}.tar.gz via their Firebase ID token
-//                    (brain-cloud's middleware accepts Firebase tokens directly).
+//   • brain-cloud  — pull the user's {brainID}.tar.gz from a store that implements
+//                    the Brain store contract (store/CONTRACT.md): the hosted Brain
+//                    Cloud, or a self-hosted brain-store. The bearer is whatever the
+//                    identity provider yields — a Firebase ID token, or a static
+//                    store token.
 //   • local        — DEV: symlink brainDir → $DEV_LOCAL_BRAIN (your live ~/.brain).
 //   • none         — assume brainDir is already provisioned (tests).
 // Whatever happens, we never leave an unreadable brain: empty-init as a fallback.
@@ -22,7 +25,7 @@ const cloudApi = () => (process.env.BRAIN_CLOUD_API_URL || "https://api.brainmem
 export interface EnsureOpts {
   userId: string;
   brainDir: string;
-  idToken?: string; // Firebase ID token — required for the brain-cloud provider
+  idToken?: string; // the store bearer (Firebase ID token or static store token) — required for the brain-cloud provider
   refresh?: boolean; // force a fresh pull (e.g. at login) even if cached
   ttlMs?: number; // if set, re-pull from brain-cloud when the cached copy is older
                   // than this — but only when the cloud checksum actually changed,
@@ -257,7 +260,7 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
  * false) for the local/none providers or when we lack a brainId/token; the local
  * write already persisted in those cases.
  */
-export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string }> {
+export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string; conflict?: boolean }> {
   recordBrainActivity(opts.brainDir); // a write is activity — keep the copy alive
   if (!opts.brainId || !opts.idToken) return { pushed: false };
   // Pack into a private random temp dir (not a predictable /tmp name — defeats a
@@ -272,11 +275,22 @@ export async function syncBack(opts: { brainDir: string; brainId?: string; idTok
     );
     const form = new FormData();
     form.append("brain", new Blob([fs.readFileSync(tmp)], { type: "application/gzip" }), "brain.tar.gz");
+    // Conditional upload (store contract 1.1): only replace the archive this
+    // working copy was pulled from. If another device pushed in the meantime the
+    // store answers 412 and nothing is overwritten. A store that predates 1.1
+    // ignores these headers and behaves as before.
+    const base = pullState.get(opts.brainDir)?.checksum ?? null;
+    const precondition: Record<string, string> = base ? { "If-Match": `"${base}"` } : { "If-None-Match": "*" };
     const res = await fetch(`${cloudApi()}/api/brains/${opts.brainId}/sync`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${opts.idToken}` },
+      headers: { Authorization: `Bearer ${opts.idToken}`, ...precondition },
       body: form,
     });
+    if (res.status === 412) {
+      // The write is NOT marked dirty: the caller discards this working copy,
+      // starts again from the store's current brain, and re-applies the write.
+      return { pushed: false, conflict: true, error: "the store changed since this copy was pulled" };
+    }
     if (!res.ok) {
       // The write is in the local working copy but not the cloud — mark dirty so a
       // TTL re-pull won't clobber it before the next successful push / login.
@@ -368,6 +382,11 @@ async function pullFromBrainCloud(
   }
 
   const dl = await fetch(`${cloudApi()}/api/brains/${brainId}/sync`, { headers });
+  // A brain that exists but has never been pushed to has no archive yet. That is
+  // a new user, not an outage: there is simply nothing to download.
+  if (dl.status === 404 && checksum == null) {
+    return { brainId, brainCount: brains.length, checksum: null, downloaded: false };
+  }
   if (!dl.ok) throw new Error(`sync download ${dl.status}`);
   // Stage the download in a private random temp dir, then extract through the
   // hardened extractor (see extractBrainTar) into the user's brain dir.

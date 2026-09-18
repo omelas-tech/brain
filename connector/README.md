@@ -145,6 +145,37 @@ inferred):
 
 Always graceful: if the brain is still missing, it empty-inits a valid (recall-safe) brain.
 
+The `brain-cloud` provider speaks the [store contract](../store/CONTRACT.md), so it works
+against any store that implements it, including a self-hosted
+[`brain-store`](../store/SELF-HOSTING.md). Sync-back is conditional (`If-Match`): if another
+device pushed first, the connector discards its working copy, starts again from the store's
+brain, re-applies the write and pushes again, so nobody's memories are overwritten.
+
+## Identity providers (`src/identity.ts`)
+
+Who is logging in, and what the connector presents to the store for them, sits behind one
+interface. Select with `CONNECTOR_IDP`:
+
+- **`firebase`** (the default when `FIREBASE_*` is set) — Google sign-in. The store credential
+  is the Firebase ID token, renewed from the Firebase refresh token.
+- **`static`** — for a self-hosted store. The sign-in page takes the token the store's operator
+  issued (`brain-store user add`); the store decides who the user is. Requires
+  `BRAIN_CLOUD_API_URL` to be set explicitly, so a token can never be sent to the hosted
+  default by accident. Rotating or removing the user at the store ends their sessions at the
+  next silent renewal.
+
+- **`oidc`** — for a self-hosted store that accepts your organisation's OpenID Connect issuer
+  (Entra, Google Workspace, Keycloak, Okta). `/authorize` sends the browser to the issuer
+  (authorization code + PKCE + nonce) and the issuer returns it to `/oidc/callback`. The ID
+  token is the store credential, renewed from the issuer's refresh token. Needs `OIDC_ISSUER`,
+  `OIDC_CLIENT_ID` and an explicit `BRAIN_CLOUD_API_URL`. Token verification is the store's own
+  (`store/lib/oidc.js`), so the two can never disagree about what a valid token is. An issuer
+  outage answers `503` and keeps the login; a revocation ends it.
+
+With no provider configured the connector refuses to start in production. When the reverse
+proxy is not on loopback (another container, say), name it with `CONNECTOR_TRUST_PROXY`, for
+example `uniquelocal`; `true` is refused.
+
 ## Next
 
 - **Account-linking** — let one user span several brains (or pick which brain a multi-brain account

@@ -5,11 +5,13 @@
 // 9207 (iss). Mints tokens into auth.ts's store so the resource guard accepts them.
 //
 // Both former stubs are now fully wired:
-//   • Identity — /authorize bounces the user through real Firebase Google login,
-//     verified server-side and secret-free in firebase.ts.
-//   • Store — the user's brain is pulled from brain-cloud (store.ts) keyed on the
-//     verified Firebase uid; writes sync back. When FIREBASE_* is unset, /authorize
-//     falls back to a fixed dev user so the headless tests run without a browser.
+//   • Identity — /authorize bounces the user through the active identity provider
+//     (identity.ts): Firebase Google login for the hosted service, or a pasted
+//     store token for a self-hosted brain-store. Verified server-side either way.
+//   • Store — the user's brain is pulled from the store (store.ts) keyed on the
+//     verified subject; writes sync back. With no provider configured, /authorize
+//     falls back to a fixed dev user so the headless tests run without a browser —
+//     never in production.
 
 import crypto from "node:crypto";
 import path from "node:path";
@@ -17,13 +19,7 @@ import os from "node:os";
 import type { Express, Request, Response } from "express";
 
 import { issueToken } from "./auth.js";
-import {
-  isFirebaseConfigured,
-  verifyFirebaseIdToken,
-  refreshFirebaseIdToken,
-  FirebaseRefreshError,
-  loginPageHtml,
-} from "./firebase.js";
+import { activeProvider, RenewError, type VerifiedLogin } from "./identity.js";
 import { ensureUserBrain } from "./store.js";
 import {
   getClient,
@@ -55,13 +51,15 @@ const refreshTtlMs = () => Number(process.env.CONNECTOR_REFRESH_TTL_MS ?? 30 * 2
 interface AuthCode {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; userId: string; scope: string; exp: number;
-  brainId?: string; idToken?: string; // carried to the session for sync-back (Phase 2)
-  fbRefreshToken?: string; // Firebase refresh token — lets the OAuth refresh grant renew identity
+  brainId?: string; idToken?: string; // the store bearer (a Firebase ID token, or a static store token) — carried to the session for sync-back
+  fbRefreshToken?: string; // the provider's renewal secret (Firebase refresh token, or the static store token) — lets the OAuth refresh grant renew identity
   identityNote?: string; // carried to the session: login-time identity-hygiene hint
 }
 interface PendingLogin {
   clientId: string; redirectUri: string; codeChallenge: string;
   resource: string; scope: string; state?: string; exp: number;
+  attempts: number; // failed completions so far (see IdentityProvider.maxAttempts)
+  carry?: Record<string, string>; // redirect-style providers: PKCE verifier + nonce, server-side only
 }
 const authCodes = new Map<string, AuthCode>();
 const pendingLogins = new Map<string, PendingLogin>(); // login_id → validated OAuth params
@@ -102,9 +100,9 @@ export function devAuthAllowed(): boolean {
   return process.env.CONNECTOR_DEV_AUTH === "1" && process.env.NODE_ENV !== "production";
 }
 
-// STUB:FIREBASE — real flow verifies a Firebase login and maps uid → brain user.
-export function resolveBrainUserId(firebaseUid: string): string {
-  return "brain_" + b64url(sha256(firebaseUid)).slice(0, 12);
+// Maps a provider subject (a Firebase uid, or `static:<store user id>`) → brain user.
+export function resolveBrainUserId(subject: string): string {
+  return "brain_" + b64url(sha256(subject)).slice(0, 12);
 }
 
 // STUB:STORE — real flow ensures this dir is populated from the user's canonical
@@ -116,6 +114,32 @@ export function resolveBrainUserId(firebaseUid: string): string {
 export function resolveBrainDir(userId: string): string {
   const base = process.env.CONNECTOR_BRAIN_BASE || path.join(os.tmpdir(), "brain-connector", "users");
   return path.join(base, userId, ".brain");
+}
+
+/**
+ * A login has been verified: provision the user's brain from the store, mint the
+ * auth code, and return the URL that takes the browser back to the OAuth client.
+ */
+async function finishLogin(login: PendingLogin, verified: VerifiedLogin, issuer: string): Promise<string> {
+  const userId = resolveBrainUserId(verified.subject);
+  const id_token = verified.storeToken;
+
+  // STUB:STORE (now real) — populate this user's brain from their canonical
+  // store, via their store credential, before issuing the code.
+  const store = await ensureUserBrain({ userId, brainDir: resolveBrainDir(userId), idToken: id_token, refresh: true });
+  // Log the opaque user id only — never the email (PII) — for ops correlation.
+  // The identity status (ok / no-cloud-brain / multiple-brains) is non-PII and
+  // useful for spotting wrong-account sign-ins in the field.
+  console.log(`[connector] login ${userId} — brain via ${store.source} (${store.memoryCount} memories, identity: ${store.identity?.status ?? "n/a"})`);
+
+  const code = mintAuthCode({
+    clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
+    resource: login.resource, scope: login.scope, userId,
+    brainId: store.brainId, idToken: id_token, // carry to session for write sync-back
+    fbRefreshToken: verified.renewal,
+    identityNote: store.identity?.note, // surfaced to the user by the MCP tools
+  });
+  return callbackUrl(login.redirectUri, issuer, { code }, login.state);
 }
 
 export function registerOAuthRoutes(app: Express): void {
@@ -182,7 +206,8 @@ export function registerOAuthRoutes(app: Express): void {
     };
 
     // Establish WHO the user is.
-    if (!isFirebaseConfigured()) {
+    const idp = activeProvider();
+    if (!idp) {
       // FAIL CLOSED: with no identity provider, the only way to "log in" is the
       // dev stub below, which auto-approves a FIXED shared user. That must NEVER
       // happen in production (it would hand anyone a token for a shared brain), so
@@ -198,11 +223,28 @@ export function registerOAuthRoutes(app: Express): void {
       return res.redirect(302, callbackUrl(q.redirect_uri, issuer, { code }, q.state));
     }
 
-    // Real login: stash the validated OAuth params, render the Firebase sign-in
-    // page. /authorize/complete verifies the token and mints the code.
+    // Real login: stash the validated OAuth params, render the provider's sign-in
+    // page. /authorize/complete verifies what it posts back and mints the code.
     const loginId = "login_" + rand();
-    pendingLogins.set(loginId, { ...params, state: q.state, exp: Date.now() + LOGIN_TTL_MS });
-    res.type("html").send(loginPageHtml({
+    if (idp.startRedirect) {
+      // Redirect-style provider: the issuer hosts the login. Our login id travels
+      // as `state`; the PKCE verifier and nonce stay here, never in the browser.
+      idp.startRedirect({ callbackUrl: `${issuer}/oidc/callback`, state: loginId }).then((started) => {
+        pendingLogins.set(loginId, { ...params, state: q.state, exp: Date.now() + LOGIN_TTL_MS, attempts: 0, carry: started.carry });
+        res.redirect(302, started.url);
+      }, (e: Error) => {
+        console.error(`[connector] identity provider unavailable: ${e.message}`);
+        fail("temporarily_unavailable", "identity provider unavailable");
+      });
+      return;
+    }
+    pendingLogins.set(loginId, { ...params, state: q.state, exp: Date.now() + LOGIN_TTL_MS, attempts: 0 });
+    if (idp.name === "static") {
+      // This page takes a credential: never let another site frame it.
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Cache-Control", "no-store");
+    }
+    res.type("html").send(idp.loginPage({
       action: "/authorize/complete",
       loginId,
       title: "Connect your brain",
@@ -212,42 +254,61 @@ export function registerOAuthRoutes(app: Express): void {
     }));
   });
 
-  // Completes a Firebase login: verify the ID token, resolve the brain user,
-  // mint the auth code, and hand the client-callback URL back to the page.
+  // Redirect-style providers land here on the way back from the issuer.
+  app.get("/oidc/callback", async (req: Request, res: Response) => {
+    const issuer = issuerOf(req);
+    const q = req.query as Record<string, string>;
+    const login = pendingLogins.get(q.state);
+    pendingLogins.delete(q.state); // single-use
+    const idp = activeProvider();
+    if (!login || login.exp < Date.now() || !login.carry || !idp?.finishRedirect) {
+      res.status(400).type("text").send("This sign-in link is unknown or has expired. Start again from your client.");
+      return;
+    }
+    const back = (error: string, desc: string) =>
+      res.redirect(302, callbackUrl(login.redirectUri, issuer, { error, error_description: desc }, login.state));
+    if (q.error || !q.code) return back("access_denied", q.error ? `sign-in was not completed (${q.error})` : "no authorization code");
+    try {
+      const verified = await idp.finishRedirect({ callbackUrl: `${issuer}/oidc/callback`, code: q.code, carry: login.carry });
+      res.redirect(302, await finishLogin(login, verified, issuer));
+    } catch (e: any) {
+      back("access_denied", `login failed: ${e.message}`);
+    }
+  });
+
+  // Completes a login: verify what the provider's page posted, resolve the brain
+  // user, mint the auth code, and hand the client-callback URL back to the page.
   app.post("/authorize/complete", async (req: Request, res: Response) => {
     const issuer = issuerOf(req);
-    const { login_id, id_token, refresh_token } = req.body ?? {};
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const login_id = body.login_id as string;
     const login = pendingLogins.get(login_id);
-    pendingLogins.delete(login_id); // single-use
+    pendingLogins.delete(login_id); // single-use (re-armed below for a provider that allows retries)
     if (!login || login.exp < Date.now()) {
       res.status(400).json({ error: "invalid_request", error_description: "unknown or expired login" });
       return;
     }
-    let identity;
-    try {
-      identity = await verifyFirebaseIdToken(id_token);
-    } catch (e: any) {
-      res.status(401).json({ error: "access_denied", error_description: `login failed: ${e.message}` });
+    const idp = activeProvider();
+    if (!idp) {
+      res.status(400).json({ error: "invalid_request", error_description: "login unavailable: identity provider not configured" });
       return;
     }
-    const userId = resolveBrainUserId(identity.uid);
-
-    // STUB:STORE (now real) — populate this user's brain from their canonical
-    // store (brain-cloud, via their Firebase token) before issuing the code.
-    const store = await ensureUserBrain({ userId, brainDir: resolveBrainDir(userId), idToken: id_token, refresh: true });
-    // Log the opaque user id only — never the email (PII) — for ops correlation.
-    // The identity status (ok / no-cloud-brain / multiple-brains) is non-PII and
-    // useful for spotting wrong-account sign-ins in the field.
-    console.log(`[connector] login ${userId} — brain via ${store.source} (${store.memoryCount} memories, identity: ${store.identity?.status ?? "n/a"})`);
-
-    const code = mintAuthCode({
-      clientId: login.clientId, redirectUri: login.redirectUri, codeChallenge: login.codeChallenge,
-      resource: login.resource, scope: login.scope, userId,
-      brainId: store.brainId, idToken: id_token, // carry to session for write sync-back
-      fbRefreshToken: typeof refresh_token === "string" && refresh_token ? refresh_token : undefined,
-      identityNote: store.identity?.note, // surfaced to the user by the MCP tools
-    });
-    res.json({ redirect: callbackUrl(login.redirectUri, issuer, { code }, login.state) });
+    let verified;
+    try {
+      verified = await idp.verifyLogin(body);
+    } catch (e: any) {
+      // A pasted token can be mistyped: let the same page try again, a bounded
+      // number of times, rather than sending the user back to their client.
+      login.attempts += 1;
+      const retry = login.attempts < idp.maxAttempts;
+      if (retry) pendingLogins.set(login_id, login);
+      res.status(401).json({
+        error: "access_denied",
+        error_description: `login failed: ${e.message}${retry ? "" : idp.maxAttempts > 1 ? " — too many attempts, please reconnect from your client" : ""}`,
+      });
+      return;
+    }
+    res.json({ redirect: await finishLogin(login, verified, issuer) });
   });
 
   // Token endpoint — authorization_code (PKCE + audience binding) and
@@ -301,9 +362,10 @@ export function registerOAuthRoutes(app: Express): void {
  *     Exception: inside a short grace window a replay is a benign burst race —
  *     concurrent refreshes or a retry after a lost response — and gets the SAME
  *     successor token back instead of a family kill);
- *   ② renew the FIREBASE credential from the stored Firebase refresh token, so
- *     the new session can still pull/sync-back against brain-cloud (the 1-hour
- *     Firebase ID token from login is long dead by now);
+ *   ② renew the STORE credential through the identity provider, so the new
+ *     session can still pull/sync-back (with Firebase, the 1-hour ID token from
+ *     login is long dead by now; with a static token, this is where a token
+ *     rotated or removed at the store ends the session);
  *   ③ re-provision the brain working copy if it was purged, and mint the access
  *     token. Transient failures return 503 — the client keeps its refresh token
  *     and retries; only a real revocation invalidates the grant.
@@ -350,23 +412,25 @@ async function renewSession(
     void res.status(400).json({ error: "invalid_grant", error_description: desc });
   const now = Date.now();
 
-  // Renew the Google credential. A grant minted with Firebase configured but no
-  // refresh token can't renew identity — fail closed rather than silently serving
+  // Renew the store credential. A grant minted under a provider but carrying no
+  // renewal secret can't renew identity — fail closed rather than silently serving
   // an empty brain.
   let idToken: string | undefined;
   let fbRefreshToken = grant.fbRefreshToken;
-  if (isFirebaseConfigured()) {
+  const idp = activeProvider();
+  if (idp) {
     if (!fbRefreshToken) return invalid("session cannot be renewed — please reconnect");
     try {
-      const renewed = await refreshFirebaseIdToken(fbRefreshToken);
-      idToken = renewed.idToken;
-      fbRefreshToken = renewed.refreshToken;
+      const renewed = await idp.renew(fbRefreshToken);
+      idToken = renewed.storeToken;
+      fbRefreshToken = renewed.renewal;
     } catch (e) {
-      if (e instanceof FirebaseRefreshError && !e.permanent) {
+      if (e instanceof RenewError && !e.permanent) {
         res.status(503).json({ error: "temporarily_unavailable", error_description: "identity provider unreachable — retry" });
         return;
       }
-      // Google refused the credential (account revoked/disabled) → the login is over.
+      // The provider refused the credential (account revoked/disabled, or the
+      // store token rotated) → the login is over.
       revokeFamily(grant.familyId);
       console.log(`[connector] refresh for ${grant.userId} refused by identity provider — family revoked`);
       return invalid("login expired — please reconnect");

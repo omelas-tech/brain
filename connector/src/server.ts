@@ -23,7 +23,7 @@ import {
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
 import { initOAuthState } from "./persist.js";
-import { isFirebaseConfigured } from "./firebase.js";
+import { activeProvider, providerProblem } from "./identity.js";
 import { ensureUserBrain, syncBack, purgeBrain, startBrainReaper } from "./store.js";
 import { memorize, pin, unpin, forget, verifyList, verifyApprove, verifyReject } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
@@ -154,6 +154,24 @@ export function buildServer(session: Session): McpServer {
   const writeBack = async () =>
     syncBack({ brainDir: session.brainDir, brainId: session.brainId, idToken: session.idToken });
 
+  // Apply one write and push it. If the store moved on since this working copy
+  // was pulled (another device pushed), the push is refused rather than allowed to
+  // overwrite that work. Then: throw this copy away, start from the store's
+  // current brain, apply the SAME write again, and push once more. Re-running on a
+  // fresh copy (instead of unpacking the newer archive over this one) is what
+  // keeps the index and the memory files consistent.
+  const writeThenSync = async <T>(op: () => Promise<T>) => {
+    let result = await op();
+    let sync = await writeBack();
+    if (sync.conflict) {
+      purgeBrain(session.brainDir);
+      await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir, idToken: session.idToken, refresh: true });
+      result = await op();
+      sync = await writeBack();
+    }
+    return { result, sync };
+  };
+
   server.registerTool(
     "brain_memorize",
     {
@@ -193,10 +211,9 @@ export function buildServer(session: Session): McpServer {
     async ({ content, title, type, tags, origin, valid_from, valid_until, supersedes }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_memorize");
       await ensureFresh();
-      const stored = await memorize(session.brainDir, {
+      const { result: stored, sync } = await writeThenSync(() => memorize(session.brainDir, {
         content, title, type, tags, origin, valid_from, valid_until, supersedes,
-      });
-      const sync = await writeBack();
+      }));
       // A low-trust or lint-flagged write lands pending verification — say so,
       // so the user knows it won't be treated as established fact yet.
       const pending = stored?.quarantine_pending
@@ -231,8 +248,7 @@ export function buildServer(session: Session): McpServer {
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_pin");
       await ensureFresh();
-      const res = await pin(session.brainDir, id);
-      const sync = await writeBack();
+      const { result: res, sync } = await writeThenSync(() => pin(session.brainDir, id));
       return memoryResult(`Pinned ${id}${sync.pushed ? " — synced" : ""}`, { ...res, synced: sync.pushed });
     },
   );
@@ -247,8 +263,7 @@ export function buildServer(session: Session): McpServer {
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_unpin");
       await ensureFresh();
-      const res = await unpin(session.brainDir, id);
-      const sync = await writeBack();
+      const { result: res, sync } = await writeThenSync(() => unpin(session.brainDir, id));
       return memoryResult(`Unpinned ${id}${sync.pushed ? " — synced" : ""}`, { ...res, synced: sync.pushed });
     },
   );
@@ -265,8 +280,7 @@ export function buildServer(session: Session): McpServer {
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_forget");
       await ensureFresh();
-      const res = await forget(session.brainDir, id);
-      const sync = await writeBack();
+      const { result: res, sync } = await writeThenSync(() => forget(session.brainDir, id));
       return memoryResult(`Archived ${id}${sync.pushed ? " — synced" : ""}`, { ...res, synced: sync.pushed });
     },
   );
@@ -296,10 +310,9 @@ export function buildServer(session: Session): McpServer {
       if (!ids || ids.length === 0) {
         return { ...memoryResult(`brain_verify ${action} needs at least one id.`), isError: true };
       }
-      const res = action === "approve"
-        ? await verifyApprove(session.brainDir, ids)
-        : await verifyReject(session.brainDir, ids);
-      const sync = await writeBack();
+      const { result: res, sync } = await writeThenSync(() => action === "approve"
+        ? verifyApprove(session.brainDir, ids)
+        : verifyReject(session.brainDir, ids));
       return memoryResult(
         `${action === "approve" ? "Approved" : "Rejected"} ${ids.join(", ")}${sync.pushed ? " — synced" : ""}`,
         { ...res, synced: sync.pushed },
@@ -331,7 +344,14 @@ export function createApp() {
   // Trust ONLY the loopback proxy — NOT `true`, which would let a direct client
   // spoof X-Forwarded-* (and thus forge the issuer used in audience binding and
   // OAuth callback URLs). The connector also binds to 127.0.0.1 (see listen).
-  app.set("trust proxy", "loopback");
+  // CONNECTOR_TRUST_PROXY overrides this for deployments where the proxy is not on
+  // loopback — e.g. "uniquelocal" when the proxy is another container on a private
+  // Docker network. It takes Express's trust-proxy syntax. `true` is refused.
+  const trustProxy = (process.env.CONNECTOR_TRUST_PROXY || "loopback").trim();
+  if (/^(true|1)$/i.test(trustProxy)) {
+    throw new Error('CONNECTOR_TRUST_PROXY must name the proxy (e.g. "loopback", "uniquelocal", a subnet), never "true"');
+  }
+  app.set("trust proxy", trustProxy);
   app.use(express.json());
   // OAuth token requests are application/x-www-form-urlencoded (RFC 6749 §4.1.3).
   app.use(express.urlencoded({ extended: true }));
@@ -342,7 +362,7 @@ export function createApp() {
   // Per-IP rate limits (in-memory). Tightest on open DCR; generous on /mcp tool
   // traffic, which is Bearer-authenticated. Must precede the route registrations.
   app.use("/register", rateLimit({ windowMs: 60_000, max: 10 }));
-  app.use(["/authorize", "/authorize/complete"], rateLimit({ windowMs: 60_000, max: 30 }));
+  app.use(["/authorize", "/authorize/complete", "/oidc/callback"], rateLimit({ windowMs: 60_000, max: 30 }));
   app.use("/token", rateLimit({ windowMs: 60_000, max: 60 }));
   app.use("/mcp", rateLimit({ windowMs: 60_000, max: 300 }));
 
@@ -413,14 +433,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   loadDotEnv();
   // FAIL CLOSED: never run in production without an identity provider — otherwise
   // /authorize would have to fall back to the shared dev stub (auth bypass).
-  if (process.env.NODE_ENV === "production" && !isFirebaseConfigured()) {
+  if (process.env.NODE_ENV === "production" && !activeProvider()) {
     console.error(
-      "[connector] FATAL: NODE_ENV=production but Firebase is not configured " +
-        "(set FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID). " +
+      `[connector] FATAL: NODE_ENV=production but there is no identity provider: ${providerProblem()}. ` +
         "Refusing to start with authentication disabled.",
     );
     process.exit(1);
   }
+  console.log(`  identity: ${activeProvider()?.name ?? "none (dev stub only)"}`);
   const port = Number(process.env.PORT) || 8788;
   // Login continuity: refresh grants + the DCR client registry persist under
   // CONNECTOR_STATE_DIR so a deploy/restart doesn't log every user out.
