@@ -1,7 +1,7 @@
 {
   "name": "brain",
   "displayName": "Brain Memory",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Persistent, neuroscience-inspired memory for AI coding agents. One human-readable ~/.brain shared across Claude Code, Codex, Copilot, OpenCode, Kilo, OpenClaw and Hermes: deterministic recall with spreading activation, provenance-stamped memorization with quarantine of untrusted writes, bitemporal validity, and a budget-bounded session-start payload injected by hook.",
   "author": {
     "name": "Omelas",

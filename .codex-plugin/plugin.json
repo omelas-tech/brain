@@ -1,6 +1,6 @@
 {
   "name": "brain",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Persistent, neuroscience-inspired memory for Codex. A SessionStart hook injects a budget-bounded context payload from the user's ~/.brain; the brain-memory skill teaches deterministic recall and provenance-stamped memorization via the brain CLI.",
   "author": {
     "name": "Omelas",
