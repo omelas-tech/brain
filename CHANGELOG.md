@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-18
+
+Opens up sync. The HTTP interface between a Brain client and a remote store is
+now a published contract with a conformance suite, and `brain-store` is a small
+reference server you can run yourself, so a brain no longer has to live in Brain
+Cloud to be shared between machines or reached from MCP-only hosts. Sync also
+stops being last-writer-wins: clients name the archive they started from, and a
+store that has moved on refuses the upload instead of overwriting another
+device's memories. The contract is a **draft** and is open for comment in
+[#6](https://github.com/omelas-tech/brain/issues/6) until at least 25 September
+2026; it may still change. The project also gains a governance document, a
+maintainers file and a code of conduct.
+
 ### Added
 - **An open store contract and a self-hostable store.** `store/CONTRACT.md` (with
   `store/openapi.yaml`) specifies the HTTP interface between a Brain client and a
