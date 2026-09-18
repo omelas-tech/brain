@@ -89,7 +89,7 @@ obtains TLS certificates by itself.
 
    ```bash
    cd store/deploy
-   cp .env.example .env
+   cp env.example .env
    docker compose run --rm store keygen     # paste into STORE_ENCRYPTION_KEY
    openssl rand -hex 32                     # paste into CONNECTOR_STATE_KEY
    ```

@@ -10,7 +10,7 @@ that implements it.
 | [conformance/](conformance/) | A black-box test suite. Point it at any store over HTTP. |
 | [server.js](server.js), [lib/](lib/), [bin/](bin/) | `brain-store`, the reference server. Node.js, no dependencies, files only. |
 | [SELF-HOSTING.md](SELF-HOSTING.md) | Running your own store and MCP connector. |
-| [deploy/](deploy/) | Docker Compose: store, connector and Caddy for TLS. |
+| [deploy/](deploy/) | Docker Compose: store, connector and Caddy for TLS. Start from `env.example`. |
 
 ## Why a contract
 

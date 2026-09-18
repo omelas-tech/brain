@@ -1,7 +1,7 @@
 # Self-hosted Brain: a store, a stateless MCP connector in front of it, and Caddy
 # for TLS. See ../SELF-HOSTING.md.
 #
-#   cp .env.example .env     # then fill it in
+#   cp env.example .env      # then fill it in
 #   docker compose up -d --build
 #   docker compose exec store node store/bin/brain-store.js user add <name>
 
