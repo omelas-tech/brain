@@ -45,6 +45,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 - [Portable Sync](https://brainmemory.ai/docs/advanced/portable-sync): Git-based sync and encrypted export/import for cross-device memory portability.
 - [Working Memory & Session Start](https://brainmemory.ai/docs/advanced/working-memory): How Brain feeds the context window at session start through a single budget-bounded aggregator that never overflows working memory.
 - [Portable Skill Distribution](https://brainmemory.ai/docs/advanced/skill-distribution): Ship Brain as a portable agentskills.io SKILL.md folder that runs unmodified across Claude Code, Copilot, Cursor, Codex, Gemini CLI, and more.
+- [Self-Hosting a Store](https://brainmemory.ai/docs/advanced/self-hosting): Run brain-store, an open reference server for the Brain store contract, and your own MCP connector in front of it.
 
 ## Reference
 

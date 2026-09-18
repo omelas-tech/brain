@@ -36,6 +36,21 @@ The simplest option — push your brain to [Brain Cloud](https://app.brainmemory
 
 Free tier includes 20MB of storage. See the [sync command docs](/docs/commands/sync) for full details.
 
+A push never overwrites work it has not seen. If another device pushed since you last pulled, the upload is refused and you are told to pull first.
+
+## Your Own Store
+
+The same `cloud push` and `cloud pull` work against a store you run yourself. `brain-store` is an open-source server for the published store contract: Node.js, no dependencies, files only.
+
+```bash
+npx -p brain-memory brain-store user add alice   # prints a token, once
+npx -p brain-memory brain-store serve
+
+pbpaste | brain cloud login --api-url https://store.example.com --token-stdin
+```
+
+See [Self-Hosting a Store](/docs/advanced/self-hosting) for TLS, Docker Compose, the MCP connector and sign-in through your own identity provider.
+
 ## Git Remote Sync
 
 Push and pull your brain to any private Git repository. This is the recommended approach for regular syncing between devices.

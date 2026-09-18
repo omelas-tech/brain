@@ -261,6 +261,14 @@ export const docPages = [
     category: "Advanced",
     order: 6,
   },
+  {
+    title: "Self-Hosting a Store",
+    description:
+      "Run brain-store, an open reference server for the Brain store contract, and your own MCP connector in front of it.",
+    href: "/docs/advanced/self-hosting",
+    category: "Advanced",
+    order: 7,
+  },
 
   // Reference
   {

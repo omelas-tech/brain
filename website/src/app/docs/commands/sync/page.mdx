@@ -85,6 +85,26 @@ brain cloud status         # Show connection info
 brain cloud logout         # Clear credentials
 ```
 
+### When a Push Is Refused
+
+A push names the archive it started from. If another device pushed since you last pulled, the store refuses the upload and nothing is overwritten:
+
+```
+Error: The store has changes you have not pulled, so nothing was uploaded.
+```
+
+Run `brain cloud pull`, then `brain cloud push` again. `brain cloud push --force` uploads anyway and replaces what the store holds; the store keeps a snapshot of what it replaced, so `brain restore --from cloud` can undo it.
+
+### A Self-Hosted Store
+
+`brain cloud` also talks to a store you run yourself with [`brain-store`](/docs/advanced/self-hosting). Log in with the token its operator issued instead of the device code flow:
+
+```bash
+pbpaste | brain cloud login --api-url https://store.example.com --token-stdin
+```
+
+`--token TOKEN` and the `BRAIN_STORE_TOKEN` environment variable also work. The CLI refuses to send a token over plain HTTP to another host unless you pass `--allow-http`.
+
 ### Cloud State
 
 Cloud credentials are stored locally at `~/.brain/.cloud/config.json` and never pushed to any remote.

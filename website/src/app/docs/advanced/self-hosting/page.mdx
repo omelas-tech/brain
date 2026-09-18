@@ -1,0 +1,157 @@
+import Callout from "@/app/components/docs/Callout";
+import Steps, { Step } from "@/app/components/docs/Steps";
+
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/self-hosting", {
+  title: "Self-Hosting a Store - Brain Memory",
+  description: "Run brain-store, an open reference server for the Brain store contract, and optionally your own MCP connector in front of it.",
+  category: "Advanced",
+  order: 25,
+});
+
+# Self-Hosting a Store
+
+Brain Cloud is one place a brain can live. Since 0.4.0 it is not the only one: the interface between a Brain client and a remote store is a [published contract](https://github.com/omelas-tech/brain/blob/main/store/CONTRACT.md), and `brain-store` is a small open-source server that implements it. Run it yourself and nothing here needs a Brain Cloud account.
+
+There are two pieces, and you can stop after the first.
+
+| Piece | What it gives you | Needs |
+|---|---|---|
+| **`brain-store`** | Sync between your machines with `brain cloud push` and `pull` | Node.js 18+, or Docker |
+| **The connector** | The same brain inside MCP-only hosts: Claude.ai, ChatGPT, Goose and others | Docker, two DNS names, ports 80 and 443 |
+
+The store never reads your memories. It keeps each brain as one archive, exactly as the client sent it.
+
+<Callout type="info">
+  The store contract is a **draft**, open for comment in [issue #6](https://github.com/omelas-tech/brain/issues/6) until at least 25 September 2026. It may still change.
+</Callout>
+
+## The store by itself
+
+<Steps>
+  <Step title="Create a user and start the server">
+    ```bash
+    npx -p brain-memory brain-store user add alice   # prints alice's token, once
+    npx -p brain-memory brain-store serve             # http://127.0.0.1:8787
+    ```
+
+    The token is shown once. The store keeps only a hash of it.
+  </Step>
+
+  <Step title="Connect each machine">
+    ```bash
+    pbpaste | brain cloud login --api-url https://store.example.com --token-stdin
+    ```
+
+    `--token-stdin` keeps the token out of your shell history. `--token TOKEN` and the `BRAIN_STORE_TOKEN` environment variable also work.
+  </Step>
+
+  <Step title="Push and pull">
+    ```bash
+    brain cloud push      # from the machine that has the memories
+    brain cloud pull      # on the others
+    ```
+  </Step>
+</Steps>
+
+The server speaks plain HTTP and binds to `127.0.0.1`. To reach it from other machines, put a TLS-terminating reverse proxy in front of it; the Compose setup below does that for you. The `brain` CLI refuses to send a token over plain HTTP to another host unless you pass `--allow-http`.
+
+## Pushing from two machines
+
+A push is conditional. If another machine has pushed since you last pulled, the store refuses the upload and nothing is overwritten:
+
+```
+Error: The store has changes you have not pulled, so nothing was uploaded.
+Run `brain cloud pull` and push again, or `brain cloud push --force` to overwrite the store.
+```
+
+Pull, then push. The store keeps the last five archives it replaced, so even a forced push can be undone with `brain restore --from cloud`. The same protection applies to Brain Cloud.
+
+## Configuration
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `STORE_DATA_DIR` | `~/.brain-store` | Where users and archives live |
+| `STORE_HOST`, `STORE_PORT` | `127.0.0.1`, `8787` | Bind address |
+| `STORE_ENCRYPTION_KEY` | unset | 32 bytes, hex or base64. Turns on encryption at rest. Make one with `brain-store keygen` |
+| `STORE_MAX_UPLOAD_MB` | `50` | Largest archive accepted |
+| `STORE_MAX_USER_MB` | `0` | Storage per user; `0` is unlimited |
+| `STORE_TRUST_PROXY` | unset | Set to `1` behind a reverse proxy, so rate limits see the real client address |
+
+```bash
+brain-store user add <name> [--email E]   # create; prints the token once
+brain-store user list
+brain-store user rotate <name>            # new token; the old one stops working at once
+brain-store user remove <name> [--purge]  # --purge also deletes their brains
+```
+
+Run one server process per data directory.
+
+## Store and connector with Docker Compose
+
+This runs the store, the MCP connector and [Caddy](https://caddyserver.com), which obtains TLS certificates by itself. The files are in [`store/deploy/`](https://github.com/omelas-tech/brain/tree/main/store/deploy) in the repository.
+
+<Steps>
+  <Step title="Point two DNS names at the host">
+    For example `store.example.com` and `mcp.example.com`. Open ports 80 and 443.
+  </Step>
+
+  <Step title="Configure">
+    ```bash
+    cd store/deploy
+    cp env.example .env
+    docker compose run --rm store keygen     # paste into STORE_ENCRYPTION_KEY
+    openssl rand -hex 32                     # paste into CONNECTOR_STATE_KEY
+    ```
+
+    Fill in the two domain names as well.
+  </Step>
+
+  <Step title="Start it and create a user">
+    ```bash
+    docker compose up -d --build
+    docker compose exec store node store/bin/brain-store.js user add alice
+    ```
+  </Step>
+
+  <Step title="Connect a client">
+    In any MCP host, add the server `https://mcp.example.com/mcp`:
+
+    ```bash
+    claude mcp add --transport http brain https://mcp.example.com/mcp
+    ```
+
+    The host opens a sign-in page served by your connector. Paste the token from the previous step.
+  </Step>
+</Steps>
+
+The connector holds no memories of its own. At login it pulls the user's brain from the store into memory, answers recall from that copy, writes changes back, and discards the copy after fifteen idle minutes or when the session ends.
+
+## Signing in through your identity provider
+
+For more than a handful of people, the store can accept ID tokens from an OpenID Connect issuer you already run: Microsoft Entra, Google Workspace, Keycloak, Okta. People sign in with their work account, and the store creates their user and first brain the first time it sees them. Static tokens keep working alongside.
+
+Configure the store with `STORE_OIDC_ISSUER` and `STORE_OIDC_AUDIENCE`, and the connector with `CONNECTOR_IDP=oidc`, `OIDC_ISSUER` and `OIDC_CLIENT_ID`. The connector's redirect URI is `https://mcp.example.com/oidc/callback`. A public issuer such as Google gives tokens to anyone, so the store refuses to start with it unless you set `STORE_OIDC_ALLOWED_DOMAINS` or `STORE_OIDC_ALLOWED_EMAILS`. The [full guide](https://github.com/omelas-tech/brain/blob/main/store/SELF-HOSTING.md) has provider-specific notes.
+
+<Callout type="warning">
+  OpenID Connect sign-in is tested against a mock issuer that signs real tokens. It has not yet been exercised against each real provider. Expect to adjust scopes and parameters for yours.
+</Callout>
+
+## Before you expose this to the internet
+
+- **TLS is not optional.** Tokens are bearer credentials.
+- **Tokens are stored hashed.** A stolen `users.json` does not yield usable tokens. A lost token cannot be shown again; rotate it.
+- **Encryption at rest protects a stolen disk or backup, not a compromised server.** The running server holds the key. This is server-side encryption, not end-to-end encryption.
+- **The connector holds plaintext working copies while a user is active.** In the Compose setup they live on a memory-backed filesystem and are never written to disk.
+- **Back up the data directory**, and keep `STORE_ENCRYPTION_KEY` somewhere separate from the backups. Without it the archives cannot be read.
+
+## Writing your own store
+
+You need the endpoints in the [contract](https://github.com/omelas-tech/brain/blob/main/store/CONTRACT.md) and nothing else. The [conformance suite](https://github.com/omelas-tech/brain/tree/main/store/conformance) is a black-box test you can point at any implementation:
+
+```bash
+STORE_URL=https://store.example.com STORE_TOKEN=bst_… node --test store/conformance/
+```
+
+It overwrites the brain it works on. Use a disposable user.
