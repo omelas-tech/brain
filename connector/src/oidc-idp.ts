@@ -15,12 +15,18 @@ import crypto from "node:crypto";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { createVerifier } = require("../../store/lib/oidc.js") as {
-  createVerifier: (opts: Record<string, unknown>) => {
-    verify: (token: string, expect?: { nonce?: string }) => Promise<Record<string, any>>;
-    discovery: () => Promise<Record<string, any>>;
-  };
-};
+
+interface Verifier {
+  verify: (token: string, expect?: { nonce?: string }) => Promise<Record<string, any>>;
+  discovery: () => Promise<Record<string, any>>;
+}
+
+// Loaded on first use, not at import time: a deployment that does not use OIDC
+// (the hosted service signs in with Firebase) must start even when store/ is not
+// on the box.
+function loadCreateVerifier(): (opts: Record<string, unknown>) => Verifier {
+  return (require("../../store/lib/oidc.js") as { createVerifier: (opts: Record<string, unknown>) => Verifier }).createVerifier;
+}
 
 const env = (k: string) => (process.env[k] || "").trim();
 const b64url = (b: Buffer) => b.toString("base64url");
@@ -32,13 +38,13 @@ const b64url = (b: Buffer) => b.toString("base64url");
 export const isOidcConfigured = () =>
   env("OIDC_ISSUER") !== "" && env("OIDC_CLIENT_ID") !== "" && env("BRAIN_CLOUD_API_URL") !== "";
 
-let cached: { key: string; verifier: ReturnType<typeof createVerifier> } | null = null;
-function verifier() {
+let cached: { key: string; verifier: Verifier } | null = null;
+function verifier(): Verifier {
   const key = `${env("OIDC_ISSUER")}|${env("OIDC_CLIENT_ID")}|${env("OIDC_ALLOWED_DOMAINS")}|${env("OIDC_ALLOWED_EMAILS")}`;
   if (!cached || cached.key !== key) {
     cached = {
       key,
-      verifier: createVerifier({
+      verifier: loadCreateVerifier()({
         issuer: env("OIDC_ISSUER"),
         audience: env("OIDC_CLIENT_ID"),
         allowedDomains: env("OIDC_ALLOWED_DOMAINS"),

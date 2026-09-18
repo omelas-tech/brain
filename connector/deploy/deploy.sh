@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
 # Deploy brain-connector to the VPS (co-located with brain-cloud).
-# Layout on the box: /opt/brain-connector/{bin,src,connector} so the connector's
-# engine bridge resolves ../../bin/recall.js. .env is NOT synced (set on the box once).
+# Layout on the box: /opt/brain-connector/{bin,src,connector,store/lib} so the
+# connector's engine bridge resolves ../../bin/recall.js and the OIDC provider
+# resolves ../../store/lib/oidc.js. .env is NOT synced (set on the box once).
 set -euo pipefail
 
 VPS="${VPS:?set VPS=user@host (the box running brain-cloud)}"
 DEST=/opt/brain-connector
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"   # brain repo root
 
+# This script ships the WORKING TREE, not a commit. Refuse to send uncommitted
+# changes to production by accident. Deploy from a clean checkout instead:
+#   git worktree add /tmp/brain-deploy HEAD && VPS=... bash /tmp/brain-deploy/connector/deploy/deploy.sh
+# ALLOW_DIRTY=1 overrides.
+if [ "${ALLOW_DIRTY:-0}" != "1" ]; then
+  dirty="$(git -C "$REPO" status --porcelain -- bin src connector store/lib 2>/dev/null || true)"
+  if [ -n "$dirty" ]; then
+    echo "Refusing to deploy: uncommitted changes under bin/, src/, connector/ or store/lib/:" >&2
+    echo "$dirty" >&2
+    echo "Deploy from a clean checkout, or set ALLOW_DIRTY=1." >&2
+    exit 1
+  fi
+fi
+
 echo "→ syncing engine + connector to $VPS:$DEST"
 rsync -az --delete "$REPO/bin/" "$VPS:$DEST/bin/"
 rsync -az --delete "$REPO/src/" "$VPS:$DEST/src/"
 rsync -az --delete --exclude node_modules --exclude .env "$REPO/connector/" "$VPS:$DEST/connector/"
+ssh "$VPS" "mkdir -p $DEST/store/lib"
+rsync -az --delete "$REPO/store/lib/" "$VPS:$DEST/store/lib/"
 
 echo "→ installing deps + (re)starting service"
 ssh "$VPS" bash -s <<'REMOTE'
@@ -32,7 +49,7 @@ rm -rf /opt/brain-connector/users 2>/dev/null || true
 
 # The code tree is read-only to the service; .env holds config (public Firebase
 # web values today, but lock it down regardless) and must be readable by it only.
-chown -R root:root /opt/brain-connector/bin /opt/brain-connector/src /opt/brain-connector/connector 2>/dev/null || true
+chown -R root:root /opt/brain-connector/bin /opt/brain-connector/src /opt/brain-connector/connector /opt/brain-connector/store 2>/dev/null || true
 if [ -f .env ]; then chown brainconn:brainconn .env && chmod 600 .env; fi
 
 # Encryption key for OAuth state at rest (Firebase refresh tokens inside
