@@ -319,9 +319,11 @@ describe('import state', () => {
   });
 
   it('accepts ids as given when the source history cannot be enumerated', () => {
-    // No adapter for 'codex' yet, so there is nothing to validate against —
-    // rejecting on no evidence would be worse than accepting.
-    const result = markImported('codex', ['whatever'], tmpDir);
+    // A source with no adapter has nothing to validate against — rejecting on
+    // no evidence would be worse than accepting. Deliberately not 'codex': it
+    // has an adapter now, which enumerates the real ~/.codex of whoever runs
+    // the suite and rejects the made-up id on any machine with Codex history.
+    const result = markImported('some-future-agent', ['whatever'], tmpDir);
     assert.deepEqual(result.unknown, []);
     assert.equal(result.added, 1);
   });
