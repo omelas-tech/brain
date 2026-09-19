@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- **`brain verify requeue <id>`**, an undo for a mistaken approve. It puts the
+  memory back into pending verification, clears `vetted` (which also withdraws
+  per-item consent for a sensitive memory), rebuilds the reasons approval
+  dropped, and logs a `verify_requeue` audit event. A pinned memory is refused
+  rather than silently unpinned.
+- **Install without a terminal.** `brain --claude --global` (installer flags
+  with no subcommand) runs the installer, so an agent or a CI job can install
+  brain by itself. With nothing to ask on, the installer initializes `~/.brain/`
+  if it does not exist and never overwrites one; `--yes` skips that question on
+  a terminal too.
+- The installer warns when brain is installed under nvm, fnm, asdf, mise or
+  nodenv: the command exists for that Node version only, so it disappears when
+  the default version moves and agent hooks never see it.
+- Website: a Self-Hosting a Store page, and documentation for token login and
+  refused pushes.
+
+### Changed
+- The agent prompts say to approve only the exact ids the user reviewed, never
+  a fresh listing, because other sessions write concurrently.
+
+### Fixed
+- The `secret_exfil` lint no longer quarantines ordinary engineering notes
+  ("the password-reset email", a code literal such as `upload`) as injections.
+- `test/harvest.test.js` no longer depends on the `~/.codex` of whoever runs it.
+- The Compose environment template is `store/deploy/env.example`; as
+  `.env.example` it was ignored by git and npm and never shipped.
+
 ## [0.4.0] - 2026-09-18
 
 Opens up sync. The HTTP interface between a Brain client and a remote store is
