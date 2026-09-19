@@ -858,3 +858,118 @@ describe('installForRuntime registers Codex hooks (local scope)', () => {
     }
   });
 });
+
+// ===========================================================================
+// detectVersionManager — fragile global installs
+// ===========================================================================
+
+describe('detectVersionManager', () => {
+  const { detectVersionManager } = require('../src/installer');
+
+  it('names the manager and Node version a global install is tied to', () => {
+    const cases = [
+      ['/Users/u/.nvm/versions/node/v22.16.0/lib/node_modules/brain-memory', 'nvm', 'v22.16.0'],
+      ['/home/u/.local/share/fnm/node-versions/v20.11.0/installation/lib/node_modules/brain-memory', 'fnm', 'v20.11.0'],
+      ['/home/u/.asdf/installs/nodejs/20.11.0/lib/node_modules/brain-memory', 'asdf', '20.11.0'],
+      ['/home/u/.local/share/mise/installs/node/22.1.0/lib/node_modules/brain-memory', 'mise', '22.1.0'],
+      ['/home/u/.nodenv/versions/18.19.0/lib/node_modules/brain-memory', 'nodenv', '18.19.0'],
+      ['C:\\Users\\u\\AppData\\Roaming\\nvm\\v22.16.0\\node_modules\\brain-memory', 'nvm', 'v22.16.0'],
+    ];
+    for (const [root, manager, version] of cases) {
+      assert.deepEqual(detectVersionManager(root), { manager, version }, root);
+    }
+  });
+
+  it('returns null for version-independent installs', () => {
+    for (const root of [
+      '/opt/homebrew/lib/node_modules/brain-memory',
+      '/usr/local/lib/node_modules/brain-memory',
+      '/usr/lib/node_modules/brain-memory',
+      '/Users/u/.volta/tools/image/packages/brain-memory/lib/node_modules/brain-memory',
+      '/Users/u/.claude/plugins/cache/brain-memory/brain/0.3.0',
+      '/Users/u/code/brain',
+    ]) {
+      assert.equal(detectVersionManager(root), null, root);
+    }
+  });
+});
+
+// ===========================================================================
+// Installer CLI without a terminal — how agents and CI actually run it
+// ===========================================================================
+
+describe('installer CLI without a terminal', () => {
+  const { spawnSync } = require('child_process');
+  const BRAIN = path.join(__dirname, '..', 'bin', 'brain.js');
+
+  beforeEach(setup);
+  afterEach(teardown);
+
+  // input: '' is a stdin that is already at EOF.
+  function run(args, input = '') {
+    return spawnSync('node', [BRAIN, ...args], {
+      cwd: tmpDir,
+      input,
+      encoding: 'utf-8',
+      env: { ...process.env, HOME: tmpDir, USERPROFILE: tmpDir, BRAIN_DIR: '' },
+    });
+  }
+
+  const commandsDir = () => path.join(tmpDir, '.claude', 'commands', 'brain');
+
+  it('installs when runtime and scope are flagged (was a silent exit-0 no-op)', () => {
+    const res = run(['install', '--claude', '--global']);
+    assert.equal(res.status, 0, res.stderr);
+    assert.ok(fs.existsSync(path.join(commandsDir(), 'remember.md')));
+    // The unanswered init prompt takes its own default: yes.
+    assert.ok(fs.existsSync(path.join(tmpDir, '.brain', 'index.json')));
+  });
+
+  it('fails loudly, writing nothing, when no runtime is named', () => {
+    const res = run(['install']);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /--claude/);
+    assert.deepEqual(fs.readdirSync(tmpDir), []);
+  });
+
+  it('still honours a piped answer', () => {
+    const res = run(['install', '--claude', '--global'], 'n\n');
+    assert.equal(res.status, 0, res.stderr);
+    assert.ok(fs.existsSync(commandsDir()));
+    assert.ok(!fs.existsSync(path.join(tmpDir, '.brain')));
+  });
+
+  it('--yes skips the init prompt entirely', () => {
+    const res = run(['install', '--claude', '--global', '--yes']);
+    assert.equal(res.status, 0, res.stderr);
+    assert.ok(!res.stdout.includes('Initialize ~/.brain/'));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.brain', 'index.json')));
+  });
+
+  it('uninstall treats no answer as no — removal is never defaulted into', () => {
+    run(['install', '--claude', '--global', '--yes']);
+    const res = run(['uninstall']);
+    assert.equal(res.status, 0, res.stderr);
+    assert.match(res.stdout, /Cancelled/);
+    assert.ok(fs.existsSync(commandsDir()));
+    assert.ok(fs.existsSync(path.join(tmpDir, '.brain', 'index.json')));
+  });
+
+  it('installer flags alone install — the documented `brain --claude --global` form', () => {
+    const res = run(['--claude', '--global']);
+    assert.equal(res.status, 0, res.stderr);
+    assert.ok(fs.existsSync(path.join(commandsDir(), 'remember.md')));
+  });
+
+  it('an unknown flag is still an unknown command, not an install', () => {
+    const res = run(['--verison']);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /Unknown command: --verison/);
+    assert.deepEqual(fs.readdirSync(tmpDir), []);
+  });
+
+  it('update with nothing installed points at the real install command', () => {
+    const res = run(['update']);
+    assert.match(res.stdout, /npm install -g brain-memory && brain install/);
+  });
+});

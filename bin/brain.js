@@ -11,6 +11,7 @@
  * Usage:
  *   brain                            Interactive installer (also: brain install)
  *   brain install|update|uninstall [flags]
+ *   brain --claude --global          Installer flags alone also install (non-interactive)
  *   brain recall "<query>" [--project P] [--task T] [--top N] [--context] [--reindex]
  *   brain memorize [--sync]          Store memories from a JSON payload on stdin
  *   brain reinforce <id> [<id>...]   Spaced reinforcement + Hebbian co-retrieval
@@ -44,6 +45,15 @@ const DELEGATED = {
 // `npx brain-memory` via npm's single-bin fallback.
 const INSTALLER = new Set(['install', 'update', 'uninstall']);
 
+// The documented non-interactive form has no subcommand at all —
+// `brain --claude --global` — a holdover from the old `brain-memory` binary that
+// install.js's own arg parser still accepts. An explicit list rather than "any
+// --flag", so a typo like `--verison` still gets the unknown-command help.
+const INSTALLER_FLAGS = new Set([
+  '--claude', '--codex', '--openai', '--opencode', '--antigravity', '--copilot', '--kilo', '--all',
+  '--global', '--local', '--update', '--uninstall', '--yes', '--y',
+]);
+
 const HELP = `◉ brain — Brain Memory CLI
 
 Usage: brain <command> [options]
@@ -64,7 +74,7 @@ Memory
                               Budget-bounded startup payload (agent-invoked)
 
 Trust
-  verify <list|show|approve|reject>
+  verify <list|show|approve|reject|requeue>
                               Quarantine workflow for unverified writes
   audit [--window 24h|7d] [--apply]
                               Anomalous-write scan over audit.log
@@ -85,6 +95,10 @@ Sync
 
 Setup
   install                     Interactive installer (default when no command)
+  install --claude --global [--yes]
+                              Non-interactive: name the runtime(s) and scope
+                              (--codex --opencode --copilot --kilo --antigravity --all;
+                              \`install\` may be omitted)
   update                      Update an existing installation
   uninstall [--delete-data]   Remove the installation
 
@@ -106,8 +120,8 @@ function main() {
     return;
   }
 
-  // Bare `brain` or an installer subcommand → run the installer.
-  if (sub === undefined || INSTALLER.has(sub)) {
+  // Bare `brain`, an installer subcommand, or installer flags alone → run the installer.
+  if (sub === undefined || INSTALLER.has(sub) || INSTALLER_FLAGS.has(sub)) {
     require(path.join(__dirname, 'install.js'));
     return;
   }

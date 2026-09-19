@@ -10,17 +10,61 @@ const {
   initializeBrain,
   detectInstallations,
   uninstallForRuntime,
+  detectVersionManager,
 } = require('../src/installer');
 
+// Interfaces whose stdin has ended. Tracked here because question() on a
+// closed interface throws on some Node versions and silently never calls back
+// on others.
+const ended = new WeakSet();
+
 function createRL() {
-  return readline.createInterface({
+  const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
+  rl.once('close', () => ended.add(rl));
+  return rl;
 }
 
+// Resolves null when stdin ends before an answer arrives — closed stdin, or a
+// pipe that ran dry. Agents and CI run this installer without a terminal; a
+// question that never resolves lets the event loop drain, and the process exits
+// 0 having installed nothing. Callers must handle null (take the default, or
+// fail loudly) rather than treat it as an answer.
 function ask(rl, question) {
-  return new Promise((resolve) => rl.question(question, resolve));
+  return new Promise((resolve) => {
+    if (ended.has(rl)) {
+      console.log(question);
+      return resolve(null);
+    }
+    const onClose = () => {
+      console.log('');
+      resolve(null);
+    };
+    rl.once('close', onClose);
+    rl.question(question, (answer) => {
+      rl.removeListener('close', onClose);
+      resolve(answer);
+    });
+  });
+}
+
+function assumeYes(flags) {
+  return flags.has('yes') || flags.has('y');
+}
+
+function warnIfVersionManaged() {
+  const vm = detectVersionManager();
+  if (!vm) return;
+  console.log(`
+  ⚠ brain is installed under ${vm.manager} (Node ${vm.version}).
+    The \`brain\` command exists for that Node version only. It disappears when your
+    default version changes, and shells that don't load ${vm.manager} — agent hooks,
+    GUI-launched agents, non-interactive shells — never see it. When agents can't find
+    \`brain\` they fall back to editing memory files by hand, with no error.
+    Install brain-memory with a system Node instead (Homebrew, apt, the nodejs.org
+    installer), then run \`brain update\`.`);
 }
 
 function parseArgs(argv) {
@@ -112,6 +156,11 @@ async function runInstall(flags) {
       console.log('');
 
       const choice = await ask(rl, ' Select (1/2/3/4/5/6/7): ');
+      if (choice === null) {
+        throw new Error(
+          'no runtime selected and no terminal to ask on. Name one, e.g. `brain install --claude --global`.'
+        );
+      }
       switch (choice.trim()) {
         case '1':
           runtimes = ['claude'];
@@ -148,15 +197,17 @@ async function runInstall(flags) {
       console.log('');
 
       const choice = await ask(rl, ' Select (1/2): ');
-      scope = choice.trim() === '2' ? 'local' : 'global';
+      scope = choice !== null && choice.trim() === '2' ? 'local' : 'global';
     }
 
-    // Initialize .brain structure?
-    console.log('');
-    const initBrain = await ask(
-      rl,
-      '  Initialize ~/.brain/ directory? (Y/n): '
-    );
+    // Initialize .brain structure? No answer takes the prompt's own default
+    // (yes) — initializeBrain() never overwrites an existing brain.
+    let initBrain = 'y';
+    if (!assumeYes(flags)) {
+      console.log('');
+      const answer = await ask(rl, '  Initialize ~/.brain/ directory? (Y/n): ');
+      if (answer !== null) initBrain = answer;
+    }
 
     // Perform installation
     console.log('\n  Installing...');
@@ -196,6 +247,7 @@ async function runInstall(flags) {
   Your brain is ready — recall and memorize happen automatically. Just start working,
   or run /brain:status to see an overview.
     `);
+    warnIfVersionManaged();
   } finally {
     rl.close();
   }
@@ -226,7 +278,7 @@ async function runUpdate(flags) {
 
   if (detections.length === 0) {
     console.log('  No existing brain-memory installations found.\n');
-    console.log('  To install, run: npm install -g brain-memory@beta && brain-memory');
+    console.log('  To install, run: npm install -g brain-memory && brain install');
     if (filterRuntimes.length > 0) {
       console.log(`  (Searched for: ${filterRuntimes.join(', ')})`);
     }
@@ -251,6 +303,7 @@ async function runUpdate(flags) {
   }
 
   console.log(`\n  ✓ Updated to v${version}\n`);
+  warnIfVersionManaged();
 }
 
 // ---------------------------------------------------------------------------
@@ -285,12 +338,17 @@ async function runUninstall(flags) {
     console.log(`    ${d.runtimeName} (${d.scope}) — ${parts.join(' + ')}`);
   }
 
-  // Confirm unless --yes
-  if (!flags.has('yes') && !flags.has('y')) {
+  // Confirm unless --yes. No answer (no terminal) is a no: removal is never
+  // something to default into.
+  if (!assumeYes(flags)) {
     const rl = createRL();
     try {
       console.log('');
       const answer = await ask(rl, '  Proceed? (y/N): ');
+      if (answer === null) {
+        console.log('  Cancelled — no terminal to confirm on. Pass --yes to uninstall non-interactively.\n');
+        return;
+      }
       if (answer.trim().toLowerCase() !== 'y') {
         console.log('\n  Cancelled.\n');
         return;
@@ -313,7 +371,7 @@ async function runUninstall(flags) {
     if (flags.has('delete-data')) {
       fs.rmSync(brainDir, { recursive: true, force: true });
       console.log('\n  Deleted ~/.brain/ directory.');
-    } else if (!flags.has('yes') && !flags.has('y')) {
+    } else if (!assumeYes(flags)) {
       const rl = createRL();
       try {
         console.log('');
@@ -321,7 +379,7 @@ async function runUninstall(flags) {
           rl,
           '  Delete ~/.brain/ data directory? This removes all memories. (y/N): '
         );
-        if (answer.trim().toLowerCase() === 'y') {
+        if (answer !== null && answer.trim().toLowerCase() === 'y') {
           fs.rmSync(brainDir, { recursive: true, force: true });
           console.log('  Deleted ~/.brain/ directory.');
         } else {

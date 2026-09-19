@@ -658,6 +658,39 @@ function initializeBrain(overrideBase) {
   return { alreadyExists: false, brainDir };
 }
 
+// ---------------------------------------------------------------------------
+// Fragile-install detection. A global install made under a per-version Node
+// manager puts `brain` in that ONE version's bin dir. The command then
+// vanishes whenever the default version moves (a `22` alias drifting to a
+// newer 22.x is enough), and it is invisible to any shell that does not load
+// the manager — agent hooks, GUI-launched agents, non-interactive shells. The
+// failure is silent and intermittent: agents just fall back to hand-editing
+// memory files. Volta and `n` are absent on purpose — Volta shims global
+// packages across versions and `n` installs into a fixed /usr/local prefix.
+// ---------------------------------------------------------------------------
+const VERSION_MANAGERS = [
+  { manager: 'nvm', re: /\/\.?nvm\/versions\/node\/([^/]+)\// },
+  // nvm-windows: %APPDATA%\nvm\v22.16.0\node_modules\…
+  { manager: 'nvm', re: /\/nvm\/(v\d+\.\d+\.\d+)\/node_modules\// },
+  { manager: 'fnm', re: /\/\.?fnm\/node-versions\/([^/]+)\// },
+  { manager: 'asdf', re: /\/\.asdf\/installs\/nodejs\/([^/]+)\// },
+  { manager: 'mise', re: /\/mise\/installs\/node\/([^/]+)\// },
+  { manager: 'nodenv', re: /\/\.nodenv\/versions\/([^/]+)\// },
+];
+
+/**
+ * @param {string} [packageRoot] - Where this package is installed
+ * @returns {{ manager: string, version: string } | null}
+ */
+function detectVersionManager(packageRoot = PACKAGE_ROOT) {
+  const p = `${String(packageRoot).replace(/\\/g, '/')}/`;
+  for (const { manager, re } of VERSION_MANAGERS) {
+    const m = p.match(re);
+    if (m) return { manager, version: m[1] };
+  }
+  return null;
+}
+
 module.exports = {
   RUNTIMES,
   BRAIN_MARKER_START,
@@ -680,4 +713,5 @@ module.exports = {
   installHooks,
   uninstallHooks,
   hooksInstalled,
+  detectVersionManager,
 };

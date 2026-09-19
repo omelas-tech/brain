@@ -85,9 +85,13 @@ The second command runs the setup wizard, which asks which runtime(s) to configu
   **Do not use `npx brain-memory`** for installation. `npx` runs the setup wizard in a temporary directory that is discarded after execution. The `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`, …) won't be available in your PATH, and agents will fall back to less reliable manual file operations. Always use `npm install -g`.
 </Callout>
 
+<Callout type="warning">
+  **Using nvm, fnm, asdf, mise or nodenv?** `npm install -g` puts `brain` inside whichever Node version is active, and only there. The command disappears when your default version moves — a `22` alias drifting to a newer 22.x is enough — and shells that never load the version manager (agent hooks, GUI-launched agents, non-interactive shells) can't see it at all. Nothing errors: agents quietly fall back to editing memory files by hand, and brain appears to work "sometimes". Install with a system Node instead so `brain` lives in one stable place. npm takes its global prefix from the `node` that runs it, so put the system Node first for that one command — on macOS with Homebrew: `PATH="/opt/homebrew/bin:$PATH" npm install -g brain-memory`. `which -a brain` should then print exactly one path, outside your version manager's directory. The installer warns when it detects this; Volta is fine as-is.
+</Callout>
+
 ## Non-Interactive Install
 
-Pass flags to skip the interactive prompts:
+Pass flags to skip the interactive prompts. These run without a terminal, so an agent or a CI job can install brain itself; with nothing to ask on, the installer initializes `~/.brain/` if it doesn't exist yet (it never overwrites one) — add `--yes` to skip that question outright:
 
 ```bash
 npm install -g brain-memory

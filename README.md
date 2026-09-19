@@ -170,6 +170,8 @@ brain --antigravity --global  # Google Antigravity, global (experimental)
 brain --all --global       # All runtimes, global
 ```
 
+These run without a terminal, so an agent or a CI job can install brain itself. With no terminal to ask on, the installer initializes `~/.brain/` if it doesn't exist yet (it never overwrites an existing brain) — add `--yes` to skip that question outright. Leave out the runtime and it stops with an error rather than guessing.
+
 For the deepest Copilot CLI integration — deterministic session-start context injection via its `sessionStart` hook — install the [Copilot plugin](integrations/copilot/) from the brain marketplace:
 
 ```bash
@@ -205,6 +207,8 @@ The first command updates the package and the `brain` CLI. The second command re
 > **Upgrading from an older version?** The separate binaries (`brain-recall`, `brain-memorize`, `brain-reinforce`, `brain-cloud`, `brain-memory`) were unified into a single `brain` dispatcher — use `brain recall`, `brain memorize`, `brain reinforce`, `brain cloud <…>` instead. Run `brain update` to refresh your runtime prompts to the new command surface.
 
 > **Why not `npx`?** `npx` runs the setup wizard in a temporary directory that is discarded after execution. The `brain` CLI (`brain recall`, `brain memorize`, `brain reinforce`) won't be available in your PATH, which means agents will fall back to less reliable manual file operations. Always use `npm install -g` to ensure everything works correctly.
+
+> **Using nvm, fnm, asdf, mise or nodenv?** `npm install -g` puts `brain` inside whichever Node version is active, and only there. The command then disappears when your default version moves — a `22` alias drifting to a newer 22.x is enough — and shells that never load the version manager (agent hooks, GUI-launched agents, non-interactive shells) can't see it at all. Nothing errors: agents quietly fall back to editing memory files by hand, and it looks like brain works "sometimes". Install brain-memory with a system Node instead (Homebrew, apt, the nodejs.org installer) so `brain` lives in one stable place. npm takes its global prefix from the `node` that runs it, so put the system Node first on `PATH` for that one command — on macOS with Homebrew: `PATH="/opt/homebrew/bin:$PATH" npm install -g brain-memory`. Check with `which -a brain`; it should print exactly one path, outside your version manager's directory. The installer warns when it detects this. Volta is fine as-is — it keeps global packages available across versions.
 
 ### Uninstall
 
