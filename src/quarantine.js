@@ -25,6 +25,7 @@
 
 const { isLowTrust } = require('./provenance');
 const { setFrontmatterFields } = require('./pinning');
+const { SENSITIVE_OPT_OUT_REASON } = require('./sensitivity');
 
 /**
  * Decide whether a write should be quarantined.
@@ -108,4 +109,36 @@ function approveQuarantine(brainDir, index, id, now) {
   return { id, vetted: true };
 }
 
-module.exports = { quarantineDecision, listPending, applyQuarantine, approveQuarantine };
+/**
+ * Put an approved memory back into pending verification — the undo for a
+ * mistaken approve. Re-flags it and strips vetted/vetted_at, so `brain audit`
+ * is free to propose it again. Approval dropped the original reasons, so they
+ * are rebuilt: the origin reason (when low-trust), the consent reason (when the
+ * memory is sensitive and the user has not opted in), plus `requeued`.
+ *
+ * Clearing `vetted` is also what withdraws per-item consent: a sensitive
+ * memory goes back to hidden, because isSensitiveHidden() keys on it.
+ *
+ * A pinned memory is refused rather than silently unpinned: pending memories
+ * can never be pinned, and dropping an always-apply constraint is the user's
+ * call. A supersession the approval released is NOT reverted — the caller
+ * surfaces it. Caller writes the index.
+ */
+function requeueQuarantine(brainDir, index, id, now, config) {
+  const entry = index.memories[id];
+  if (!entry) return { error: `Memory not found: ${id}` };
+  if (entry.quarantined) return { error: `Memory is already pending verification: ${id}` };
+  if (entry.pinned) return { error: `Memory is pinned — unpin it first (a pending memory can never be pinned): ${id}` };
+  const optedOut = entry.sensitivity === 'sensitive' && !(config && config.sensitive_topics === true);
+  const reasons = [
+    ...(isLowTrust(entry.origin) ? [`origin:${entry.origin}`] : []),
+    ...(optedOut ? [SENSITIVE_OPT_OUT_REASON] : []),
+    'requeued',
+  ];
+  delete entry.vetted;
+  delete entry.vetted_at;
+  setFrontmatterFields(brainDir, entry.path, { vetted: null, vetted_at: null });
+  return applyQuarantine(brainDir, index, id, reasons, now);
+}
+
+module.exports = { quarantineDecision, listPending, applyQuarantine, approveQuarantine, requeueQuarantine };

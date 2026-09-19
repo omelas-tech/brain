@@ -12,10 +12,13 @@
  *                                         Clear the flag, mark vetted (audited)
  *   brain verify reject <id> [...] [--force]
  *                                         Archive via the forget primitive (audited)
+ *   brain verify requeue <id> [...]       Undo an approve: back to pending (audited)
  *
  * Approval clears the flag only — origin, write-time clamps, and recall trust
  * weighting stay. --force on approve vets a non-pending id; on reject it
- * overrides the high-salience archival guard.
+ * overrides the high-salience archival guard. Requeue exists because approve is
+ * the one verb here with no way back — reject is recoverable from _archived/,
+ * but a memory approved by mistake could otherwise only be archived.
  *
  * Note: _archived/ is excluded from cloud sync, so a reject propagates the
  * index removal to other devices but may leave an orphaned .md file there —
@@ -28,9 +31,9 @@ const fs = require('fs');
 const path = require('path');
 
 const {
-  getBrainDir, readIndex, writeIndex, readAssociations, writeAssociations, reinforceEdge,
+  getBrainDir, readIndex, writeIndex, readConfig, readAssociations, writeAssociations, reinforceEdge,
 } = require('../src/index-manager');
-const { listPending, approveQuarantine } = require('../src/quarantine');
+const { listPending, approveQuarantine, requeueQuarantine } = require('../src/quarantine');
 const { applySupersession, supersessionInstant } = require('../src/temporal');
 const { appendAudit } = require('../src/audit');
 const { archiveMemory } = require('./forget');
@@ -176,7 +179,42 @@ function main(argv) {
     return;
   }
 
-  fail(`Unknown subcommand "${sub}". Usage: brain verify <list|show|approve|reject>`);
+  if (sub === 'requeue') {
+    if (ids.length === 0) fail('Usage: brain verify requeue <id> [<id>...]');
+    const index = loadIndex();
+    const now = new Date().toISOString();
+    const requeued = [];
+    const supersessionKept = [];
+    const errors = [];
+    // readConfig tolerates a missing/corrupt config.json by falling back to defaults.
+    const config = readConfig();
+    for (const id of ids) {
+      const r = requeueQuarantine(brainDir, index, id, now, config);
+      if (r.error) { errors.push({ id, error: r.error }); continue; }
+      const entry = index.memories[id];
+      try {
+        appendAudit(brainDir, { ts: now, event: 'verify_requeue', id, title: entry.title, origin: entry.origin });
+      } catch (_) { /* requeue already applied */ }
+      requeued.push(id);
+      if (entry.supersedes && entry.supersedes.length) supersessionKept.push({ id, supersedes: entry.supersedes });
+    }
+    if (requeued.length > 0) writeIndex(index);
+    const output = {
+      requeued,
+      // Approval released these replacements and requeue does not take them
+      // back — surfaced so the user knows the older memories stay demoted.
+      ...(supersessionKept.length ? { supersession_kept: supersessionKept } : {}),
+      ...(errors.length ? { errors } : {}),
+    };
+    if (errors.length && requeued.length === 0) {
+      console.error(JSON.stringify(output));
+      process.exit(1);
+    }
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  fail(`Unknown subcommand "${sub}". Usage: brain verify <list|show|approve|reject|requeue>`);
 }
 
 if (require.main === module) {

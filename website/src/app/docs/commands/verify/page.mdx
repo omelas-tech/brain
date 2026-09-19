@@ -24,14 +24,20 @@ brain verify list                    # pending memories (JSON)
 brain verify show <id>               # full frontmatter + body for inspection
 brain verify approve <id> [<id>…]    # clear the flag, mark vetted
 brain verify reject  <id> [<id>…]    # archive (recoverable)
+brain verify requeue <id> [<id>…]    # undo an approve: back to pending
 ```
 
-## What approval and rejection do
+## What approval, rejection and requeue do
 
 - **Approve** clears the quarantine flag and marks the memory `vetted`. Its `origin`, write-time caps, and recall trust weighting all **stay** — approval means "a human looked; this is not an injection," not "this is now user-asserted." To fully trust it, re-store it with `origin: user` or pin it explicitly.
 - **Reject** archives the memory to `~/.brain/_archived/` (recoverable). Pass `--force` only if the CLI refuses a high-salience entry and you're sure.
+- **Requeue** is the undo for an approve. It puts the memory back into pending verification with reason `requeued` and clears `vetted` — which also withdraws per-item consent, so a sensitive memory goes back to hidden. It refuses a pinned memory (unpin it first), and it does **not** take back a replacement the approval released: the older memory stays demoted, and the CLI reports it under `supersession_kept`.
 
-Every approve and reject is written to the append-only audit log.
+Every approve, reject and requeue is written to the append-only audit log.
+
+<Callout type="warning">
+Approve the ids you reviewed, not the queue. Other sessions and agents write to the same brain, so the queue can grow between the moment you looked at it and the moment an agent acts. An agent that re-lists and approves "everything pending" can sweep in a memory nobody saw — `requeue` is how you put it back.
+</Callout>
 
 ## Sensitive-topic writes
 

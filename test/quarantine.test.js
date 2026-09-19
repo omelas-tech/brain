@@ -211,6 +211,74 @@ describe('quarantine: verify CLI', () => {
     assert.equal(res.json.quarantined, true);
     assert.match(res.json.content, /billing address/);
   });
+
+  it('requeue undoes an approve: pending again, vetted cleared, audited', () => {
+    memorize(externalMem());
+    const id = verify(['list']).json.pending[0].id;
+    verify(['approve', id]);
+    assert.equal(verify(['list']).json.total, 0);
+
+    const requeue = verify(['requeue', id]);
+    assert.deepEqual(requeue.json.requeued, [id]);
+
+    const entry = readIndex(tmpDir).memories[id];
+    assert.equal(entry.quarantined, true);
+    assert.deepEqual(entry.quarantine_reasons, ['origin:external', 'requeued']);
+    assert.equal(entry.vetted, undefined);
+    assert.equal(entry.vetted_at, undefined);
+
+    const file = fs.readFileSync(path.join(brainDir, entry.path), 'utf-8');
+    assert.match(file, /quarantined: true/);
+    assert.match(file, /quarantine_reasons: \["origin:external", "requeued"\]/);
+    assert.ok(!file.includes('vetted:'));
+    assert.ok(!file.includes('vetted_at:'));
+
+    assert.equal(verify(['list']).json.total, 1);
+    assert.equal(readAudit(brainDir, { events: ['verify_requeue'] }).length, 1);
+  });
+
+  it('requeue of a trusted-origin memory carries only the requeued reason', () => {
+    memorize(externalMem({ origin: 'user', path: 'professional/notes/u.md' }));
+    const id = Object.keys(readIndex(tmpDir).memories)[0];
+    verify(['approve', id, '--force']);
+
+    verify(['requeue', id]);
+    assert.deepEqual(readIndex(tmpDir).memories[id].quarantine_reasons, ['requeued']);
+  });
+
+  it('requeue withdraws per-item consent: a sensitive memory is hidden again, with its reason', () => {
+    const { isSensitiveHidden } = require('../src/sensitivity');
+    memorize(externalMem({
+      origin: 'user',
+      path: 'personal/health/note.md',
+      content: 'Prefers morning meetings.',
+      sensitivity: 'sensitive',
+    }));
+    const id = verify(['list']).json.pending[0].id;
+    verify(['approve', id]);
+    assert.equal(isSensitiveHidden(readIndex(tmpDir).memories[id], {}), false);
+
+    verify(['requeue', id]);
+    const entry = readIndex(tmpDir).memories[id];
+    assert.deepEqual(entry.quarantine_reasons, ['sensitive_opt_out', 'requeued']);
+    assert.equal(isSensitiveHidden(entry, {}), true);
+  });
+
+  it('requeue refuses a memory that is already pending, or pinned', () => {
+    memorize(externalMem());
+    const pendingId = verify(['list']).json.pending[0].id;
+    const again = verify(['requeue', pendingId]);
+    assert.equal(again.status, 1);
+    assert.match(again.json.errors[0].error, /already pending/);
+
+    memorize(externalMem({ origin: 'user', path: 'professional/notes/u.md' }));
+    const pinnedId = Object.keys(readIndex(tmpDir).memories).find((k) => k !== pendingId);
+    assert.equal(pinMemory(tmpDir, pinnedId).error, undefined);
+    const res = verify(['requeue', pinnedId]);
+    assert.equal(res.status, 1);
+    assert.match(res.json.errors[0].error, /unpin it first/);
+    assert.equal(readIndex(tmpDir).memories[pinnedId].quarantined, undefined);
+  });
 });
 
 describe('quarantine: pin guard', () => {

@@ -1,6 +1,6 @@
 ---
 description: Review and resolve quarantined (unverified) memories
-argument-hint: "[list|show <id>|approve <id>|reject <id>]"
+argument-hint: "[list|show <id>|approve <id>|reject <id>|requeue <id>]"
 ---
 
 # /brain:verify — Resolve Unverified Memories
@@ -53,9 +53,17 @@ Show the user the memory's content and where it came from. Content flagged `lint
 
 **Never approve on your own judgment.** If the user asked you to "clear the queue," still show them what is in it first — a one-line summary per memory is enough. Batch-approve only what they have seen.
 
+**Approve the ids you showed, not the queue.** Pass the exact ids from the list the user looked at. Never re-run `brain verify list` and pipe whatever it returns into `approve`: other sessions and agents write to the same brain concurrently, so the queue can grow between the moment the user reviewed it and the moment you act, and a fresh listing sweeps in memories nobody has seen. If the approved count comes back higher than the number you presented, say so and name the extras.
+
+- **Requeue** (an approve was a mistake, or swept in something unreviewed):
+  ```bash
+  brain verify requeue <id> [<id>...]
+  ```
+  Puts the memory back into pending verification and clears `vetted`. It refuses a pinned memory — unpin first, with the user's say-so. A replacement the approval released is **not** taken back; the CLI reports it under `supersession_kept`, so relay that the older memory stays demoted.
+
 ### 4. Report
 
-Every approve/reject is recorded in the audit trail (`verify_approve` / `verify_reject` events). Summarize what was resolved: N approved, M rejected, queue now empty/K remaining.
+Every approve/reject/requeue is recorded in the audit trail (`verify_approve` / `verify_reject` / `verify_requeue` events). Summarize what was resolved: N approved, M rejected, queue now empty/K remaining.
 
 ## Related
 
