@@ -22,6 +22,22 @@
 
 const SEVERITY_RANK = { none: 0, advisory: 1, suspect: 2, injection: 3 };
 
+// secret_exfil pairs a transfer verb with a credential noun. Both must be
+// standalone prose words: a verb that is a code literal or half of a compound
+// (`upload`, upload-artifact, post-install) is a name, not an action, and a
+// compound noun (password-reset, token_count) names a feature, not a secret.
+// Without this, ordinary engineering notes ("the password-reset email", "set
+// the destination to `upload`, then the API key…") quarantine as injections.
+// `.env` is matched on its own: it starts with a non-word char, so a leading
+// \b would require a word char before the dot and never match it bare.
+const EXFIL_VERB = '(?<![`_\\-/.])\\b(?:send|post|upload|forward|exfiltrate|transmit|email)(?:s|ed|ing)?\\b(?![`_\\-/])';
+const EXFIL_SECRET = '(?:(?<![`_\\-/])\\b(?:token|password|secret|api.?key|credential|private.?key)s?\\b(?![`_\\-])|(?<![\\w.])\\.env\\b)';
+const EXFIL_GAP = '[^\\n.]{0,80}';
+const SECRET_EXFIL_RE = new RegExp(
+  `${EXFIL_VERB}${EXFIL_GAP}${EXFIL_SECRET}|${EXFIL_SECRET}${EXFIL_GAP}${EXFIL_VERB}`,
+  'i'
+);
+
 // Each rule: name, base severity, and a matcher over the combined text.
 // Patterns are case-insensitive; `m` where line-anchoring matters.
 const RULES = [
@@ -38,7 +54,7 @@ const RULES = [
   {
     rule: 'secret_exfil',
     severity: 'injection',
-    re: /\b(?:send|post|upload|forward|exfiltrate|transmit|email)(?:s|ed|ing)?\b[^\n.]{0,80}\b(?:token|password|secret|api.?key|credential|private.?key|\.env)\b|\b(?:token|password|secret|api.?key|credential|private.?key)s?\b[^\n.]{0,80}\b(?:send|post|upload|forward|exfiltrate|transmit|email)(?:s|ed|ing)?\b/i,
+    re: SECRET_EXFIL_RE,
   },
   {
     rule: 'imperative_directive',
