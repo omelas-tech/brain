@@ -97,3 +97,18 @@ Not done / follow-ups:
 - At the committed state on this machine, `test/harvest.test.js` has one failing test. It failed
   before this work too: it enumerates the real `~/.codex` of whoever runs it. CI has no `~/.codex`,
   so it passes there, and an uncommitted change already in the working tree fixes it.
+
+## The CI hang, second occurrence (2026-09-19)
+
+- It recurred on the next-but-few push (`68c04d8`): Node 18 / Ubuntu again, output stopping at the
+  identical line (393 log lines both times), one orphaned child process. The 10-minute job limit
+  cancelled it, which also skipped the website deploy queued behind the tests.
+- Re-reading the evidence: the orphan is the FIRST child started, and Node 18 starts files in sorted
+  order, so the stuck process was `store/conformance/conformance.test.js` itself, after all 35 of
+  its tests had passed and been printed. Not the next file, as first assumed.
+- Fix: the store test helpers no longer use `fetch`. `rawRequest()` makes each request on a socket
+  of its own (`agent: false`, `Connection: close`), so no pooled connection can outlive the test
+  process. The OIDC tests give the verifier the same transport (`plainFetch`). The default-`fetch`
+  path is still covered by the connector's OIDC test, which runs on Node 22.
+- Still unproven: the hang never reproduced locally (now 37 Linux runs under `node:18`), so this is
+  a fix for the most likely cause, confirmed only by CI staying green over time.

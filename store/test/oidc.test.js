@@ -11,14 +11,19 @@ const crypto = require('crypto');
 
 const { createVerifier, looksLikeJwt, OidcError } = require('../lib/oidc');
 const { startMockIssuer, makeKey, sign } = require('./mock-issuer');
-const { client, startReferenceStore, sampleArchive } = require('../conformance/helpers');
+const { client, plainFetch, startReferenceStore, sampleArchive } = require('../conformance/helpers');
+
+// Every verifier here talks to the mock issuer through plainFetch rather than the
+// global fetch, so no pooled connection outlives the test process (see
+// conformance/helpers.js). The default-fetch path is covered by the connector's
+// OIDC test, which runs on a newer Node.
 
 describe('ID-token verification', () => {
   let idp;
   let verifier;
   before(async () => {
     idp = await startMockIssuer();
-    verifier = createVerifier({ issuer: idp.issuer, audience: idp.clientId });
+    verifier = createVerifier({ issuer: idp.issuer, audience: idp.clientId, fetch: plainFetch });
   });
   after(() => idp.close());
 
@@ -113,7 +118,7 @@ describe('issuer safeguards', () => {
     const idp = await startMockIssuer();
     try {
       const fetchLying = async (url) => {
-        const res = await fetch(url);
+        const res = await plainFetch(url);
         const body = await res.json();
         if (body.issuer) body.issuer = 'https://somewhere-else.example';
         return { ok: true, status: 200, json: async () => body };
@@ -132,22 +137,22 @@ describe('allow-lists', () => {
   after(() => idp.close());
 
   it('admits a verified address in an allowed domain, and nobody else', async () => {
-    const v = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'example.org, other.test' });
+    const v = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'example.org, other.test', fetch: plainFetch });
     await v.verify(idp.idToken());
     await assert.rejects(v.verify(idp.idToken({ email: 'mallory@evil.test' })), /allow-list/);
     await assert.rejects(v.verify(idp.idToken({ email: 'x@notexample.org' })), /allow-list/);
   });
 
   it('ignores an address the issuer has not verified', async () => {
-    const v = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'example.org' });
+    const v = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'example.org', fetch: plainFetch });
     await assert.rejects(v.verify(idp.idToken({ email_verified: false })), /allow-list/);
     await assert.rejects(v.verify(idp.idToken({ email_verified: undefined })), /allow-list/);
   });
 
   it('admits by Google hosted-domain claim and by exact address', async () => {
-    const byHd = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'corp.test' });
+    const byHd = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedDomains: 'corp.test', fetch: plainFetch });
     await byHd.verify(idp.idToken({ hd: 'corp.test', email: 'someone@gmail.test' }));
-    const byEmail = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedEmails: ['Alice@Example.org'] });
+    const byEmail = createVerifier({ issuer: idp.issuer, audience: idp.clientId, allowedEmails: ['Alice@Example.org'], fetch: plainFetch });
     await byEmail.verify(idp.idToken());
     await assert.rejects(byEmail.verify(idp.idToken({ email: 'bob@example.org' })), /allow-list/);
   });
@@ -158,7 +163,7 @@ describe('the store accepts ID tokens', () => {
   let ref;
   before(async () => {
     idp = await startMockIssuer();
-    ref = await startReferenceStore({ oidc: { issuer: idp.issuer, audience: idp.clientId } });
+    ref = await startReferenceStore({ oidc: { issuer: idp.issuer, audience: idp.clientId, fetch: plainFetch } });
   });
   after(async () => { await ref.close(); await idp.close(); });
 

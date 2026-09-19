@@ -8,6 +8,8 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
@@ -65,20 +67,77 @@ function sha256(buf) {
 
 // -- a thin client -----------------------------------------------------------
 
+/**
+ * One HTTP request on a socket of its own, closed when the response ends.
+ *
+ * Deliberately not `fetch`: fetch keeps connections alive in a pool, and on
+ * Node 18 a pooled socket to a server that has just been shut down could keep a
+ * finished test process from exiting, which hung CI. With `agent: false` and
+ * `Connection: close` nothing outlives the request, on any Node version.
+ *
+ * @returns {Promise<{status: number, headers: {get: (name: string) => string|null}, body: Buffer}>}
+ */
+function rawRequest(method, url, { headers, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const mod = target.protocol === 'https:' ? https : http;
+    const req = mod.request(target, {
+      method,
+      agent: false,
+      headers: {
+        Connection: 'close',
+        ...(headers || {}),
+        ...(body != null ? { 'Content-Length': Buffer.byteLength(body) } : {}),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('error', reject);
+      res.on('end', () => resolve({
+        status: res.statusCode,
+        headers: {
+          get(name) {
+            const value = res.headers[String(name).toLowerCase()];
+            if (value == null) return null;
+            return Array.isArray(value) ? value.join(', ') : value;
+          },
+        },
+        body: Buffer.concat(chunks),
+      }));
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => req.destroy(new Error(`${method} ${url} timed out`)));
+    req.end(body != null ? body : undefined);
+  });
+}
+
+function parseBody(buf) {
+  const text = buf.toString('utf8');
+  try { return text ? JSON.parse(text) : null; } catch { return text; }
+}
+
+/** The subset of `fetch` the OIDC verifier uses, without a connection pool. */
+async function plainFetch(url, opts = {}) {
+  const res = await rawRequest(opts.method || 'GET', String(url), { headers: opts.headers, body: opts.body });
+  return {
+    ok: res.status >= 200 && res.status < 300,
+    status: res.status,
+    headers: res.headers,
+    json: async () => JSON.parse(res.body.toString('utf8')),
+    text: async () => res.body.toString('utf8'),
+  };
+}
+
 function client(baseUrl, token) {
   const base = baseUrl.replace(/\/$/, '');
   const auth = token ? { Authorization: `Bearer ${token}` } : {};
 
   async function json(method, pathname, body, headers) {
-    const res = await fetch(base + pathname, {
-      method,
+    const res = await rawRequest(method, base + pathname, {
       headers: { ...auth, ...(body ? { 'Content-Type': 'application/json' } : {}), ...(headers || {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
-    const text = await res.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    return { status: res.status, headers: res.headers, data };
+    return { status: res.status, headers: res.headers, data: parseBody(res.body) };
   }
 
   async function upload(brainId, archive, { headers, query, field } = {}) {
@@ -89,23 +148,18 @@ function client(baseUrl, token) {
       'Content-Type: application/gzip\r\n\r\n'
     );
     const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
-    const res = await fetch(`${base}/api/brains/${brainId}/sync${query || ''}`, {
-      method: 'PUT',
+    const res = await rawRequest('PUT', `${base}/api/brains/${brainId}/sync${query || ''}`, {
       headers: { ...auth, 'Content-Type': `multipart/form-data; boundary=${boundary}`, ...(headers || {}) },
       body: Buffer.concat([head, archive, tail]),
     });
-    const text = await res.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    return { status: res.status, headers: res.headers, data };
+    return { status: res.status, headers: res.headers, data: parseBody(res.body) };
   }
 
   async function download(brainId, { headers, query } = {}) {
-    const res = await fetch(`${base}/api/brains/${brainId}/sync${query || ''}`, {
+    const res = await rawRequest('GET', `${base}/api/brains/${brainId}/sync${query || ''}`, {
       headers: { ...auth, ...(headers || {}) },
     });
-    const body = Buffer.from(await res.arrayBuffer());
-    return { status: res.status, headers: res.headers, body };
+    return { status: res.status, headers: res.headers, body: res.body };
   }
 
   return { json, upload, download };
@@ -142,4 +196,4 @@ async function startReferenceStore(options = {}) {
   };
 }
 
-module.exports = { makeArchive, sampleArchive, sha256, client, startReferenceStore };
+module.exports = { makeArchive, sampleArchive, sha256, client, plainFetch, startReferenceStore };
