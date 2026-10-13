@@ -1,0 +1,15 @@
+{
+  "name": "brain-memory",
+  "displayName": "Brain Memory",
+  "description": "Persistent memory for Cursor. Recall past decisions, conventions and learnings at the start of a task, and save new ones as you go — the same brain you use in Claude, Codex and other agents, synced through Brain Cloud.",
+  "version": "0.4.0",
+  "author": {
+    "name": "Omelas",
+    "email": "onur@omelas.tech"
+  },
+  "homepage": "https://brainmemory.ai",
+  "repository": "https://github.com/omelas-tech/brain",
+  "license": "MIT",
+  "logo": "assets/logo.svg",
+  "keywords": ["memory", "agent-memory", "recall", "mcp", "context", "knowledge"]
+}

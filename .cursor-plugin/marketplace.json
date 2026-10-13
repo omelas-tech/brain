@@ -1,0 +1,16 @@
+{
+  "name": "brain-memory",
+  "owner": {
+    "name": "Omelas",
+    "email": "onur@omelas.tech"
+  },
+  "metadata": {
+    "description": "Brain Memory for Cursor — persistent memory shared across your AI agents."
+  },
+  "plugins": [
+    {
+      "name": "brain-memory",
+      "source": "integrations/cursor"
+    }
+  ]
+}

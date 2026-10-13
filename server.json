@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.brainmemory/brain",
+  "title": "Brain Memory",
+  "description": "Persistent memory for AI agents: one brain shared across Claude, Cursor, Codex and more.",
+  "version": "0.4.0",
+  "websiteUrl": "https://brainmemory.ai",
+  "repository": {
+    "url": "https://github.com/omelas-tech/brain",
+    "source": "github",
+    "subfolder": "connector"
+  },
+  "icons": [
+    {
+      "src": "https://brainmemory.ai/icon.svg",
+      "mimeType": "image/svg+xml"
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.brainmemory.ai/mcp"
+    }
+  ]
+}
