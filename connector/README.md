@@ -15,8 +15,8 @@ engine, two faces.
 Deployed at **`https://mcp.brainmemory.ai/mcp`** (Node service on the VPS beside brain-cloud;
 systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified on **Claude web +
 iPhone**. Tools: `brain_recall`, `brain_status` (read) + `brain_memorize`, `brain_pin`,
-`brain_unpin`, `brain_forget` (write — writes sync back to brain-cloud; hosts gate them behind
-confirmation).
+`brain_unpin`, `brain_forget`, `brain_verify` (write — writes sync back to brain-cloud; hosts gate
+them behind confirmation).
 
 Two things to know in production:
 - **One brain ↔ one Google account** — the connector serves the brain of whatever **Firebase
@@ -45,7 +45,7 @@ matching real clients):
 ③ Dynamic Client Registration (RFC 7591)
 ④ authorize → code (iss + state validated, RFC 9207)
 ⑤ token → audience-bound Bearer (PKCE verified, RFC 8707)
-⑥ MCP initialize + tools/list → [brain_recall, brain_status, brain_memorize, brain_pin, brain_unpin, brain_forget]  (official SDK)
+⑥ MCP initialize + tools/list → [brain_recall, brain_status, brain_memorize, brain_pin, brain_unpin, brain_forget, brain_verify]  (official SDK)
 ⑦ brain_recall(query) → the brain's REAL scored results (relevance + decayed
    strength + spreading activation), identical to the CLI
 ```
@@ -71,9 +71,10 @@ npm start         # serve MCP on http://localhost:8788
 |------|------|-------------|
 | `brain_recall` | read (`readOnlyHint`) | Ranked recall for a query, scored by the brain engine. |
 | `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain. |
-| `brain_memorize` | write | Store the **explicit content** provided (never the conversation); immediately recallable. |
-| `brain_pin` / `brain_unpin` | write | Toggle the always-present tier. |
+| `brain_memorize` | write (`destructiveHint: false`) | Store the **explicit content** provided (never the conversation); immediately recallable. |
+| `brain_pin` / `brain_unpin` | write (`destructiveHint: false`, `idempotentHint`) | Move a memory into or out of the always-present tier. |
 | `brain_forget` | write (`destructiveHint`) | Archive a memory (recoverable — moved to `_archived/`, not hard-deleted). |
+| `brain_verify` | write (`destructiveHint`) | List memories pending verification; approve them, or reject them into the archive. |
 
 Writes reuse the deterministic CLIs (`memorize.js` / `pin.js` / `unpin.js` / `forget.js`) and then
 `syncBack()` to brain-cloud.

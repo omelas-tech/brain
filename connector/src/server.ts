@@ -206,7 +206,7 @@ export function buildServer(session: Session): McpServer {
           "never deleted. Use instead of storing a contradicting fact alongside the old one.",
         ),
       },
-      annotations: { title: "Memorize", readOnlyHint: false },
+      annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: false },
     },
     async ({ content, title, type, tags, origin, valid_from, valid_until, supersedes }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_memorize");
@@ -243,7 +243,7 @@ export function buildServer(session: Session): McpServer {
         "Pin a memory to the always-present tier so it loads every session and never decays. " +
         "Provide the memory `id` (e.g. from brain_recall results).",
       inputSchema: { id: z.string().describe("Memory id, e.g. mem_20260101_abc123") },
-      annotations: { title: "Pin memory", readOnlyHint: false },
+      annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_pin");
@@ -258,7 +258,7 @@ export function buildServer(session: Session): McpServer {
     {
       description: "Remove a memory from the always-present tier (returns it to normal recall + decay). Provide the memory `id`.",
       inputSchema: { id: z.string().describe("Memory id to unpin") },
-      annotations: { title: "Unpin memory", readOnlyHint: false },
+      annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_unpin");
@@ -298,7 +298,7 @@ export function buildServer(session: Session): McpServer {
         action: z.enum(["list", "approve", "reject"]).default("list").describe("What to do"),
         ids: z.array(z.string()).optional().describe("Memory ids for approve/reject"),
       },
-      annotations: { title: "Verify memories", readOnlyHint: false },
+      annotations: { title: "Verify memories", readOnlyHint: false, destructiveHint: true },
     },
     async ({ action, ids }) => {
       await ensureFresh();
