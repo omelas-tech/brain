@@ -40,6 +40,15 @@ const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest();
 const rand = () => b64url(crypto.randomBytes(32));
 
 const SCOPES = ["brain.read", "brain.write"];
+
+// The scopes a client actually gets. Unknown scopes are dropped rather than
+// stored, so a client that asks only for e.g. `offline_access` (ChatGPT does)
+// still ends up with brain.read + brain.write instead of a session where every
+// tool fails its scope check. Refresh tokens are issued regardless of scope.
+export function grantedScope(requested: string | undefined): string {
+  const known = (requested || "").split(/\s+/).filter((s) => SCOPES.includes(s));
+  return (known.length ? known : SCOPES).join(" ");
+}
 const CODE_TTL_MS = 60_000;
 const ACCESS_TOKEN_TTL_S = 3600; // matches auth.TOKEN_TTL_MS; short is fine — clients refresh silently
 
@@ -202,7 +211,7 @@ export function registerOAuthRoutes(app: Express): void {
 
     const params = {
       clientId: q.client_id, redirectUri: q.redirect_uri, codeChallenge: q.code_challenge,
-      resource: q.resource, scope: q.scope || SCOPES.join(" "),
+      resource: q.resource, scope: grantedScope(q.scope),
     };
 
     // Establish WHO the user is.

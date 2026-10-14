@@ -369,9 +369,20 @@ export function createApp() {
   app.use("/mcp", rateLimit({ windowMs: 60_000, max: 300 }));
 
   // RFC 9728 — Protected Resource Metadata (how clients discover the AS).
-  app.get("/.well-known/oauth-protected-resource", (req, res) => {
+  // Served at the root and at the path-inserted form for the /mcp resource,
+  // which RFC 9728 clients try first.
+  app.get(["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"], (req, res) => {
     res.json(protectedResourceMetadata(issuerOf(req)));
   });
+
+  // Brand icon, so hosts that show the server's favicon (Claude, directories)
+  // display the Brain Memory glyph instead of a generic placeholder.
+  const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+  const icon = (file: string, type: string) => (_req: Request, res: Response) => {
+    res.type(type).set("Cache-Control", "public, max-age=86400").sendFile(path.join(PUBLIC_DIR, file));
+  };
+  app.get("/favicon.svg", icon("favicon.svg", "image/svg+xml"));
+  app.get(["/favicon.ico", "/favicon.png", "/apple-touch-icon.png"], icon("favicon.png", "image/png"));
 
   // OAuth 2.1 Authorization Server (authorize / token / register / metadata).
   registerOAuthRoutes(app);
