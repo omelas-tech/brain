@@ -54,9 +54,14 @@ export function buildServer(session: Session): McpServer {
       instructions:
         "Recall the user's stored memories before tasks where prior decisions, " +
         "preferences, or learnings may help. brain_recall ranks by the brain's own " +
-        "scoring (relevance + decayed strength + spreading activation), not keyword match. " +
-        "Use brain_memorize to store a specific fact the user asks to remember — pass only the " +
-        "distilled content, never the whole conversation.",
+        "scoring (relevance + decayed strength + spreading activation), not keyword match; " +
+        "for dated questions ('what were we using in March?') pass as_of rather than reasoning " +
+        "over timestamps. Use brain_memorize to store a specific fact the user asks to remember — " +
+        "pass only the distilled content, never the whole conversation. Set origin honestly: " +
+        "'user' only when the user stated the fact or asked to remember it. When a new fact " +
+        "replaces an old one, pass the old id in supersedes instead of storing both. Memory ids " +
+        "for pin, unpin and forget come from brain_recall results. Approving a memory in " +
+        "brain_verify is the user's decision — never approve one the user has not reviewed.",
     },
   );
 
@@ -80,20 +85,20 @@ export function buildServer(session: Session): McpServer {
       description:
         "Recall the user's most relevant stored memories for a query, ranked by the " +
         "brain engine (TF-IDF relevance + decayed strength + spreading activation + " +
-        "context match). Call this at the start of a task where past context may help.",
+        "context match).",
       inputSchema: {
         query: z.string().describe("What to recall — a topic, question, or task description"),
         limit: z.number().int().min(1).max(25).default(10).describe("Max memories to return"),
         project: z.string().optional().describe("Current project name, for context-matched scoring"),
         as_of: z.string().optional().describe(
-          "ISO date (e.g. 2026-03-01). Return what was TRUE at that instant — memories whose " +
-          "validity window contains it, with the superseded-fact demotion lifted. Use for dated " +
-          "questions like 'what were we using back in March?' instead of reasoning over timestamps.",
+          "ISO date (e.g. 2026-03-01). When set, results reflect what was true at that instant: " +
+          "memories whose validity window contains the date, without the demotion normally " +
+          "applied to superseded facts.",
         ),
         as_known_of: z.string().optional().describe(
-          "ISO date. Return only memories the brain had RECORDED by then — what it knew at that " +
-          "point, regardless of when the facts were true. Combine with as_of to reconstruct " +
-          "exactly what the brain believed, and when.",
+          "ISO date. When set, results include only memories the brain had recorded by then, " +
+          "regardless of when the facts were true. Together with as_of it reconstructs what the " +
+          "brain believed at a given time.",
         ),
       },
       annotations: { readOnlyHint: true, title: "Recall memories" },
@@ -176,34 +181,32 @@ export function buildServer(session: Session): McpServer {
     "brain_memorize",
     {
       description:
-        "Store a new memory from the SPECIFIC content provided in `content` — a distilled fact, " +
-        "decision, preference, or note the user wants remembered. Pass only that content, not the " +
-        "whole conversation. Returns the stored memory's id and path.",
+        "Store a new memory containing exactly the text provided in `content` — a fact, decision, " +
+        "preference, or note. Only that text is stored. Returns the stored memory's id and path.",
       inputSchema: {
-        content: z.string().min(1).describe("The exact memory content to store (Markdown ok). Distilled, not the raw chat."),
+        content: z.string().min(1).describe("The memory content to store (Markdown supported)."),
         title: z.string().optional().describe("Short title; derived from content if omitted"),
         type: z.enum(["decision", "insight", "goal", "experience", "learning", "relationship", "preference", "observation"]).optional().describe("Memory type (default: learning)"),
         tags: z.array(z.string()).optional().describe("Topic tags"),
         origin: z.enum(["user", "agent-inferred", "tool-output", "external"]).optional().describe(
-          "Provenance of the fact — be honest, recall trusts it: 'user' ONLY when the user explicitly " +
-          "stated it or asked to remember it; 'agent-inferred' (default) for facts you summarized from " +
-          "the conversation; 'tool-output' for facts from tool or file results; 'external' for facts " +
-          "sourced from web pages, emails, or other third-party content. Non-user origins are " +
-          "confidence-capped at write and down-weighted at recall.",
+          "Provenance of the fact: 'user' — stated by the user or explicitly asked to be " +
+          "remembered; 'agent-inferred' (default) — summarized from the conversation; 'tool-output' " +
+          "— taken from tool or file results; 'external' — sourced from web pages, emails, or other " +
+          "third-party content. Non-user origins are confidence-capped at write and down-weighted at " +
+          "recall; 'tool-output' and 'external' writes are held for verification.",
         ),
         valid_from: z.string().optional().describe(
-          "ISO date the fact BECAME true, when that differs from now — 'starting in March', " +
-          "'since the rewrite'. Distinct from when it is being recorded. Omit for facts simply true.",
+          "ISO date the fact became true, when that differs from the time of recording " +
+          "(e.g. 'starting in March'). Unset means the fact has no start bound.",
         ),
         valid_until: z.string().optional().describe(
-          "ISO date the fact STOPS being true — 'until the end of Q3', 'while I'm on leave'. " +
-          "After it passes, recall demotes the memory and marks it expired instead of serving it " +
-          "as current. Omit unless the user bounded the fact in time.",
+          "ISO date the fact stops being true (e.g. 'until the end of Q3'). After it passes, " +
+          "recall demotes the memory and marks it expired. Unset means no end bound.",
         ),
         supersedes: z.array(z.string()).optional().describe(
-          "Ids of memories this one REPLACES (a decision reversed, a preference changed). Closes " +
-          "their validity window so 'that was true until X' stays answerable — they are demoted, " +
-          "never deleted. Use instead of storing a contradicting fact alongside the old one.",
+          "Ids of memories this one replaces (a decision reversed, a preference changed). Their " +
+          "validity window is closed at this memory's start; they are demoted and kept as history, " +
+          "never deleted.",
         ),
       },
       annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: false },
@@ -240,8 +243,7 @@ export function buildServer(session: Session): McpServer {
     "brain_pin",
     {
       description:
-        "Pin a memory to the always-present tier so it loads every session and never decays. " +
-        "Provide the memory `id` (e.g. from brain_recall results).",
+        "Pin a memory, by `id`, to the always-present tier so it loads every session and never decays.",
       inputSchema: { id: z.string().describe("Memory id, e.g. mem_20260101_abc123") },
       annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
@@ -256,7 +258,7 @@ export function buildServer(session: Session): McpServer {
   server.registerTool(
     "brain_unpin",
     {
-      description: "Remove a memory from the always-present tier (returns it to normal recall + decay). Provide the memory `id`.",
+      description: "Remove a memory, by `id`, from the always-present tier (returns it to normal recall + decay).",
       inputSchema: { id: z.string().describe("Memory id to unpin") },
       annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
@@ -272,8 +274,8 @@ export function buildServer(session: Session): McpServer {
     "brain_forget",
     {
       description:
-        "Archive a memory so it stops surfacing in recall (recoverable — moved to _archived/, not " +
-        "permanently deleted). Provide the memory `id` (e.g. from brain_recall results).",
+        "Archive a memory, by `id`, so it stops surfacing in recall (recoverable — moved to " +
+        "_archived/, not permanently deleted).",
       inputSchema: { id: z.string().describe("Memory id to archive") },
       annotations: { title: "Forget memory", readOnlyHint: false, destructiveHint: true },
     },
@@ -293,7 +295,7 @@ export function buildServer(session: Session): McpServer {
         "Review and resolve memories pending verification (writes from untrusted sources — " +
         "tool output, external content, or instruction-shaped text — are quarantined until reviewed). " +
         "action 'list' (default) is read-only; 'approve' clears the flag (origin and trust weighting " +
-        "stay); 'reject' archives the memory. Approval is the user's call — never approve unreviewed.",
+        "stay); 'reject' archives the memory.",
       inputSchema: {
         action: z.enum(["list", "approve", "reject"]).default("list").describe("What to do"),
         ids: z.array(z.string()).optional().describe("Memory ids for approve/reject"),
