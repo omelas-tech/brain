@@ -71,8 +71,8 @@ npm start         # serve MCP on http://localhost:8788
 |------|------|-------------|
 | `brain_recall` | read (`readOnlyHint`) | Ranked recall for a query, scored by the brain engine. |
 | `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain. |
-| `brain_memorize` | write (`destructiveHint: false`) | Store the **explicit content** provided (never the conversation); immediately recallable. |
-| `brain_pin` / `brain_unpin` | write (`destructiveHint: false`, `idempotentHint`) | Move a memory into or out of the always-present tier. |
+| `brain_memorize` | write (`destructiveHint`) | Store the **explicit content** provided (never the conversation); immediately recallable. |
+| `brain_pin` / `brain_unpin` | write (`destructiveHint`, `idempotentHint`) | Move a memory into or out of the always-present tier. |
 | `brain_forget` | write (`destructiveHint`) | Archive a memory (recoverable — moved to `_archived/`, not hard-deleted). |
 | `brain_verify` | write (`destructiveHint`) | List memories pending verification; approve them, or reject them into the archive. |
 

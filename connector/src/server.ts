@@ -209,7 +209,7 @@ export function buildServer(session: Session): McpServer {
           "never deleted.",
         ),
       },
-      annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: false },
+      annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: true },
     },
     async ({ content, title, type, tags, origin, valid_from, valid_until, supersedes }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_memorize");
@@ -245,7 +245,7 @@ export function buildServer(session: Session): McpServer {
       description:
         "Pin a memory, by `id`, to the always-present tier so it loads every session and never decays.",
       inputSchema: { id: z.string().describe("Memory id, e.g. mem_20260101_abc123") },
-      annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+      annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_pin");
@@ -260,7 +260,7 @@ export function buildServer(session: Session): McpServer {
     {
       description: "Remove a memory, by `id`, from the always-present tier (returns it to normal recall + decay).",
       inputSchema: { id: z.string().describe("Memory id to unpin") },
-      annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+      annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_unpin");
