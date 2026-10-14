@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Brain Memory \u2014 Claude connector (remote MCP server). Reuses the brain-memory recall engine; exposes scored recall + status as MCP tools over streamable HTTP.",
+  "description": "Brain Memory — Claude connector (remote MCP server). Reuses the brain-memory recall engine; exposes scored recall + status as MCP tools over streamable HTTP.",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
