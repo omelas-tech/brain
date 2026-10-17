@@ -23,7 +23,7 @@ const CONFIG_FILE = 'config.json';
 const DEFAULT_API_URL = 'https://api.brainmemory.ai';
 
 // Files/dirs inside ~/.brain/ that should NOT be synced
-const TAR_EXCLUDES = ['.sync', '.cloud', '.DS_Store', '_archived'];
+const TAR_EXCLUDES = ['.sync', '.cloud', '.local', '.DS_Store', '_archived'];
 
 // ---------------------------------------------------------------------------
 // HTTP helpers (zero-dependency, works on Node >= 18)
@@ -616,7 +616,7 @@ async function pull(brainDir) {
 // Local entries a cloud restore must never touch: sync/auth infrastructure and
 // _archived/, which is deliberately excluded from cloud pushes (see
 // TAR_EXCLUDES) and so does not exist in the snapshot being restored.
-const RESTORE_PRESERVE = new Set(['.sync', '.cloud', '.DS_Store', '_archived']);
+const RESTORE_PRESERVE = new Set(['.sync', '.cloud', '.local', '.DS_Store', '_archived']);
 
 /**
  * List cloud restore points — pre-overwrite snapshots Brain Cloud takes

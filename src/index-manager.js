@@ -38,11 +38,15 @@ const DEFAULT_CONFIG = {
   // here or approves them one by one with `brain verify approve`.
   sensitive_topics: false,
   // ASI06 quarantine for low-trust writes: 'off' (never flag), 'flag'
-  // (recallable but marked + surfaced for verification — the default), or
-  // 'enforce' (excluded from recall/session-start until approved). Exclusion
-  // is evaluated at read time, so flipping the knob retroactively
-  // hides/reveals already-pending memories.
-  quarantine_mode: 'flag',
+  // (recallable but marked + surfaced for verification), or 'enforce'
+  // (excluded from recall/session-start until approved — the default).
+  // Exclusion is evaluated at read time, so flipping the knob retroactively
+  // hides/reveals already-pending memories. src/quarantine.js owns the
+  // default; keep the two in step.
+  quarantine_mode: 'enforce',
+  // Most low-trust (tool-output / external) memories one recall result set
+  // may hold, approved or not. See capLowTrust in src/provenance.js.
+  recall_low_trust_max: 1,
 };
 
 /**

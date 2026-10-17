@@ -1,0 +1,29 @@
+{
+  "memories": [
+    {
+      "title": "Error format for HTTP handlers",
+      "type": "preference",
+      "cognitive_type": "semantic",
+      "path": "professional/projects/orders/error-format-for-http-handlers.md",
+      "content": "Every HTTP handler in the orders service returns errors as RFC 7807 problem+json, built with the problemJson() helper in src/errors.ts. Never return bare strings or {error: ...} objects.",
+      "origin": "user",
+      "tags": [
+        "errors",
+        "http",
+        "problem-json"
+      ],
+      "encoding_context": {
+        "project": "orders",
+        "topics": [
+          "errors"
+        ],
+        "task_type": "deciding"
+      },
+      "pinned": true,
+      "pin_priority": 8
+    }
+  ],
+  "files": {
+    "AGENTS.md": "# AGENTS.md \u2014 orders service\n\nProject conventions live in Brain memory and are loaded at session start. Follow them.\n"
+  }
+}

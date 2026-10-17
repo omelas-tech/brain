@@ -53,6 +53,12 @@ export function detectHost(env = process.env) {
 }
 
 /** Project label from the event's cwd (basename), falling back to process cwd. */
+/** The host's session id from a hook payload, or null. */
+export function sessionOf(input) {
+  const id = input && typeof input === "object" ? input.session_id : null;
+  return typeof id === "string" && id ? id : null;
+}
+
 export function projectFromInput(input, fallbackCwd = process.cwd()) {
   const record = input && typeof input === "object" ? input : {};
   const cwd = typeof record.cwd === "string" && record.cwd.trim() ? record.cwd : fallbackCwd;

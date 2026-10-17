@@ -70,7 +70,41 @@ function isLowTrust(origin) {
   return LOW_TRUST_ORIGINS.has(origin);
 }
 
+// Default number of low-trust memories one result set may hold. Down-weighting
+// alone leaves a poisoned memory in the context window whenever it is the best
+// lexical match; bounding its *occupancy* does not depend on outranking it.
+const DEFAULT_LOW_TRUST_MAX = 1;
+
+/**
+ * Take the top `top` of a ranked list while holding at most `max` low-trust
+ * memories. Low-trust memories past the cap are skipped (the next trusted one
+ * takes the slot) and counted, so the caller can report the suppression
+ * rather than hide it.
+ *
+ * @param {Object[]} ranked - Best first; each with `origin`
+ * @param {number} top - Result size
+ * @param {number} [max] - Low-trust ceiling (config `recall_low_trust_max`)
+ * @returns {{ kept: Object[], suppressed: number }}
+ */
+function capLowTrust(ranked, top, max = DEFAULT_LOW_TRUST_MAX) {
+  const ceiling = Number.isInteger(max) && max >= 0 ? max : DEFAULT_LOW_TRUST_MAX;
+  const kept = [];
+  let lowTrust = 0;
+  let suppressed = 0;
+  for (const mem of ranked) {
+    if (kept.length >= top) break;
+    if (isLowTrust(mem.origin)) {
+      if (lowTrust >= ceiling) { suppressed++; continue; }
+      lowTrust++;
+    }
+    kept.push(mem);
+  }
+  return { kept, suppressed };
+}
+
 module.exports = {
+  DEFAULT_LOW_TRUST_MAX,
+  capLowTrust,
   ORIGIN_POLICY,
   DEFAULT_ORIGIN,
   PRUNE_EXEMPT_SALIENCE,

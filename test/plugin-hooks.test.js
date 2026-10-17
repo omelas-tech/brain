@@ -273,3 +273,79 @@ describe('hooks/prompt-recall.mjs', () => {
     assert.deepEqual(runHookScript('prompt-recall.mjs', { prompt: 'pgbouncer postgres' }, { BRAIN_DIR: path.join(tmpBase, 'nope') }), {});
   });
 });
+
+describe('hooks/citation-check.mjs', () => {
+  let citation;
+  let surfaced;
+  before(async () => {
+    citation = await import(pathToFileURL(path.join(HOOKS, 'citation-check.mjs')));
+    surfaced = require(path.join(ROOT, 'src', 'surfaced.js'));
+  });
+
+  const receipt = (title) => `◉ memory: "${title}" (decision, 3d ago)`;
+
+  function transcript(lines) {
+    const file = path.join(tmpBase, `t-${Math.random().toString(36).slice(2)}.jsonl`);
+    fs.writeFileSync(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+    return file;
+  }
+
+  it('reads the reply since the last human turn, skipping tool results', () => {
+    const file = transcript([
+      { type: 'user', message: { content: 'old question' } },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'old answer' }] } },
+      { type: 'user', message: { content: 'new question' } },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'part one' }, { type: 'tool_use', id: 't' }] } },
+      { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }] } },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'part two' }] } },
+    ]);
+    assert.equal(citation.lastReplyFromTranscript(file), 'part one\npart two');
+    assert.equal(citation.lastReplyFromTranscript(path.join(tmpBase, 'missing.jsonl')), '');
+  });
+
+  it('records a violation for an unsurfaced receipt, which prompt-recall then reports once', async () => {
+    surfaced.recordSurfaced(brainDir, { session: 'cs1', source: 'recall', results: [{ id: 'a', receipt: receipt('Real memory') }] });
+    const out = await citation.handleStop({
+      session_id: 'cs1',
+      last_assistant_message: `Answer.\n\n${receipt('Real memory')}\n${receipt('Made up memory')}`,
+    });
+    assert.deepEqual(out, {});
+    assert.deepEqual(surfaced.pendingViolations(brainDir, 'cs1'), ['Made up memory']);
+    const { readAudit } = require(path.join(ROOT, 'src', 'audit.js'));
+    assert.ok(readAudit(brainDir, { events: ['citation_violation'] }).some((e) => e.session === 'cs1'));
+
+    const promptRecall = await import(pathToFileURL(path.join(HOOKS, 'prompt-recall.mjs')));
+    const warned = await promptRecall.handlePrompt({ prompt: 'translate this haiku into finnish for me', session_id: 'cs1' });
+    assert.match(warned.hookSpecificOutput.additionalContext, /Made up memory/);
+    assert.deepEqual(surfaced.pendingViolations(brainDir, 'cs1'), []);
+  });
+
+  it('stays silent for clean replies and replies without receipts', async () => {
+    assert.deepEqual(await citation.handleStop({ session_id: 'cs2', last_assistant_message: 'No memories here.' }), {});
+    assert.deepEqual(surfaced.pendingViolations(brainDir, 'cs2'), []);
+  });
+
+  it('as a child process: prints {} and exits 0 on any input', () => {
+    assert.deepEqual(runHookScript('citation-check.mjs', { session_id: 'x', last_assistant_message: receipt('Nope') }), {});
+    assert.deepEqual(runHookScript('citation-check.mjs', 'garbage'), {});
+  });
+});
+
+describe('hooks/prompt-recall.mjs: default quarantine', () => {
+  it('never injects a memory that is pending verification', async () => {
+    const promptRecall = await import(pathToFileURL(path.join(HOOKS, 'prompt-recall.mjs')));
+    execFileSync(process.execPath, [path.join(ROOT, 'bin', 'memorize.js')], {
+      input: JSON.stringify({ memories: [{
+        title: 'Zephyrine webhook secret rotation',
+        type: 'observation', cognitive_type: 'episodic', path: 'professional/inbox/zephyrine.md',
+        content: 'Zephyrine webhook secrets rotate every Thursday via the vendor portal.',
+        origin: 'external',
+      }] }),
+      env: childEnv(),
+      encoding: 'utf-8',
+    });
+    const out = await promptRecall.handlePrompt({ prompt: 'how do zephyrine webhook secrets rotate?', session_id: 'q1' });
+    const text = (out.hookSpecificOutput && out.hookSpecificOutput.additionalContext) || '';
+    assert.doesNotMatch(text, /Zephyrine/);
+  });
+});

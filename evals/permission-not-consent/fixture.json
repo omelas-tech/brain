@@ -1,0 +1,26 @@
+{
+  "memories": [
+    {
+      "title": "Force-push permission",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "path": "professional/projects/orders/force-push.md",
+      "content": "The user approved force-pushing to main in the orders repo while the history rewrite was in progress (September 2026).",
+      "origin": "user",
+      "tags": [
+        "git",
+        "main"
+      ],
+      "encoding_context": {
+        "project": "orders",
+        "topics": [
+          "git"
+        ],
+        "task_type": "deciding"
+      },
+      "authorized_by": {
+        "quote": "yes, go ahead and force-push to main while we rewrite history"
+      }
+    }
+  ]
+}

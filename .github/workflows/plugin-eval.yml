@@ -1,0 +1,53 @@
+name: Plugin eval
+
+# Manual only: every case is a paid model run. Needs the ANTHROPIC_API_KEY
+# repository secret. See evals/README.md for what each case checks.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model under test
+        default: haiku
+      ablation:
+        description: "none (half the cost) or with-without (reports the delta)"
+        default: none
+      tag:
+        description: "Case tag to run (free, security, delta, cost); empty runs all"
+        default: free
+      max_cost_usd:
+        description: Hard cost ceiling for the run
+        default: "2"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: Run the eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Inputs reach the shell as variables, never spliced into the script.
+          EVAL_MODEL: ${{ inputs.model }}
+          EVAL_ABLATION: ${{ inputs.ablation }}
+          EVAL_TAG: ${{ inputs.tag }}
+          EVAL_MAX_COST: ${{ inputs.max_cost_usd }}
+        run: |
+          tag_args=()
+          if [ -n "$EVAL_TAG" ]; then tag_args=(--tag "$EVAL_TAG"); fi
+          claude plugin eval . \
+            --scaffold --trust-plugin --no-publish --allow-tools Bash \
+            --model "$EVAL_MODEL" --judge-model haiku \
+            --runs 1 --ablation "$EVAL_ABLATION" \
+            --max-cost-usd "$EVAL_MAX_COST" \
+            "${tag_args[@]}" \
+            --threshold 0.8 --json evals/results/ci.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-eval-results
+          path: evals/results/

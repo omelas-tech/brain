@@ -77,7 +77,8 @@ A second, smaller file — `~/.brain/config.json`, created lazily — holds what
   "prompt_recall_top": 3,
   "prompt_recall_budget_tokens": 600,
   "sensitive_topics": false,
-  "quarantine_mode": "flag"
+  "quarantine_mode": "enforce",
+  "recall_low_trust_max": 1
 }
 ```
 
@@ -85,6 +86,7 @@ A second, smaller file — `~/.brain/config.json`, created lazily — holds what
 |---|---|:---:|---|
 | `prompt_recall_top` | integer | 3 | Maximum memories the `UserPromptSubmit` hook injects alongside a prompt. `0` disables prompt-time recall. |
 | `prompt_recall_budget_tokens` | integer | 600 | Token cap for that injection. The weakest matches are dropped first. |
+| `recall_low_trust_max` | integer | 1 | Most low-trust (`tool-output` / `external`) memories one recall result set or session-start payload may hold, approved or not. Extra ones are skipped and counted as `low_trust_suppressed`. `0` keeps them out entirely. |
 | `sensitive_topics` | boolean | false | Opt in to storing `sensitive` memories (health, race, ethnicity, religious beliefs, politics, gender identity or sexual orientation). While `false`, such writes are quarantined as `sensitive_opt_out` and hidden until approved one by one with `brain verify approve`. Never retroactive. |
 
 The four `*_budget_tokens` keys are described in [Working Memory](/docs/advanced/working-memory/#the-budget) and `quarantine_mode` in [Provenance & Trust](/docs/concepts/provenance-trust/#quarantine-untrusted-writes-wait-for-review).

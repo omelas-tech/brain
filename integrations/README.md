@@ -8,6 +8,8 @@ Deep, first-class integrations that make `~/.brain/` the memory engine of always
 | **Hermes Agent** (Nous Research) | Native `MemoryProvider` plugin (`plugins/memory/brain/`) implementing the full provider lifecycle, plus hook-script glue | [integrations/hermes](hermes/) |
 | **GitHub Copilot CLI** | Copilot plugin (skills + `sessionStart`/`sessionEnd` hooks with `additionalContext` injection) layered on the installer's native `--copilot` runtime | [integrations/copilot](copilot/) |
 | **Cursor** | Marketplace plugin: the hosted MCP connector (OAuth) plus an always-on rule telling the agent when to recall and when to offer to memorize | [integrations/cursor](cursor/) |
+| **Messages API apps** | `withBrainTurn()` — recall on each user message, appended as a turn-scoped (`clear_at: "next_user_message"`) system message under a token cap | [integrations/api](api/) |
+| **Git review** | A GitHub Actions check for your brain's git-sync repo: `brain audit` on every push and pull request, failing on memories it would quarantine and unbacked permission claims | [integrations/git-review](git-review/) |
 | **Kilo** | Runtime plugin (`chat.message` session-start injection, session event tracking, `BRAIN_AGENT` labeling) + slash commands, layered on the installer's native `--kilo` runtime | [integrations/kilo](kilo/) |
 
 Every integration shells out to the same `brain` CLI (from the [`brain-memory`](https://www.npmjs.com/package/brain-memory) npm package) for deterministic recall scoring, so all agents get identical rankings for the same query. Hosts that only need on-demand recall can skip these entirely and use the hosted MCP connector: `https://mcp.brainmemory.ai/mcp` (streamable-HTTP + OAuth).
@@ -26,5 +28,6 @@ npm run test:integrations            # all suites
 npm run test:integrations:openclaw   # node --test (Node 22+)
 npm run test:integrations:copilot    # node --test (Node 22+)
 npm run test:integrations:kilo       # node --test (Node 22+)
+npm run test:integrations:api        # node --test
 npm run test:integrations:hermes     # python3 stdlib unittest
 ```

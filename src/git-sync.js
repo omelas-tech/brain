@@ -20,7 +20,7 @@ const CONFIG_FILE = 'config.json';
 // Files/dirs inside ~/.brain/ that should NOT be synced. `.cloud` holds Brain
 // Cloud OAuth tokens and pre-restore backups — credentials must never be
 // committed to a git remote.
-const EXCLUDED = new Set(['.sync', '.cloud', '.DS_Store']);
+const EXCLUDED = new Set(['.sync', '.cloud', '.local', '.DS_Store']);
 
 /**
  * Check whether `git` is available on PATH.

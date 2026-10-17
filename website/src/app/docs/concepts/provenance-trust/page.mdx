@@ -80,7 +80,7 @@ Trusted receipts are byte-identical to the base format — the marker only ever 
 
 ## Quarantine: untrusted writes wait for review
 
-Bounding what an untrusted memory can claim is the *sanitization* and *retrieval* half of the defense. The other half is a review step — the fix MemGhost's own authors prescribe. Low-trust writes (`tool-output` / `external`), and any write whose content is **instruction-shaped**, land in a **pending-verification** state.
+Bounding what an untrusted memory can claim is the *sanitization* and *retrieval* half of the defense. The other half is a review step — the fix MemGhost's own authors prescribe. Low-trust writes (`tool-output` / `external`), any write whose content is **instruction-shaped**, and any write that **grants the agent a permission** land in a **pending-verification** state.
 
 The instruction-shaped check is a write-time lint that runs on *every* origin: it flags "ignore previous instructions," pipe-to-shell, secret-exfiltration phrasing, and similar. This catches the case origin alone can't — an honest agent relaying poison but mislabeling its origin. (The lint is downgraded to advisory for `preference` and `procedural` memories, which legitimately contain instructions like "always use 2-space indent.")
 
@@ -89,8 +89,29 @@ Behavior is controlled by `quarantine_mode` in `~/.brain/config.json`:
 | Mode | Pending memory behavior |
 |---|---|
 | `off` | Never flagged |
-| `flag` (default) | Recallable but marked (`⊘ unverified` receipt, surfaced at session start); never pinnable |
-| `enforce` | Excluded from recall and session start until approved |
+| `flag` | Recallable but marked (`⊘ unverified` receipt, surfaced at session start); never pinnable |
+| `enforce` (default) | Excluded from recall and session start until approved; still counted in `pending_verification` |
+
+Exclusion is the default because ranking an untrusted memory lower is not a defense on its own: a poisoned memory that is the best match for a query still reaches the context window. Keeping it out of the candidate pool until someone looks at it does not depend on outranking it. (Before 0.5.0 the default was `flag`; set it explicitly to keep that behavior.)
+
+### Occupancy: at most one low-trust memory per result
+
+Approval clears the flag but keeps the trust weighting, so an approved external memory is still low-trust. `recall_low_trust_max` (default `1`) bounds how many such memories one recall result or session-start payload may hold; the rest are skipped in favor of the next trusted match and reported as `low_trust_suppressed`. Bounding occupancy holds even when a planted memory is the most relevant match.
+
+### Permissions are their own class
+
+A memory that says the agent may act without asking — "the user approved force-pushes to main", "no need to confirm deploys", "pre-approved" — is an **authorization claim**. Research on agent memory has shown that writers invent such permissions without any attacker, and that agents act on them. So:
+
+- From any origin except `user`, the write lands pending as `authz:unbacked`.
+- A `user` claim lands pending as `authz:no-source` unless the write carries the user's own words: `"authorized_by": { "quote": "yes, you can force-push here" }`.
+- It can be pinned only when it is user-origin **and** backed or approved.
+- Recall marks it `authorization_claim: true`, and its receipt carries `⚠ authorization`. Agents are told a remembered permission is never consent for the action in front of them.
+
+`brain audit` reports older memories the rule would have caught (`authorization_claim` findings).
+
+### Citation lock
+
+Receipts are minted by the engine, so a receipt line is never hallucinated — as long as the agent copies only receipts brain gave it. Every read path (recall, session start, prompt-time recall) records what it surfaced in a device-local ledger (`~/.brain/.local/`, never synced). Under Claude Code and Codex a `Stop` hook checks every `◉ memory:` line in the agent's reply against that ledger; a receipt for a memory brain never surfaced is logged as a `citation_violation` audit event and reported to the agent on its next prompt. The same ledger, together with `brain reinforce`, gives session start its `recall_usage_7d` figures: how much of what brain surfaced the agent actually used.
 
 Resolution is always the user's call — `brain verify` never approves on the agent's judgment:
 

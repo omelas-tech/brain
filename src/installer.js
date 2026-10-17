@@ -260,7 +260,7 @@ function removeInstructionsEntry(configPath, entry) {
 // host); here the placeholder is expanded to this package's root.
 // ---------------------------------------------------------------------------
 
-const HOOK_SCRIPT_RE = /[\\/]hooks[\\/](session-start|prompt-recall|session-end)\.mjs"?$/;
+const HOOK_SCRIPT_RE = /[\\/]hooks[\\/](session-start|prompt-recall|citation-check|session-end)\.mjs"?$/;
 
 function isBrainHook(hook) {
   return Boolean(hook) && typeof hook.command === 'string' && HOOK_SCRIPT_RE.test(hook.command);

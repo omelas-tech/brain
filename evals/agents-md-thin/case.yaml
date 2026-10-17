@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: agents-md-thin
+description: "Cost arm: a three-line AGENTS.md pointing at Brain, which holds the convention."
+tags: [cost]
+runs: 1
+context:
+  scaffold_script: seed.sh
+graders:
+  - name: uses-problem-json
+    type: "regex"
+    pattern: "problem\\+json|7807|problemJson"
+    flags: "i"

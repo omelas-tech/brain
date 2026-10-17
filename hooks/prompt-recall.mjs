@@ -21,7 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { brainDir, contextOutput, estimateTokens, hasBrain, isMain, loadModule, projectFromInput, runHook } from "./lib.mjs";
+import { brainDir, contextOutput, estimateTokens, hasBrain, isMain, loadModule, projectFromInput, runHook, sessionOf } from "./lib.mjs";
 
 export const MIN_PROMPT_CHARS = 12;
 export const MAX_QUERY_CHARS = 2000;
@@ -89,6 +89,19 @@ export function buildContext(entries, { budget }) {
   return null;
 }
 
+/**
+ * One line naming receipts from the previous reply that brain never surfaced,
+ * shown once per violation (acknowledged as soon as it is rendered).
+ */
+export function citationWarning(surfaced, session) {
+  const titles = surfaced.pendingViolations(brainDir(), session);
+  if (!titles.length) return null;
+  surfaced.recordAck(brainDir(), { session });
+  return "<brain-citation-check>⚠ Your last reply carried receipts for memories brain did not surface this session: " +
+    titles.map((t) => `"${t}"`).join(", ") +
+    ". Cite only receipt lines brain returned; if no memory covers the question, say so.</brain-citation-check>";
+}
+
 function readBody(memPath) {
   try {
     return fs.readFileSync(path.join(brainDir(), memPath), "utf-8");
@@ -113,11 +126,19 @@ export async function handlePrompt(input, options = {}) {
     project: projectFromInput(record),
     top,
   });
-  if (!results.length) return {};
+
+  // Citation lock (src/surfaced.js): record what this prompt surfaced, and
+  // tell the agent if its last reply cited memories brain never showed it.
+  const session = sessionOf(record);
+  const surfaced = options.surfaced || loadModule("src/surfaced.js");
+  const warning = citationWarning(surfaced, session);
+  if (results.length) surfaced.recordSurfaced(brainDir(), { session, source: "prompt-recall", results });
+  if (!results.length) return warning ? contextOutput("UserPromptSubmit", warning) : {};
 
   const entries = results.map((r) => ({ ...r, excerpt: excerptOf(readBody(r.path)) }));
   const context = buildContext(entries, { budget });
-  return context ? contextOutput("UserPromptSubmit", context) : {};
+  const text = [warning, context].filter(Boolean).join("\n");
+  return text ? contextOutput("UserPromptSubmit", text) : {};
 }
 
 if (isMain(import.meta.url)) runHook("UserPromptSubmit", handlePrompt);

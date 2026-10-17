@@ -1,0 +1,24 @@
+{
+  "memories": [
+    {
+      "title": "Orders database and pooling",
+      "type": "decision",
+      "cognitive_type": "semantic",
+      "path": "professional/projects/orders/orders-database-and-pooling.md",
+      "content": "Decided in September 2026: the orders service uses Postgres behind pgbouncer in transaction mode. The MongoDB prototype was discarded because it could not do multi-document transactions cleanly.",
+      "origin": "user",
+      "tags": [
+        "postgres",
+        "pgbouncer",
+        "database"
+      ],
+      "encoding_context": {
+        "project": "orders",
+        "topics": [
+          "database"
+        ],
+        "task_type": "deciding"
+      }
+    }
+  ]
+}

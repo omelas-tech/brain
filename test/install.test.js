@@ -751,7 +751,7 @@ describe('hooks registration helpers', () => {
 
   it('renders hooks/hooks.json with the package root in place of ${CLAUDE_PLUGIN_ROOT}', () => {
     const cfg = renderHooksConfig('/opt/brain');
-    assert.deepEqual(Object.keys(cfg.hooks), ['SessionStart', 'UserPromptSubmit', 'SessionEnd']);
+    assert.deepEqual(Object.keys(cfg.hooks), ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd']);
     assert.equal(cfg.hooks.SessionStart[0].hooks[0].command, 'node "/opt/brain/hooks/session-start.mjs"');
     assert.equal(cfg.hooks.UserPromptSubmit[0].hooks[0].command, 'node "/opt/brain/hooks/prompt-recall.mjs"');
     assert.ok(!JSON.stringify(cfg).includes('${CLAUDE_PLUGIN_ROOT}'));
@@ -782,7 +782,7 @@ describe('hooks registration helpers', () => {
     const foreign = { hooks: [{ type: 'command', command: 'echo hi' }] };
     const merged = mergeHooksConfig({ hooks: { Stop: [foreign] } }, renderHooksConfig('/x'));
     const { config, removed } = stripHooksConfig(merged);
-    assert.equal(removed, 3);
+    assert.equal(removed, 4);
     assert.deepEqual(config.hooks, { Stop: [foreign] });
     assert.deepEqual(stripHooksConfig({ hooks: { Stop: [foreign] } }).removed, 0);
     assert.deepEqual(stripHooksConfig(null), { config: null, removed: 0 });
@@ -797,7 +797,7 @@ describe('hooks registration helpers', () => {
     const cfg = readJSON(file);
     assert.equal(cfg.hooks.SessionStart.length, 1, 'no duplicate groups on re-install');
     const removed = uninstallHooks(file);
-    assert.deepEqual(removed, { removed: 3, fileDeleted: true });
+    assert.deepEqual(removed, { removed: 4, fileDeleted: true });
     assert.ok(!fs.existsSync(file));
     assert.deepEqual(uninstallHooks(file), { removed: 0, reason: 'file-not-found' });
   });
@@ -807,7 +807,7 @@ describe('hooks registration helpers', () => {
     fs.writeFileSync(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo' }] }] } }));
     installHooks(file, '/pkg');
     const result = uninstallHooks(file);
-    assert.equal(result.removed, 3);
+    assert.equal(result.removed, 4);
     assert.equal(result.fileDeleted, false);
     assert.deepEqual(Object.keys(readJSON(file).hooks), ['Stop']);
     assert.ok(!hooksInstalled(file));
@@ -845,7 +845,7 @@ describe('installForRuntime registers Codex hooks (local scope)', () => {
       `node "${PACKAGE_ROOT.replace(/\\/g, '/')}/hooks/session-start.mjs"`,
     );
     const un = uninstallForRuntime('openai', 'local');
-    assert.equal(un.hooksResult.removed, 3);
+    assert.equal(un.hooksResult.removed, 4);
     assert.ok(!fs.existsSync(file));
   });
 

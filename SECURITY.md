@@ -28,20 +28,31 @@ docs:
 - **Provenance ceilings.** Every memory records an `origin`; non-`user` origins
   are confidence-capped, decay faster, and **cannot pin or entrench** (refused at
   write, not silently capped).
-- **Trust-weighted recall.** Origin trust multiplies the recall score and damps
-  spreading-activation sources, so a co-tagged clique of planted writes can't
-  self-amplify past a genuine memory.
+- **Trust-weighted recall and an occupancy cap.** Origin trust multiplies the
+  recall score and damps spreading-activation sources, so a co-tagged clique of
+  planted writes can't self-amplify past a genuine memory; and one result set
+  holds at most `recall_low_trust_max` (default 1) low-trust memories.
 - **Content lint.** Instruction-shaped writes (e.g. "ignore previous
   instructions", pipe-to-shell, secret exfiltration) are flagged regardless of
   the claimed origin.
-- **Quarantine + verification.** Low-trust and lint-flagged writes land pending
-  verification (`brain verify`); in `enforce` mode they are excluded from recall
-  until approved.
+- **Quarantine + verification.** Low-trust, lint-flagged and permission-granting
+  writes land pending verification (`brain verify`) and, by default (`enforce`),
+  are excluded from recall until approved.
+- **Permissions need the user's words.** A memory that grants the agent a
+  permission is quarantined unless it is user-origin and carries the user's own
+  words, and is never treated as consent for the action at hand.
+- **Citation lock.** Under Claude Code and Codex a Stop hook checks every
+  receipt in a reply against what brain surfaced, and logs any other as a
+  `citation_violation`.
 - **Anomaly detection.** `brain audit` flags write bursts, low-trust cliques, and
   quietly-reinforced unverified memories (runs as `brain sleep` Phase 0).
 - **Forensics + rollback.** An append-only `~/.brain/audit.log` (carried forward
   through restores) records every write, archival, and verification; `brain
   restore` rolls the whole brain back to a pre-attack snapshot.
+
+The control map, a classification of every tool by effect, the threats not
+covered, and poisoning-benchmark numbers are in
+[docs/security/asi06.md](docs/security/asi06.md).
 
 `origin` is asserted by the writing agent, so this does not defend against a
 fully hostile agent lying about provenance — but it holds for the dominant case

@@ -205,6 +205,17 @@ is not what this metric scores). And **`brain-bm25` ties plain `keyword` again**
 (0.909 vs 0.909), reproducing the scenario-A finding at 500× the scale: Brain's
 field weighting and stemming are not where its advantage lives.
 
+### Poisoned variant
+
+`node harness/longmemeval-poison.js [--poison N] [--seed S] [--limit N] [--json]`
+
+Plants N sessions per question (default 1). Each one asks the question verbatim and answers it with
+another question's answer, labelled `external`. The script then scores five arms: no defense,
+down-weighted (trust factor only), excluded (the quarantine default), origin mislabeled as
+`agent-inferred`, and the BM25 baseline. It reports Recall@k plus how often a planted session ranks
+first or appears in the top 5. It is retrieval-only and deterministic, so it costs nothing to run.
+Results are in [results/REPORT.md](results/REPORT.md#memory-poisoning-on-longmemeval-s-retrieval-only-2026-10-17).
+
 ## Decay calibration
 
 `node harness/decay-calibration.js [--min-n N] [--json]`

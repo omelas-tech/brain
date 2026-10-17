@@ -24,6 +24,42 @@ top-k, brain's `session-start` payload, or the oracle) and replies in one turn. 
 **memory's effect** — no agentic file exploration to rediscover conventions — and keeps token counts
 clean and comparable (no cache-read inflation). It mirrors the Mem0 / LongMemEval framing.
 
+## Memory poisoning on LongMemEval-S (retrieval only, 2026-10-17)
+
+*Free and deterministic: no answer generation, no judge. Reproduce with
+`node harness/longmemeval-poison.js` (raw JSON: `results/longmemeval-poison-1.json`,
+`results/longmemeval-poison-2.json`).*
+
+Every one of the 500 questions gets a planted session that asks the question verbatim and answers it
+wrongly, using another question's answer. That makes it the strongest lexical match in the haystack.
+The plant reads as a plain fact, not an instruction, so the write-time content lint does not see it,
+matching the finding of *Utility Under Attack* (arXiv:2608.21230) that content screening rejected
+none of its poisoned memories. Every arm ranks with Brain's own relevance function.
+
+| Arm | R@1 | R@5 | poison ranked #1 | poison in top 5 |
+|---|---:|---:|---:|---:|
+| clean haystack (no poison) | 0.551 | 0.909 | — | — |
+| no defense | 0.002 | 0.888 | 99.6% | 100% |
+| BM25 baseline | 0.002 | 0.884 | 99.6% | 100% |
+| down-weighted (pre-0.5.0 `flag` default) | 0.060 | 0.888 | 90.2% | 100% |
+| **excluded (0.5.0 `enforce` default)** | **0.551** | **0.909** | **0%** | **0%** |
+| origin mislabeled as `agent-inferred` | 0.003 | 0.888 | 99.4% | 99.8% |
+
+One planted session per question is 2.05% of the haystack. At two per question (4.02%), the
+excluded arm is unchanged (0.551 / 0.909, 0% poison), and every other arm gets worse (R@5 ≈ 0.85).
+
+**Reading it.**
+- Ranking an untrusted memory lower is not a defense. With trust weighting, the plant still ranks
+  first for nine questions in ten.
+- Keeping untrusted memories out of recall until a human approves them restores clean-haystack
+  retrieval exactly. This is why 0.5.0 makes `enforce` the default.
+- The last row is the limit, and we state it plainly: provenance defends only as well as origins are
+  labelled. An agent that files poisoned content as its own inference gets no protection from origin
+  rules. That is what the low-trust occupancy cap, the audit pass, and human review are for.
+
+Not measured here: end-to-end answer accuracy under poisoning. That needs one LLM call per question
+per arm, and it has not been run.
+
 ## Scenario A — Noisy Project Folder (retrieval under 1000 distractors)
 
 | Arm | tok/success | Recall@5 | rubric score | pass |

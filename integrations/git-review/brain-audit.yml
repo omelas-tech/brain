@@ -1,0 +1,43 @@
+# Copy to .github/workflows/brain-audit.yml in your brain's git-sync repository
+# (the private repo `brain sync push` writes to). Every push and pull request
+# runs `brain audit` over the synced memory and fails when it finds memories it
+# would quarantine, or permissions that were never backed by your own words.
+#
+# Unencrypted sync only: with sync encryption on, the repo holds ciphertext.
+name: Brain audit
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install -g brain-memory
+      - name: Audit
+        env:
+          BRAIN_DIR: ${{ github.workspace }}
+        run: |
+          brain audit --window 168h > audit.json
+          node -e '
+            const r = require("./audit.json");
+            const authz = r.findings.filter((f) => f.kind === "authorization_claim");
+            const lines = [
+              `pending verification: ${r.pending_verification}`,
+              `proposed for quarantine: ${r.proposed_quarantine.length}`,
+              `unbacked permission claims: ${authz.length}`,
+              ...r.findings.map((f) => `- ${f.kind} ${f.id || (f.ids || []).join(",")}${f.excerpt ? ` — "${f.excerpt}"` : ""}`),
+            ];
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## Brain audit\n\n" + lines.join("\n") + "\n");
+            console.log(lines.join("\n"));
+            if (r.proposed_quarantine.length || authz.length) process.exit(1);
+          '

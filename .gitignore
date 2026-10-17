@@ -54,3 +54,6 @@ benchmark/brain.code-workspace
 
 # LongMemEval-S dataset (277MB, fetched on demand — see benchmark/harness/longmemeval.js)
 benchmark/data/
+
+# claude plugin eval run artifacts
+evals/results/

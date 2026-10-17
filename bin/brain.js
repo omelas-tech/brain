@@ -38,6 +38,7 @@ const DELEGATED = {
   restore: 'restore.js',
   verify: 'verify.js',
   audit: 'audit.js',
+  port: 'port.js',
 };
 
 // install.js finds its positional subcommand from process.argv itself, so it is
@@ -85,6 +86,12 @@ Cold start
   import --sources            List detected agent history stores
   import --mark <id> [<id>...]
                               Record sessions as imported (incremental cursor)
+
+Portability
+  port export --format <claude-memory|markdown|agentcore> [--out PATH]
+                              Export what recall could show, for another memory system
+  port import --from <claude-memory|markdown|agentcore> <PATH> [--trust] [--dry-run]
+                              Import through memorize (external → pending review)
 
 Sync
   cloud <login|logout|push|pull|status>

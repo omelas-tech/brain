@@ -10,13 +10,18 @@
  * Naming: the SM-2 spaced-repetition queue owns "review" (review-queue.json,
  * due_for_review). This subsystem is quarantine / verify / pending_verification.
  *
- * Modes (config.json `quarantine_mode`, default 'flag'):
+ * Modes (config.json `quarantine_mode`, default 'enforce'):
  *   off      Nothing is flagged; existing flags persist inertly.
  *   flag     Flagged memories stay recallable, marked (⊘ unverified receipts,
  *            quarantine_pending in results, session-start count).
  *   enforce  Flagged memories are excluded from recall/session-start until
  *            approved. Evaluated at read time, so flipping the knob
  *            retroactively hides/reveals already-pending items.
+ *
+ * Exclusion is the default because down-weighting is not a defense: a
+ * poisoned memory that is merely ranked lower still reaches the context
+ * window whenever it is the best lexical match for the query. Only keeping it
+ * out of the candidate pool removes it.
  *
  * Approval clears the flag only — origin, write-time clamps, and the recall
  * trust factor all stay. `vetted: true` records that a human/agent looked, and
@@ -27,6 +32,33 @@ const { isLowTrust } = require('./provenance');
 const { setFrontmatterFields } = require('./pinning');
 const { SENSITIVE_OPT_OUT_REASON } = require('./sensitivity');
 
+const QUARANTINE_MODES = new Set(['off', 'flag', 'enforce']);
+const DEFAULT_QUARANTINE_MODE = 'enforce';
+
+/**
+ * The effective quarantine mode. An unknown value falls back to the default
+ * rather than to 'off' — a typo in config.json must never disable the defense.
+ */
+function quarantineMode(config) {
+  const mode = config && config.quarantine_mode;
+  return QUARANTINE_MODES.has(mode) ? mode : DEFAULT_QUARANTINE_MODE;
+}
+
+/** True when pending-verification memories are hidden from recall. */
+function hidesPending(config) {
+  return quarantineMode(config) === 'enforce';
+}
+
+/** True when the lint result carries an authorization claim. */
+function isAuthorizationClaim(lintResult) {
+  return ((lintResult && lintResult.flags) || []).some((f) => f.severity === 'authorization');
+}
+
+/** `authorized_by` counts as backing only with a non-empty quote of the user. */
+function hasBacking(authorizedBy) {
+  return Boolean(authorizedBy && typeof authorizedBy.quote === 'string' && authorizedBy.quote.trim());
+}
+
 /**
  * Decide whether a write should be quarantined.
  *
@@ -34,12 +66,18 @@ const { SENSITIVE_OPT_OUT_REASON } = require('./sensitivity');
  * - agent-inferred: flagged only on injection-severity lint — the default
  *   agent write path stays friction-free.
  * - user: never auto-flagged (lint is still recorded in the audit trail).
+ * - An authorization claim (lint severity `authorization`) is the exception
+ *   to both: from any origin but `user` it is flagged `authz:unbacked`, and a
+ *   `user` one is flagged `authz:no-source` unless the caller passed the
+ *   user's own words in `authorized_by.quote`. Origin is asserted by the
+ *   writer, and a writer inventing permission is exactly the failure this
+ *   guards — so the claim needs evidence, not a label.
  *
- * @param {Object} opts - { origin, lintResult, config }
+ * @param {Object} opts - { origin, lintResult, config, authorizedBy }
  * @returns {{ quarantined: boolean, reasons: string[] }}
  */
-function quarantineDecision({ origin, lintResult, config }) {
-  const mode = (config && config.quarantine_mode) || 'flag';
+function quarantineDecision({ origin, lintResult, config, authorizedBy }) {
+  const mode = quarantineMode(config);
   if (mode === 'off') return { quarantined: false, reasons: [] };
 
   const reasons = [];
@@ -53,6 +91,10 @@ function quarantineDecision({ origin, lintResult, config }) {
       // low-trust origin — they explain *why* beyond the origin itself.
       else if (f.severity === 'suspect' && isLowTrust(origin)) reasons.push(`lint:${f.rule}`);
     }
+  }
+  if (isAuthorizationClaim(lintResult)) {
+    if (origin !== 'user') reasons.push('authz:unbacked');
+    else if (!hasBacking(authorizedBy)) reasons.push('authz:no-source');
   }
 
   return { quarantined: reasons.length > 0, reasons };
@@ -141,4 +183,6 @@ function requeueQuarantine(brainDir, index, id, now, config) {
   return applyQuarantine(brainDir, index, id, reasons, now);
 }
 
-module.exports = { quarantineDecision, listPending, applyQuarantine, approveQuarantine, requeueQuarantine };
+module.exports = {
+  DEFAULT_QUARANTINE_MODE, quarantineMode, hidesPending,
+  isAuthorizationClaim, hasBacking, quarantineDecision, listPending, applyQuarantine, approveQuarantine, requeueQuarantine };

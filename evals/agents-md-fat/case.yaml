@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: agents-md-fat
+description: "Cost arm: every convention lives in a long static AGENTS.md, no memories."
+tags: [cost]
+runs: 1
+context:
+  scaffold_script: seed.sh
+graders:
+  - name: uses-problem-json
+    type: "regex"
+    pattern: "problem\\+json|7807|problemJson"
+    flags: "i"

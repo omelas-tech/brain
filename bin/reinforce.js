@@ -24,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const { envSession, recordUsed } = require('../src/surfaced');
 const {
   readIndex,
   writeIndex,
@@ -153,6 +154,10 @@ function main() {
 
     writeAssociations(associations);
   }
+
+  // Injected-vs-used telemetry (src/surfaced.js): reinforce is the agent saying
+  // a memory shaped its answer.
+  recordUsed(brainDir, { session: envSession(), ids: reinforced.map((r) => r.id).filter(Boolean), now: nowISO });
 
   console.log(JSON.stringify({
     reinforced,

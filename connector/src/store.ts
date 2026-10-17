@@ -314,7 +314,7 @@ export async function syncBack(opts: { brainDir: string; brainId?: string; idTok
 /** tar create filter: drop local-only sync/cloud state from the pushed bundle. */
 function notLocalState(p: string): boolean {
   const top = p.replace(/^\.\//, "").split("/")[0];
-  return top !== ".sync" && top !== ".cloud";
+  return top !== ".sync" && top !== ".cloud" && top !== ".local";
 }
 
 /**

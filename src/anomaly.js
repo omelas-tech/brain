@@ -18,10 +18,14 @@
  * never silently vanish a large slice of the brain.
  */
 
+const fs = require('fs');
+const path = require('path');
+
 const { isLowTrust } = require('./provenance');
 const { detectContentDrift } = require('./integrity');
 const { readAudit } = require('./audit');
-const { listPending, applyQuarantine } = require('./quarantine');
+const { lintMemoryContent } = require('./content-lint');
+const { isAuthorizationClaim, listPending, applyQuarantine } = require('./quarantine');
 
 // Writes-per-window ceilings by origin. Low-trust origins get tight budgets;
 // agent-inferred is the ambient default and gets headroom.
@@ -179,6 +183,40 @@ function detectReinforcedLowTrust(index, opts = {}) {
 }
 
 /**
+ * Memories that grant the agent a permission but were written before the
+ * `authorization_claim` lint existed, so they carry no `authorization` mark
+ * and were never gated. Re-lints each unmarked memory's file; marked ones
+ * were gated at write time and are skipped.
+ *
+ * @param {string} brainDir - Path to ~/.brain/
+ * @param {Object} index - Parsed index.json
+ * @returns {Object[]} [{ kind:'authorization_claim', id, origin, excerpt }]
+ */
+function detectUnmarkedAuthorization(brainDir, index) {
+  const findings = [];
+  for (const [id, entry] of Object.entries((index && index.memories) || {})) {
+    if (entry.authorization || !entry.path) continue;
+    let body;
+    try {
+      body = fs.readFileSync(path.join(brainDir, entry.path), 'utf-8').replace(/^---\n[\s\S]*?\n---\n/, '');
+    } catch (_) {
+      continue; // a missing file is detectContentDrift's finding, not this one
+    }
+    const lint = lintMemoryContent({
+      title: entry.title, content: body, type: entry.type, cognitive_type: entry.cognitive_type,
+    });
+    if (!isAuthorizationClaim(lint)) continue;
+    findings.push({
+      kind: 'authorization_claim',
+      id,
+      origin: entry.origin || 'agent-inferred',
+      excerpt: lint.flags.find((f) => f.severity === 'authorization').excerpt,
+    });
+  }
+  return findings;
+}
+
+/**
  * Run all detectors and (optionally) quarantine the flagged memories.
  *
  * `proposed_quarantine` is the union of finding ids minus vetted, pinned,
@@ -205,6 +243,7 @@ function runAudit(brainDir, deps, opts = {}) {
     ...detectWriteBursts(auditEvents, { windowHours }),
     ...detectLowTrustCliques(index, associations),
     ...detectReinforcedLowTrust(index),
+    ...detectUnmarkedAuthorization(brainDir, index),
     // Store-phase tamper detection. Advisory only — legitimate edits (sleep
     // consolidation, a user fixing a typo) also move the hash, so these
     // findings are reported but never fed to the --apply quarantine path.
@@ -258,6 +297,7 @@ function runAudit(brainDir, deps, opts = {}) {
 }
 
 module.exports = {
+  detectUnmarkedAuthorization,
   detectWriteBursts,
   detectContentDrift,
   detectLowTrustCliques,

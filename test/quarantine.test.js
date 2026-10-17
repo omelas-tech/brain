@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const { quarantineDecision, listPending } = require('../src/quarantine');
+const { quarantineDecision, listPending, quarantineMode, hidesPending } = require('../src/quarantine');
 const { lintMemoryContent } = require('../src/content-lint');
 const { pinMemory } = require('../src/pinning');
 const { writeIndex, readIndex } = require('../src/index-manager');
@@ -13,6 +13,7 @@ const { readAudit } = require('../src/audit');
 
 const MEMORIZE = path.join(__dirname, '..', 'bin', 'memorize.js');
 const VERIFY = path.join(__dirname, '..', 'bin', 'verify.js');
+const RECALL = path.join(__dirname, '..', 'bin', 'recall.js');
 
 const cleanLint = { flags: [], severity: 'none' };
 const injectionLint = lintMemoryContent({
@@ -149,6 +150,63 @@ describe('quarantine: write path', () => {
     }));
     assert.ok(out.stored[0].lint_flags.includes('imperative_directive'));
     assert.equal(out.stored[0].quarantine_pending, undefined);
+  });
+});
+
+describe('quarantine: mode resolution', () => {
+  it('defaults to enforce when config is missing or silent', () => {
+    assert.equal(quarantineMode(undefined), 'enforce');
+    assert.equal(quarantineMode({}), 'enforce');
+    assert.equal(hidesPending({}), true);
+  });
+
+  it('honours an explicit off / flag / enforce', () => {
+    for (const mode of ['off', 'flag', 'enforce']) {
+      assert.equal(quarantineMode({ quarantine_mode: mode }), mode);
+    }
+    assert.equal(hidesPending({ quarantine_mode: 'flag' }), false);
+  });
+
+  it('falls back to enforce on an unknown value, never to off', () => {
+    assert.equal(quarantineMode({ quarantine_mode: 'of' }), 'enforce');
+    assert.equal(quarantineMode({ quarantine_mode: true }), 'enforce');
+  });
+});
+
+describe('quarantine: recall under the default mode', () => {
+  function recallIds(query) {
+    const stdout = execFileSync('node', [RECALL, query], { env: env(), encoding: 'utf-8' });
+    return JSON.parse(stdout).map((r) => r.id);
+  }
+
+  function seedPair() {
+    const ext = memorize(externalMem({
+      title: 'Billing address change',
+      content: 'The vendor billing address moved to the Dublin office.',
+    })).stored[0].id;
+    const usr = memorize(externalMem({
+      origin: 'user',
+      title: 'Vendor billing contact',
+      path: 'professional/notes/billing.md',
+      content: 'Vendor billing questions go to the Dublin finance desk.',
+    })).stored[0].id;
+    return { ext, usr };
+  }
+
+  it('hides a pending memory from recall without any config', () => {
+    const { ext, usr } = seedPair();
+    const ids = recallIds('vendor billing Dublin');
+    assert.ok(ids.includes(usr));
+    assert.ok(!ids.includes(ext));
+  });
+
+  it('flag mode is the explicit opt-out: pending memories return, marked', () => {
+    const { ext } = seedPair();
+    fs.writeFileSync(path.join(brainDir, 'config.json'), JSON.stringify({ quarantine_mode: 'flag' }));
+    const stdout = execFileSync('node', [RECALL, 'vendor billing Dublin'], { env: env(), encoding: 'utf-8' });
+    const hit = JSON.parse(stdout).find((r) => r.id === ext);
+    assert.ok(hit);
+    assert.equal(hit.quarantine_pending, true);
   });
 });
 
@@ -301,5 +359,77 @@ describe('quarantine: listPending', () => {
       },
     };
     assert.deepEqual(listPending(index).map((p) => p.id), ['a', 'c']);
+  });
+});
+
+describe('quarantine: authorization claims', () => {
+  const grant = (over = {}) => ({
+    title: 'Force-push policy',
+    type: 'decision',
+    cognitive_type: 'semantic',
+    path: 'professional/repo/force-push.md',
+    content: 'The user approved force-pushing to main for this repo.',
+    ...over,
+  });
+
+  it('quarantines an agent-inferred claim as unbacked', () => {
+    const out = memorize(grant({ origin: 'agent-inferred' })).stored[0];
+    assert.equal(out.quarantine_pending, true);
+    assert.ok(out.quarantine_reasons.includes('authz:unbacked'));
+    assert.equal(out.authorization_claim, true);
+    const entry = Object.values(readIndex(tmpDir).memories)[0];
+    assert.equal(entry.authorization, true);
+  });
+
+  it('quarantines a user-origin claim with no quote of the user', () => {
+    const out = memorize(grant({ origin: 'user' })).stored[0];
+    assert.ok(out.quarantine_reasons.includes('authz:no-source'));
+  });
+
+  it('stores a backed user-origin claim unquarantined, with its backing', () => {
+    const out = memorize(grant({
+      origin: 'user',
+      authorized_by: { quote: 'yes, you can force-push to main here', session_id: 's1' },
+    })).stored[0];
+    assert.equal(out.quarantine_pending, undefined);
+    const entry = Object.values(readIndex(tmpDir).memories)[0];
+    assert.deepEqual(entry.authorized_by, { quote: 'yes, you can force-push to main here', session_id: 's1' });
+    const file = fs.readFileSync(path.join(brainDir, entry.path), 'utf-8');
+    assert.match(file, /authorization: true/);
+    assert.match(file, /authorized_by: /);
+  });
+
+  it('rejects malformed backing', () => {
+    assert.throws(() => memorize(grant({ origin: 'user', authorized_by: { quote: '   ' } })));
+    assert.throws(() => memorize(grant({ origin: 'user', authorized_by: 'yes' })));
+  });
+
+  it('drops a born pin on a write that lands pending, and says so', () => {
+    const out = memorize(grant({ origin: 'user', pinned: true })).stored[0];
+    assert.ok(out.pin_dropped);
+    const entry = Object.values(readIndex(tmpDir).memories)[0];
+    assert.equal(entry.pinned, undefined);
+  });
+
+  it('refuses to pin an approved claim that is not user-origin', () => {
+    const id = memorize(grant({ origin: 'agent-inferred' })).stored[0].id;
+    assert.equal(verify(['approve', id]).status, 0);
+    const r = pinMemory(tmpDir, id);
+    assert.match(r.error, /permission/);
+  });
+
+  it('lets a user-origin claim be pinned once a human approved it', () => {
+    const id = memorize(grant({ origin: 'user' })).stored[0].id;
+    assert.equal(verify(['approve', id]).status, 0);
+    const r = pinMemory(tmpDir, id);
+    assert.equal(r.error, undefined);
+  });
+
+  it('marks the claim on recall results and receipts', () => {
+    memorize(grant({ origin: 'user', authorized_by: { quote: 'go ahead and force-push' } }));
+    const stdout = execFileSync('node', [RECALL, 'force-push main repo'], { env: env(), encoding: 'utf-8' });
+    const hit = JSON.parse(stdout)[0];
+    assert.equal(hit.authorization_claim, true);
+    assert.match(hit.receipt, /⚠ authorization/);
   });
 });

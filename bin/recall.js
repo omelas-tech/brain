@@ -45,9 +45,11 @@ const {
 } = require('../src/scorer');
 
 const { receiptFor } = require('../src/receipt');
-const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
+const { DEFAULT_ORIGIN, isLowTrust, capLowTrust } = require('../src/provenance');
+const { envSession, recordSurfaced } = require('../src/surfaced');
 const { parseInstant } = require('../src/temporal');
 const { isSensitiveHidden } = require('../src/sensitivity');
+const { hidesPending } = require('../src/quarantine');
 
 // Minimum relevance (or spreading bonus) for a memory to appear in explicit-
 // query results. Filters the zero/near-zero-relevance memories that would
@@ -96,6 +98,9 @@ function main() {
     process.exit(1);
   }
 
+  // Citation lock: remember what this session was shown (src/surfaced.js).
+  recordSurfaced(getBrainDir(), { session: envSession(), source: 'recall', results });
+
   console.log(JSON.stringify(results, null, 2));
 }
 
@@ -142,13 +147,13 @@ function computeRecall(args, projectRoot) {
   // Build memory list from index. In enforce mode, quarantined (pending-
   // verification) memories are excluded here — before ranking — which also
   // removes them as spreading-activation sources. readConfig tolerates a
-  // missing/corrupt config.json (falls back to the 'flag' default).
+  // missing/corrupt config.json (falls back to the 'enforce' default).
   const config = readConfig(projectRoot);
-  const quarantineMode = config.quarantine_mode || 'flag';
+  const hidePending = hidesPending(config);
   // Sensitive-topic memories are hidden until the user opts in (config) or
   // approves them individually — consent is evaluated at read time too.
   const memories = Object.entries(index.memories)
-    .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
+    .filter(([, entry]) => !hidePending || !entry.quarantined)
     .filter(([, entry]) => !isSensitiveHidden(entry, config))
     .map(([id, entry]) => ({
       id,
@@ -184,9 +189,10 @@ function computeRecall(args, projectRoot) {
     }
   );
 
-  // Return top N
+  // Return top N, holding low-trust occupancy to the configured ceiling.
   const top = args.top || 10;
-  return ranked.slice(0, top).map((mem) => {
+  const { kept, suppressed } = capLowTrust(ranked, top, config.recall_low_trust_max);
+  const results = kept.map((mem) => {
     const title = mem.title || path.basename(mem.path, '.md');
     const origin = mem.origin || DEFAULT_ORIGIN;
     return {
@@ -207,6 +213,7 @@ function computeRecall(args, projectRoot) {
       // Pending verification (flag mode): recallable but visibly marked, so
       // the agent can caveat an answer built on an unverified memory.
       ...(mem.quarantined ? { quarantine_pending: true } : {}),
+      ...(mem.authorization ? { authorization_claim: true } : {}),
       // Temporal invalidation: a newer memory replaced this one. Surfaced so
       // the agent can say "this was true until <the successor>" rather than
       // presenting a stale fact as current.
@@ -224,6 +231,9 @@ function computeRecall(args, projectRoot) {
       receipt: receiptFor({ ...mem, title }),
     };
   });
+  // Reported on the first result so the suppression is visible, not silent.
+  if (suppressed > 0 && results.length > 0) results[0].low_trust_suppressed = suppressed;
+  return results;
 }
 
 /**

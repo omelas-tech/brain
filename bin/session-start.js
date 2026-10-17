@@ -48,8 +48,11 @@ const { rankMemories } = require('../src/scorer');
 const { advertisedSummaries } = require('../src/skills');
 const { receiptFor } = require('../src/receipt');
 const { temporalState } = require('../src/temporal');
-const { DEFAULT_ORIGIN, isLowTrust } = require('../src/provenance');
+const { DEFAULT_ORIGIN, isLowTrust, capLowTrust } = require('../src/provenance');
+const { envSession, recordSurfaced, usageSummary } = require('../src/surfaced');
 const { isSensitiveHidden } = require('../src/sensitivity');
+const { quarantineMode: resolveQuarantineMode } = require('../src/quarantine');
+const { authorizationPinnable } = require('../src/pinning');
 
 function parseArgs(argv) {
   const args = { project: null, topics: null, task: null, top: 5, budget: null };
@@ -166,7 +169,7 @@ function computeSessionStart(projectRoot, args = {}) {
   // the ranked pool entirely (flag mode includes them, marked). The pending
   // COUNT below always scans the full index, so the agent still learns that
   // items are waiting even when they are hidden.
-  const quarantineMode = config.quarantine_mode || 'flag';
+  const quarantineMode = resolveQuarantineMode(config);
   const memories = Object.entries(index.memories)
     .filter(([, entry]) => quarantineMode !== 'enforce' || !entry.quarantined)
     // Consent: sensitive-topic memories stay out of working memory until the
@@ -203,6 +206,9 @@ function computeSessionStart(projectRoot, args = {}) {
     // from another device could carry both flags — never load it every session.
     if (entry.quarantined && quarantineMode !== 'off') continue;
     if (isSensitiveHidden(entry, config)) continue;
+    // Same for an unbacked authorization claim: pinMemory refuses it, but a
+    // synced index could still carry the pin.
+    if (!authorizationPinnable(entry)) continue;
     // Bitemporal: the pinned tier is presented to the agent as always-apply
     // active constraints, and a fact whose validity window has closed is not a
     // constraint any more. Drop it here rather than asserting it every session
@@ -261,7 +267,8 @@ function computeSessionStart(projectRoot, args = {}) {
   const context_recall = [];
   let used = 0;
   let excluded = 0;
-  for (const mem of ranked.slice(0, top)) {
+  const { kept: recallPool, suppressed: lowTrustSuppressed } = capLowTrust(ranked, top, config.recall_low_trust_max);
+  for (const mem of recallPool) {
     if (pinnedIds.has(mem.id)) continue; // already presented in the pinned tier
     const title = mem.title || path.basename(mem.path || '', '.md');
     const receipt = receiptFor({ ...mem, title });
@@ -280,6 +287,7 @@ function computeSessionStart(projectRoot, args = {}) {
       origin,
       ...(isLowTrust(origin) ? { low_trust: true } : {}),
       ...(mem.quarantined ? { quarantine_pending: true } : {}),
+      ...(mem.authorization ? { authorization_claim: true } : {}),
       // Bitemporal: surfaced but no longer true — the agent must frame it as
       // "that was the case until <valid_until>", never as current.
       ...(mem.temporal_state === 'expired' ? { expired: true, valid_until: mem.valid_until } : {}),
@@ -330,6 +338,11 @@ function computeSessionStart(projectRoot, args = {}) {
     pending_verification: pendingAll.length,
     pending_verification_items: pendingAll.slice(0, 5),
     low_confidence_alerts,
+    // Low-trust memories held out of context_recall by recall_low_trust_max.
+    ...(lowTrustSuppressed > 0 ? { low_trust_suppressed: lowTrustSuppressed } : {}),
+    // How much of what brain surfaced over the last week the agent used
+    // (src/surfaced.js) — injected-vs-used telemetry.
+    recall_usage_7d: usageSummary(getBrainDir(projectRoot), { sinceMs: Date.now() - 7 * 86400000 }),
     budget: {
       cap,
       pin_cap: pinCap,
@@ -347,10 +360,23 @@ function computeSessionStart(projectRoot, args = {}) {
   };
 }
 
+/**
+ * Citation lock: record what a session-start payload put in front of the
+ * agent (pinned + context_recall). Shared by the CLI and the plugin hook.
+ */
+function recordSessionStart(payload, session, projectRoot) {
+  recordSurfaced(getBrainDir(projectRoot), {
+    session,
+    source: 'session-start',
+    results: [...(payload.pinned || []), ...(payload.context_recall || [])],
+  });
+}
+
 function main(argv) {
   const args = parseArgs(argv || process.argv.slice(2));
   try {
     const payload = computeSessionStart(undefined, args);
+    recordSessionStart(payload, envSession());
     console.log(JSON.stringify(payload, null, 2));
   } catch (err) {
     console.error(JSON.stringify({ error: err.message }));
@@ -362,4 +388,4 @@ if (require.main === module) {
   main(process.argv.slice(2));
 }
 
-module.exports = { main, computeSessionStart, estimateTokens, parseArgs, edgeOrder };
+module.exports = { main, computeSessionStart, recordSessionStart, estimateTokens, parseArgs, edgeOrder };

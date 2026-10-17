@@ -12,7 +12,7 @@
  * already capped by `working_memory_budget_tokens` in ~/.brain/config.json.
  */
 
-import { contextOutput, detectHost, hasBrain, isMain, loadModule, projectFromInput, runHook } from "./lib.mjs";
+import { contextOutput, detectHost, hasBrain, isMain, loadModule, projectFromInput, runHook, sessionOf } from "./lib.mjs";
 
 const COMMANDS = {
   "claude-code":
@@ -72,9 +72,11 @@ export function buildContext(payload, { project, host }) {
 export async function handleSessionStart(input, options = {}) {
   const env = options.env || process.env;
   if (!hasBrain()) return {};
-  const { computeSessionStart } = options.sessionStart || loadModule("bin/session-start.js");
+  const { computeSessionStart, recordSessionStart } = options.sessionStart || loadModule("bin/session-start.js");
   const project = projectFromInput(input);
   const payload = computeSessionStart(undefined, { project, topics: null, task: null, top: 5 });
+  // Citation lock: the Stop hook checks this session's receipts against it.
+  if (recordSessionStart) recordSessionStart(payload, sessionOf(input));
   const context = buildContext(payload, { project, host: detectHost(env) });
   return contextOutput("SessionStart", context);
 }

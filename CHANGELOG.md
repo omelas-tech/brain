@@ -7,6 +7,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- **Permissions are their own class of memory.** A write that says the agent
+  may act without asking ("the user approved force-pushes to main", "no need to
+  confirm deploys", "pre-approved") is an authorization claim. From any origin
+  but `user` it lands pending verification (`authz:unbacked`); a `user` one does
+  too (`authz:no-source`) unless it carries the user's own words in
+  `authorized_by.quote`. Such memories are pinnable only when user-origin and
+  backed or approved, are marked `authorization_claim` in recall and
+  session-start results, and carry `⚠ authorization` on their receipts. The
+  agent prompts say a remembered permission is never consent for the action at
+  hand. `brain audit` reports older memories the new lint rule would have
+  caught. The connector's `brain_memorize` accepts `authorized_by`.
+- **Citation lock.** Recall, session start and prompt-time recall record what
+  they surfaced in a device-local ledger (`~/.brain/.local/`, excluded from
+  every sync, export and restore). A new `Stop` hook (Claude Code, Codex)
+  checks every `◉ memory:` receipt in the agent's reply against it; a receipt
+  for a memory brain never surfaced is logged as a `citation_violation` audit
+  event and reported to the agent on its next prompt. Advisory: the reply is
+  never blocked.
+- **Low-trust occupancy cap.** `recall_low_trust_max` (default `1`) bounds how
+  many `tool-output` / `external` memories a recall result or session-start
+  payload may hold, approved or not; the rest are skipped for the next trusted
+  match and reported as `low_trust_suppressed`.
+- **`brain port`** moves memories between brain and other memory systems:
+  `export --format claude-memory|markdown|agentcore` writes what recall could
+  show (memories pending verification, hidden or expired are left out and
+  counted); `import --from …` sends memories through `brain memorize` as
+  `external`, so they wait for review unless `--trust` marks them as yours.
+  Covers Claude Code's memory files, a pasteable dated list (Claude.ai's
+  import format), and AgentCore `BatchCreateMemoryRecords` bodies. What
+  survives a round trip is documented per format.
+- **Poisoned LongMemEval benchmark** (`benchmark/harness/longmemeval-poison.js`):
+  free, deterministic, retrieval-only. With a planted wrong-answer session per
+  question, exclusion keeps clean-haystack retrieval (R@1 0.551, R@5 0.909, the
+  poison never in the top 5); trust weighting alone lets the poison rank first
+  for 90% of questions. Results in `benchmark/results/REPORT.md`.
+- **Plugin eval suite** (`evals/`) for `claude plugin eval`: eight cases that
+  seed a throwaway brain and check pinned conventions, past decisions,
+  poisoned-memory exclusion, no invented receipts, permissions not treated as
+  consent, memorize-on-request, and a fat-vs-thin AGENTS.md cost pair. A
+  manual-dispatch workflow runs it in CI.
+- **Messages API integration** (`integrations/api/`): `withBrainTurn()`
+  recalls on each user message and appends the matches as a turn-scoped
+  system message (`clear_at: "next_user_message"`) under a token cap.
+- **Git review template** (`integrations/git-review/`): a GitHub Actions check
+  for a brain git-sync repository that runs `brain audit` on every push.
+- `docs/security/asi06.md`: Brain's controls mapped onto OWASP ASI06, every
+  CLI command and connector tool classified by effect, the threats not
+  covered, and the benchmark evidence.
+- Session start reports `recall_usage_7d`: how many surfaced memories the agent
+  went on to use (`brain reinforce`).
 - **`brain verify requeue <id>`**, an undo for a mistaken approve. It puts the
   memory back into pending verification, clears `vetted` (which also withdraws
   per-item consent for a sensitive memory), rebuilds the reasons approval
@@ -24,6 +74,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   refused pushes.
 
 ### Changed
+- **Quarantine excludes by default.** `quarantine_mode` now defaults to
+  `enforce`: memories pending verification are left out of recall and session
+  start until approved, instead of being returned with a `⊘ unverified` mark.
+  Down-weighting a poisoned memory does not keep it out of the context window
+  when it is the best match; exclusion does. They are still counted in
+  `pending_verification`. Set `"quarantine_mode": "flag"` in
+  `~/.brain/config.json` to keep the previous behavior. An unrecognized value
+  now falls back to `enforce`, never to `off`.
+- A write that lands pending verification is no longer born pinned; the output
+  reports `pin_dropped`.
 - The agent prompts say to approve only the exact ids the user reviewed, never
   a fresh listing, because other sessions write concurrently.
 

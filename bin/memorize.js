@@ -40,7 +40,7 @@ const { appendAudit } = require('../src/audit');
 const { lintMemoryContent } = require('../src/content-lint');
 const { contentHash } = require('../src/integrity');
 const { proposeSupersessions } = require('../src/contradiction');
-const { quarantineDecision } = require('../src/quarantine');
+const { quarantineDecision, isAuthorizationClaim } = require('../src/quarantine');
 const {
   validateValidity,
   supersessionInstant,
@@ -216,6 +216,13 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, qua
     fmLines.push(`quarantine_reasons: [${quarantine.reasons.map((r) => `"${r}"`).join(', ')}]`);
     fmLines.push(`quarantine_flagged: "${now}"`);
   }
+  // Authorization claim (src/content-lint.js): the memory says the agent may
+  // act without asking. Marked so recall and pinning can treat it apart, with
+  // the user's own words alongside when the caller supplied them.
+  if (mem.authorization) {
+    fmLines.push('authorization: true');
+    if (mem.authorized_by) fmLines.push(`authorized_by: ${JSON.stringify(JSON.stringify(mem.authorized_by))}`);
+  }
   // Temporal invalidation: record which memories this one replaces. The
   // reciprocal `superseded_by` is stamped on those targets in main().
   if (mem.supersedes && mem.supersedes.length) {
@@ -243,6 +250,24 @@ function buildMemoryFileContent(mem, id, now, origin, originDecayMultiplier, qua
   const frontmatter = fmLines.join('\n');
 
   return { fileContent: frontmatter + mem.content + '\n', strength, decay_rate };
+}
+
+/**
+ * Validate the optional `authorized_by` backing for an authorization claim:
+ * `{ quote, session_id? }`, where `quote` is the user's own words granting the
+ * permission. Bounded so a memory cannot smuggle a transcript in through it.
+ */
+function normalizeAuthorizedBy(value) {
+  if (value == null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    return { error: 'authorized_by must be an object: { quote, session_id? }' };
+  }
+  const quote = typeof value.quote === 'string' ? value.quote.trim() : '';
+  if (!quote) return { error: 'authorized_by.quote must be the user\'s own words, non-empty' };
+  if (quote.length > 500) return { error: 'authorized_by.quote is longer than 500 characters' };
+  const out = { quote };
+  if (typeof value.session_id === 'string' && value.session_id.trim()) out.session_id = value.session_id.trim().slice(0, 120);
+  return out;
 }
 
 function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) {
@@ -278,6 +303,10 @@ function buildIndexEntry(mem, id, strength, decayRate, now, origin, quarantine) 
     entry.quarantined = true;
     entry.quarantine_reasons = quarantine.reasons;
     entry.quarantine_flagged = now;
+  }
+  if (mem.authorization) {
+    entry.authorization = true;
+    if (mem.authorized_by) entry.authorized_by = mem.authorized_by;
   }
   if (mem.supersedes && mem.supersedes.length) entry.supersedes = mem.supersedes;
   if (mem.valid_from) entry.valid_from = mem.valid_from;
@@ -490,7 +519,14 @@ async function main() {
     // (cheap, and the flags feed forensics even when nothing is quarantined);
     // the decision flags low-trust origins and injection-shaped content.
     const lint = lintMemoryContent(mem);
-    const quarantine = quarantineDecision({ origin, lintResult: lint, config });
+    const authorizedBy = normalizeAuthorizedBy(mem.authorized_by);
+    if (authorizedBy && authorizedBy.error) {
+      console.error(JSON.stringify({ error: `${authorizedBy.error} — memory: ${JSON.stringify(rawMem.title)}` }));
+      process.exit(1);
+    }
+    const quarantine = quarantineDecision({ origin, lintResult: lint, config, authorizedBy });
+    mem.authorization = isAuthorizationClaim(lint);
+    mem.authorized_by = mem.authorization ? authorizedBy : undefined;
 
     // Sensitive-topic consent (src/sensitivity.js). `blocked` content is
     // refused outright; `sensitive` content is stored only after the user
@@ -516,6 +552,11 @@ async function main() {
       quarantine.reasons = [...quarantine.reasons, SENSITIVE_OPT_OUT_REASON];
     }
     mem.sensitivity = sensitivity.level;
+    // A write that lands pending verification cannot be born pinned: the pin
+    // would load an unreviewed memory into every session. Dropped, not
+    // refused, so the memory itself is kept — the result says why.
+    const pinDropped = Boolean(mem.pinned && quarantine.quarantined);
+    if (pinDropped) mem.pinned = false;
 
     // Generate ID
     const id = generateId();
@@ -665,6 +706,8 @@ async function main() {
       // until the user opts in (config) or approves it (`brain verify approve`).
       ...(mem.sensitivity !== 'standard' ? { sensitivity: mem.sensitivity } : {}),
       ...(sensitivity.action === 'quarantine' ? { sensitive_opt_out: true } : {}),
+      ...(mem.authorization ? { authorization_claim: true } : {}),
+      ...(pinDropped ? { pin_dropped: 'pending verification — pin it after `brain verify approve`' } : {}),
       ...(supersededNow.length ? { superseded: supersededNow } : {}),
       // Held back until verification — surfaced so the agent can tell the user
       // the replacement it asked for has not taken effect yet.

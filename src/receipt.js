@@ -15,8 +15,10 @@
  * Memories pending verification (quarantined — see src/quarantine.js) carry a
  * further "⊘ unverified" segment, and memories whose validity window has closed
  * (see src/temporal.js) a "⌛ expired" one, and sensitive-topic memories (see
- * src/sensitivity.js) a "⚠ sensitive" one. User/agent-inferred, vetted, current,
- * standard receipts are byte-identical to the base format.
+ * src/sensitivity.js) a "⚠ sensitive" one, and memories that grant the agent a
+ * permission (see src/content-lint.js) a "⚠ authorization" one. User/agent-
+ * inferred, vetted, current, standard receipts are byte-identical to the base
+ * format.
  *
  * Age is derived from the memory's `created` timestamp (falling back to
  * `last_accessed`; omitted entirely when neither parses):
@@ -82,10 +84,13 @@ function receiptFor(memoryLike, nowFn) {
   // Consent: a sensitive-topic memory stays visibly marked even after the user
   // opted in or approved it, so the agent knows to handle it with care.
   const sensitive = mem.sensitivity === 'sensitive' ? ', ⚠ sensitive' : '';
+  // A permission recalled from memory is a claim about the past, never
+  // consent for the action in front of the agent now.
+  const authz = mem.authorization ? ', ⚠ authorization' : '';
 
   return age
-    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending}${expired}${sensitive})`
-    : `◉ memory: "${title}" (${type}${trust}${pending}${expired}${sensitive})`;
+    ? `◉ memory: "${title}" (${type}, ${age}${trust}${pending}${expired}${sensitive}${authz})`
+    : `◉ memory: "${title}" (${type}${trust}${pending}${expired}${sensitive}${authz})`;
 }
 
 module.exports = { receiptFor, ageLabel };

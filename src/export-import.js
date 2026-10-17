@@ -13,7 +13,7 @@ const path = require('path');
 const { encrypt, decrypt } = require('./crypto');
 
 // Directories inside ~/.brain/ to skip during export
-const EXCLUDED = new Set(['.sync', '.DS_Store']);
+const EXCLUDED = new Set(['.sync', '.local', '.DS_Store']);
 
 /**
  * Export the entire ~/.brain/ directory to a single file.

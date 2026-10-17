@@ -1,0 +1,20 @@
+schema_version: "1.1"
+name: past-decision
+description: "A decision from a past session is recalled, with its receipt."
+tags: [delta, free]
+runs: 1
+context:
+  scaffold_script: seed.sh
+graders:
+  - name: names-pgbouncer
+    type: "regex"
+    pattern: "pgbouncer"
+    flags: "i"
+  - name: names-transaction-mode
+    type: "regex"
+    pattern: "transaction"
+    flags: "i"
+  - name: carries-receipt
+    type: "regex"
+    pattern: "◉ memory: \"Orders database and pooling\""
+    arm: "with-only"

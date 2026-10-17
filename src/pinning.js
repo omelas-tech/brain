@@ -77,6 +77,18 @@ function setFrontmatterFields(brainDir, memPath, fields, opts = {}) {
  * @param {Object} [opts] - { scope = "global"|"project:<name>", priority = 0 }
  * @returns {Object} Result or { error }
  */
+/**
+ * Whether a memory carrying an authorization claim (src/content-lint.js) may
+ * be pinned. Only a user-origin claim qualifies, and only once it is backed by
+ * the user's own words (`authorized_by`) or a human approved it in
+ * `brain verify` — anything else would load a permission into every session on
+ * the writer's say-so.
+ */
+function authorizationPinnable(entry) {
+  if (!entry || !entry.authorization) return true;
+  return entry.origin === 'user' && Boolean(entry.authorized_by || entry.vetted);
+}
+
 function pinMemory(projectRoot, id, opts = {}) {
   const scope = opts.scope || 'global';
   const priority = Number.isFinite(opts.priority) ? opts.priority : 0;
@@ -93,6 +105,12 @@ function pinMemory(projectRoot, id, opts = {}) {
   if (entry.quarantined) {
     return {
       error: `Memory is pending verification — approve it first: brain verify approve ${id}`,
+    };
+  }
+  if (!authorizationPinnable(entry)) {
+    return {
+      error: `Memory grants the agent a permission and is not backed by the user — ` +
+        `only a user-origin claim with authorized_by, or one approved in brain verify, can be pinned: ${id}`,
     };
   }
   entry.pinned = true;
@@ -143,4 +161,5 @@ function unpinMemory(projectRoot, id) {
   return { id, pinned: false, was_pinned: wasPinned, removed: before !== pinned.pins.length };
 }
 
-module.exports = { pinMemory, unpinMemory, estimateTokens, setFrontmatterFields };
+module.exports = {
+  authorizationPinnable, pinMemory, unpinMemory, estimateTokens, setFrontmatterFields };

@@ -11,6 +11,13 @@
  *   injection  Text that tries to steer the agent against the user. Never
  *              downgraded — no legitimate memory says "ignore previous
  *              instructions" or pipes a download into a shell.
+ *   authorization
+ *              A claim that the agent may act without asking ("the user
+ *              approved force-pushes", "no need to confirm deploys"). Never
+ *              downgraded: a writer that invents permission is the failure
+ *              this catches, and it happens without any attacker. Gated
+ *              separately from injection by src/quarantine.js — even a
+ *              user-origin claim needs the user's own words behind it.
  *   suspect    Directive/imperative content. Downgraded to advisory for
  *              type:preference and cognitive_type:procedural memories, which
  *              legitimately contain instructions ("always use 2-space
@@ -20,7 +27,7 @@
  * Pure and dependency-free; used at write time by bin/memorize.js.
  */
 
-const SEVERITY_RANK = { none: 0, advisory: 1, suspect: 2, injection: 3 };
+const SEVERITY_RANK = { none: 0, advisory: 1, suspect: 2, authorization: 3, injection: 4 };
 
 // secret_exfil pairs a transfer verb with a credential noun. Both must be
 // standalone prose words: a verb that is a code literal or half of a compound
@@ -35,6 +42,31 @@ const EXFIL_SECRET = '(?:(?<![`_\\-/])\\b(?:token|password|secret|api.?key|crede
 const EXFIL_GAP = '[^\\n.]{0,80}';
 const SECRET_EXFIL_RE = new RegExp(
   `${EXFIL_VERB}${EXFIL_GAP}${EXFIL_SECRET}|${EXFIL_SECRET}${EXFIL_GAP}${EXFIL_VERB}`,
+  'i'
+);
+
+// authorization_claim has three shapes, each anchored on who is granting or
+// being granted — never on the bare words "approved"/"authorized", which
+// ordinary notes about OAuth, RBAC and review workflows are full of:
+//   1. a principal granted an *action* ("the user approved force-pushing");
+//      approving a design or a PR is a fact, not a permission, so an action
+//      verb must follow within the sentence;
+//   2. the agent is told it may act ("you are allowed to", "Claude is
+//      permitted to");
+//   3. confirmation is waived ("no need to ask", "pre-approved", "standing
+//      permission", "skip the confirmation").
+const AUTHZ_GRANTOR = '\\b(?:the\\s+)?(?:user|owner|maintainer|admin(?:istrator)?|i|we)\\b';
+const AUTHZ_GRANT = '(?:\\s+(?:has|have|had))?(?:\\s+(?:already|explicitly))?\\s+(?:approved|authori[sz]ed|okayed|ok\'d|signed\\s+off\\s+on|green-?lit|allowed|permitted)\\b';
+const AUTHZ_ACTION = '\\b(?:force[\\s-]?push\\w*|push\\w*|deploy\\w*|delet\\w*|drop\\w*|merg\\w*|releas\\w*|publish\\w*|pay\\w*|send\\w*|email\\w*|transfer\\w*|run\\w*|execut\\w*|install\\w*|wip\\w*|rotat\\w*|revok\\w*|purchas\\w*|spend\\w*|skip\\w*|bypass\\w*|disabl\\w*|overwrit\\w*|rm\\b)';
+const AUTHZ_AGENT = '\\b(?:you|the\\s+(?:agent|assistant|bot)|claude|codex|gemini|agents?)\\s+(?:are|is|have\\s+been|has\\s+been)(?:\\s+(?:now|always|explicitly))?\\s+(?:allowed|authori[sz]ed|permitted|cleared|granted\\s+(?:permission|access))\\b';
+const AUTHZ_WAIVER = '\\b(?:no\\s+need\\s+to|(?:do\\s+not|don\'t|doesn\'t|does\\s+not)\\s+need\\s+to|without\\s+needing\\s+to)\\s+(?:ask|confirm|check\\s+with|get\\s+(?:approval|permission|sign-?off))\\b' +
+  // Predicate only, and not "pre-approved for": "deploys are pre-approved" is a
+  // permission; "pre-approved for a mortgage" and "pre-approved offers" are not.
+  '|\\b(?:is|are|was|were|be|been|now)\\s+pre-?(?:approved|authori[sz]ed)\\b(?!\\s+for\\b)' +
+  '|\\b(?:standing|blanket)\\s+(?:permission|approval|authori[sz]ation)\\b' +
+  '|\\bskip\\s+(?:the\\s+)?(?:confirmation|approval|permission)\\b';
+const AUTHZ_RE = new RegExp(
+  `${AUTHZ_GRANTOR}${AUTHZ_GRANT}[^\\n.]{0,60}${AUTHZ_ACTION}|${AUTHZ_AGENT}|${AUTHZ_WAIVER}`,
   'i'
 );
 
@@ -55,6 +87,11 @@ const RULES = [
     rule: 'secret_exfil',
     severity: 'injection',
     re: SECRET_EXFIL_RE,
+  },
+  {
+    rule: 'authorization_claim',
+    severity: 'authorization',
+    re: AUTHZ_RE,
   },
   {
     rule: 'imperative_directive',

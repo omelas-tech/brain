@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: memorize-on-request
+description: "Asked to remember something, the agent stores it through brain."
+tags: [free]
+runs: 1
+context:
+  scaffold_script: seed.sh
+graders:
+  - name: stored-via-brain
+    type: "tool_used"
+    tool: "Bash"
+    input_match: "memorize"
+    arm: "with-only"

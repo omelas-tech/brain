@@ -58,6 +58,9 @@ export interface MemorizeInput {
   // and closes each predecessor's validity window — unless this write lands
   // quarantined, in which case the stamp is held for `brain_verify approve`.
   supersedes?: string[];
+  // The user's own words granting a permission the content claims ("yes, you
+  // can force-push here"). Without it, an authorization claim lands pending.
+  authorized_by?: { quote: string; session_id?: string };
 }
 
 /** Create a memory from explicitly-provided content (never the raw conversation). */
@@ -78,6 +81,7 @@ export async function memorize(brainDir: string, m: MemorizeInput): Promise<any>
     ...(m.valid_from ? { valid_from: m.valid_from } : {}),
     ...(m.valid_until ? { valid_until: m.valid_until } : {}),
     ...(m.supersedes?.length ? { supersedes: m.supersedes } : {}),
+    ...(m.authorized_by ? { authorized_by: m.authorized_by } : {}),
     encoding_context: { project: m.project || "", topics: m.tags ?? [], task_type: "capturing" },
     content: m.content,
   };

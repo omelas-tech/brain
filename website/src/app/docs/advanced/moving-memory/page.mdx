@@ -1,0 +1,63 @@
+import Callout from "@/app/components/docs/Callout";
+
+import { docMeta } from "@/lib/docs";
+
+export const metadata = docMeta("/docs/advanced/moving-memory", {
+  title: "Moving Memory In and Out - Brain Memory",
+  description: "Export brain memories to Claude Code memory files, a pasteable text list, or AWS AgentCore, and import them back.",
+  category: "Advanced",
+  order: 26,
+});
+
+# Moving Memory In and Out
+
+`brain port` converts memories between brain and the formats other memory systems read. Your memory
+should not be locked into one vendor, including this one.
+
+```bash
+brain port export --format claude-memory --out ./memory     # Claude Code memory files + MEMORY.md
+brain port export --format markdown > memories.txt          # one dated line per memory
+brain port export --format agentcore --out batches.json     # AgentCore BatchCreateMemoryRecords bodies
+
+brain port import --from claude-memory ./memory             # imports wait for review
+brain port import --from markdown memories.txt --trust      # your own memory: store as yours
+brain port import --from agentcore batches.json --dry-run   # show what would be written
+```
+
+## Formats
+
+| Format | Shape | Use with |
+|---|---|---|
+| `claude-memory` | One Markdown file per memory (`name`, `description`, `metadata.type` frontmatter) plus a `MEMORY.md` index | Claude Code's file-based memory directory |
+| `markdown` | `[YYYY-MM-DD] - <title>: <text>`, one per line | Claude.ai's memory import (paste), or any notes app |
+| `agentcore` | `{ "batches": [ { "records": [...] } ] }`, at most 100 records per batch | AWS Bedrock AgentCore Memory `BatchCreateMemoryRecords`, sent with your own credentials. Import also accepts the `memoryRecordSummaries` a list call returns. |
+
+## What survives a round trip
+
+Every target holds less than brain does. These are the fields that come back after brain → target → brain:
+
+| Field | claude-memory | markdown | agentcore |
+|---|:---:|:---:|:---:|
+| title | ✓ | ✓ | ✓ |
+| content | ✓ | single line | up to 16,000 chars |
+| type | mapped (many-to-one) | — | ✓ |
+| tags, related, strength, pins | — | — | — |
+| date | — | as `source` note | as `source` note |
+
+Validity windows, associations and recall history stay in brain. A recorded date comes back in the
+memory's `source` and never as `valid_from`, because the date something was saved is not the date
+it became true.
+
+## Safety
+
+- **Export writes only what recall could show.** Memories pending verification, consent-hidden
+  sensitive memories and expired memories are left out. The output counts each kind it skipped.
+- **Imports go through `brain memorize`.** Origin policy, content lint, the authorization rule and
+  quarantine all apply, exactly as for any other write.
+- **Imports are `external` by default**, so they wait in [`brain verify`](/docs/commands/verify/)
+  until you approve them. Pass `--trust` only for an export of your own memory: it stores the
+  memories as `origin: user`.
+
+<Callout type="info">
+Gemini and ChatGPT memory exports are not supported yet. Neither documents a stable export format. Their text can still come in through `--from markdown`.
+</Callout>
