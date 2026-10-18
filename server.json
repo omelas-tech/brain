@@ -3,7 +3,7 @@
   "name": "ai.brainmemory/brain",
   "title": "Brain Memory",
   "description": "Persistent memory for AI agents: one brain shared across Claude, Cursor, Codex and more.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "websiteUrl": "https://brainmemory.ai",
   "repository": {
     "url": "https://github.com/omelas-tech/brain",

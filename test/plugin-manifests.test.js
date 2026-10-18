@@ -38,6 +38,8 @@ describe('root plugin manifests', () => {
     assert.equal(codexPlugin.version, pkg.version);
     const entry = claudeMarket.plugins.find((p) => p.name === 'brain');
     assert.equal(entry.version, pkg.version);
+    assert.equal(read('integrations/cursor/.cursor-plugin/plugin.json').version, pkg.version);
+    assert.equal(read('server.json').version, pkg.version);
   });
 
   it('points at existing commands, hooks, skills and icon assets', () => {

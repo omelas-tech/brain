@@ -63,7 +63,7 @@
     "release:patch": "npm version patch && npm publish",
     "release:minor": "npm version minor && npm publish",
     "release:major": "npm version major && npm publish",
-    "version": "node scripts/sync-plugin-version.mjs && git add .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json",
+    "version": "node scripts/sync-plugin-version.mjs && git add .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json integrations/cursor/.cursor-plugin/plugin.json server.json",
     "test:store": "node --test store/test/store.test.js store/test/oidc.test.js store/conformance/conformance.test.js",
     "test:conformance": "node --test store/conformance/conformance.test.js"
   },
