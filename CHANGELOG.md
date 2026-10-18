@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-18
+
+Memory stops being a way to smuggle instructions or permissions into an agent.
+Memories from outside the user/agent dialogue are now left out of recall until
+the user approves them, not merely marked. A remembered permission is its own
+class that needs the user's own words behind it. Every receipt the agent cites
+is checked against what brain actually surfaced. On a poisoned LongMemEval run,
+down-weighting left the planted memory at rank 1 for 90% of questions, while
+exclusion restored the clean-run R@1 of 0.551. `brain port` moves memories to
+and from other memory systems.
+
 ### Added
 - **Permissions are their own class of memory.** A write that says the agent
   may act without asking ("the user approved force-pushes to main", "no need to
