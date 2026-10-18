@@ -13,6 +13,15 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "Ranking a poisoned memory lower is not a defense",
+    description:
+      "We planted one wrong answer per question in LongMemEval. Trust-weighted recall still put it first nine times in ten. Brain 0.5.0 keeps untrusted memories out until you approve them, treats remembered permissions as their own class, and checks every memory the agent cites.",
+    href: "/blog/ranking-is-not-a-defense",
+    date: "2026-10-18",
+    readingTime: "6 min",
+    tag: "Security",
+  },
+  {
     title: "We tried to add embeddings. Our own benchmark said no.",
     description:
       "A real embedding model, given every advantage, failed to beat BM25 on a 1,021-memory corpus with 1,000 distractors. Here is the experiment, the numbers, and what would change our mind.",

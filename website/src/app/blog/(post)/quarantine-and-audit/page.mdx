@@ -15,6 +15,10 @@ export const metadata = blogMeta("/blog/quarantine-and-audit", {
 
 # Closing the loop on memory poisoning
 
+<Callout type="info" title="update, October 2026">
+Since 0.5.0 the default is `enforce`: pending memories are left out of recall until you approve them. Our own benchmark showed that marking and down-weighting them was not enough — see [Ranking a poisoned memory lower is not a defense](/blog/ranking-is-not-a-defense/).
+</Callout>
+
 Our [last security post](/blog/provenance-memory-poisoning/) described [MemGhost](https://arxiv.org/abs/2607.05189) — planting a false memory in a persistent agent with a single email — and the write-path gate we shipped in response: every memory carries an `origin`, and a non-user origin can't pin, can't entrench, and gets confidence-capped and faster decay. That stopped a planted fact from *hardening*.
 
 But two of [OWASP ASI06](https://genai.owasp.org/)'s five memory-poisoning defenses were still missing. Origin clamps and trust-weighted recall are the *sanitization* and *retrieval* layers. We hadn't shipped **behavioral monitoring** (noticing an attack in progress) or a first-class **forensic** path (finding and undoing what got in). This release closes both, plus adds the review step MemGhost's own authors prescribe.
