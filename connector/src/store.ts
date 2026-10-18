@@ -18,6 +18,7 @@ import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as tar from "tar";
+import { getBrainChoice } from "./persist.js";
 
 const RECALL_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "bin", "recall.js");
 const cloudApi = () => (process.env.BRAIN_CLOUD_API_URL || "https://api.brainmemory.ai").replace(/\/$/, "");
@@ -36,8 +37,16 @@ export interface EnsureOpts {
 // `checksum` is the canonical brain's brain-cloud checksum as of our last pull/push;
 // `dirty` means a local write hasn't synced back yet, so a re-pull MUST NOT run or it
 // would overwrite that write. This keeps the TTL feature "freshness, not correctness".
-interface PullState { at: number; checksum: string | null; dirty: boolean }
+// `brainId` is the cloud brain this working copy was pulled from. Sync-back
+// pushes there and nowhere else: after a switch, a session token may still name
+// the previous brain, and pushing this copy into it would overwrite that brain.
+interface PullState { at: number; checksum: string | null; dirty: boolean; brainId?: string | null }
 const pullState = new Map<string, PullState>();
+
+/** The cloud brain a working copy was pulled from, once it has been pulled. */
+export function pulledBrainId(brainDir: string): string | null {
+  return pullState.get(brainDir)?.brainId ?? null;
+}
 
 /** Mark a brain as having an unsynced local write (a failed sync-back). */
 function markDirty(brainDir: string): void {
@@ -47,8 +56,9 @@ function markDirty(brainDir: string): void {
 }
 
 /** Mark a brain as in sync with the cloud at `checksum` (fresh pull or successful push). */
-function markSynced(brainDir: string, checksum: string | null, now = Date.now()): void {
-  pullState.set(brainDir, { at: now, checksum, dirty: false });
+function markSynced(brainDir: string, checksum: string | null, now = Date.now(), brainId?: string | null): void {
+  const prev = pullState.get(brainDir);
+  pullState.set(brainDir, { at: now, checksum, dirty: false, brainId: brainId !== undefined ? brainId : prev?.brainId });
 }
 
 // ---- Working-copy lifecycle / idle purge ---------------------------------
@@ -149,9 +159,8 @@ export function startBrainReaper(opts: {
 //   • no-cloud-brain  — this account has no brain in Brain Cloud (a brand-new user,
 //                       OR — more importantly — they signed in with the WRONG Google
 //                       account and would otherwise silently start a phantom brain).
-//   • multiple-brains — a pro account holds several brains; we serve the canonical
-//                       (oldest) one. Letting the user choose is account-linking,
-//                       deferred (account-linking is future work).
+//   • multiple-brains — the account holds several brains; we serve the one the
+//                       user chose with brain_use, or the oldest.
 //   • ok              — exactly one brain; unambiguous.
 export type IdentityStatus = "ok" | "no-cloud-brain" | "multiple-brains";
 export interface IdentityInfo {
@@ -161,18 +170,22 @@ export interface IdentityInfo {
 }
 
 /** Shape of a brain as listed by brain-cloud's `GET /api/brains`. */
-interface CloudBrain {
+export interface CloudBrain {
   id: string;
+  name?: string;
   created_at?: string;
   checksum?: string | null;
   last_synced_at?: string | null;
+  file_count?: number;
 }
+
+/** A brain as the tools show it: which one is served, and what else exists. */
+export interface BrainSummary { id: string; name: string; active: boolean; last_synced_at: string | null }
 
 /**
  * The canonical brain for an account = the OLDEST. brain-cloud already lists
  * `ORDER BY created_at`, but we sort defensively so a given account always maps to
- * the SAME brain regardless of API ordering (id breaks ties). This is the
- * "one-canonical-account" rule; account-linking (choosing among several) is future.
+ * the SAME brain regardless of API ordering (id breaks ties).
  */
 function canonicalBrain(brains: CloudBrain[]): CloudBrain {
   return [...brains].sort((a, b) =>
@@ -180,8 +193,45 @@ function canonicalBrain(brains: CloudBrain[]): CloudBrain {
   )[0];
 }
 
+/**
+ * The brain to serve: the user's choice while it still exists, else the oldest.
+ * A choice whose brain was deleted falls back quietly rather than failing login.
+ */
+export function servedBrain(brains: CloudBrain[], choice?: string): CloudBrain {
+  return (choice && brains.find((b) => b.id === choice)) || canonicalBrain(brains);
+}
+
+/**
+ * Find a brain by ID, or by name ignoring case. Returns null when nothing
+ * matches; throws when a name matches several (the caller asks for the ID).
+ */
+export function matchBrain(brains: CloudBrain[], selector: string): CloudBrain | null {
+  const sel = selector.trim();
+  if (!sel) return null;
+  const byId = brains.find((b) => b.id === sel);
+  if (byId) return byId;
+  const key = sel.toLocaleLowerCase();
+  const named = brains.filter((b) => (b.name ?? "").trim().toLocaleLowerCase() === key);
+  if (named.length > 1) {
+    throw new Error(`${named.length} brains are named "${sel}" — choose one by id: ${named.map((b) => b.id).join(", ")}`);
+  }
+  return named[0] ?? null;
+}
+
+export function summarizeBrains(brains: CloudBrain[], activeId: string | null): BrainSummary[] {
+  return brains.map((b) => ({ id: b.id, name: b.name ?? "default", active: b.id === activeId, last_synced_at: b.last_synced_at ?? null }));
+}
+
+/** The account's brains, straight from brain-cloud. */
+export async function listCloudBrains(idToken: string): Promise<CloudBrain[]> {
+  const res = await fetch(`${cloudApi()}/api/brains`, { headers: { Authorization: `Bearer ${idToken}` } });
+  if (!res.ok) throw new Error(`brains list ${res.status}`);
+  const raw = await res.json();
+  return (Array.isArray(raw) ? raw : []) as CloudBrain[];
+}
+
 /** Map a cloud brain count to the user-facing identity-hygiene signal. */
-function describeIdentity(brainCount: number): IdentityInfo {
+export function describeIdentity(brainCount: number, served?: CloudBrain): IdentityInfo {
   if (brainCount === 0) {
     return {
       status: "no-cloud-brain",
@@ -197,8 +247,9 @@ function describeIdentity(brainCount: number): IdentityInfo {
       status: "multiple-brains",
       brainCount,
       note:
-        `This account has ${brainCount} brains in Brain Cloud; the connector serves ` +
-        "your original (oldest) one. Choosing among multiple brains isn't supported yet.",
+        `This account has ${brainCount} brains in Brain Cloud; the connector is using ` +
+        `"${served?.name ?? "default"}". brain_status lists them, and brain_use switches ` +
+        "when the user asks.",
     };
   }
   return { status: "ok", brainCount };
@@ -236,10 +287,10 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
         // On a stale re-pull, pass the last-known checksum so the pull skips the
         // download when the cloud brain is unchanged (cheap: just the list call).
         const skipIfChecksum = stale ? st?.checksum ?? null : undefined;
-        const pulled = await pullFromBrainCloud(brainDir, opts.idToken, skipIfChecksum);
+        const pulled = await pullFromBrainCloud(brainDir, opts.idToken, skipIfChecksum, getBrainChoice(opts.userId));
         brainId = pulled.brainId ?? undefined;
-        identity = describeIdentity(pulled.brainCount);
-        markSynced(brainDir, pulled.checksum);
+        identity = describeIdentity(pulled.brainCount, pulled.served ?? undefined);
+        markSynced(brainDir, pulled.checksum, Date.now(), pulled.brainId);
       }
     }
   } catch (e) {
@@ -262,7 +313,9 @@ export async function ensureUserBrain(opts: EnsureOpts): Promise<{ source: strin
  */
 export async function syncBack(opts: { brainDir: string; brainId?: string; idToken?: string }): Promise<{ pushed: boolean; error?: string; conflict?: boolean }> {
   recordBrainActivity(opts.brainDir); // a write is activity — keep the copy alive
-  if (!opts.brainId || !opts.idToken) return { pushed: false };
+  // The brain this copy came from wins over the session's: see PullState.
+  const brainId = pullState.get(opts.brainDir)?.brainId ?? opts.brainId;
+  if (!brainId || !opts.idToken) return { pushed: false };
   // Pack into a private random temp dir (not a predictable /tmp name — defeats a
   // pre-planted-symlink swap on a shared host).
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "brain-push-"));
@@ -281,7 +334,7 @@ export async function syncBack(opts: { brainDir: string; brainId?: string; idTok
     // ignores these headers and behaves as before.
     const base = pullState.get(opts.brainDir)?.checksum ?? null;
     const precondition: Record<string, string> = base ? { "If-Match": `"${base}"` } : { "If-None-Match": "*" };
-    const res = await fetch(`${cloudApi()}/api/brains/${opts.brainId}/sync`, {
+    const res = await fetch(`${cloudApi()}/api/brains/${brainId}/sync`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${opts.idToken}`, ...precondition },
       body: form,
@@ -349,8 +402,9 @@ function ensureLocalLink(brainDir: string, src: string) {
 }
 
 /**
- * Pull the account's canonical brain into `brainDir`. Returns the brain id plus
- * the total brain count and the canonical brain's checksum (the count drives the
+ * Pull the account's served brain (the user's choice, else the oldest) into
+ * `brainDir`. Returns the brain id plus
+ * the total brain count and the served brain's checksum (the count drives the
  * identity-hygiene signal; the checksum drives cheap freshness checks). An account
  * with NO brain is a normal state (new user, or wrong account signed in) — we
  * return `{ brainId: null, brainCount: 0 }` rather than throwing, so the caller can
@@ -365,27 +419,36 @@ async function pullFromBrainCloud(
   brainDir: string,
   idToken: string,
   skipIfChecksum?: string | null,
-): Promise<{ brainId: string | null; brainCount: number; checksum: string | null; downloaded: boolean }> {
+  choice?: string,
+): Promise<{ brainId: string | null; brainCount: number; checksum: string | null; downloaded: boolean; served: CloudBrain | null }> {
   const headers = { Authorization: `Bearer ${idToken}` };
-  const listRes = await fetch(`${cloudApi()}/api/brains`, { headers });
-  if (!listRes.ok) throw new Error(`brains list ${listRes.status}`);
-  const raw = await listRes.json();
-  const brains = (Array.isArray(raw) ? raw : []) as CloudBrain[];
-  if (brains.length === 0) return { brainId: null, brainCount: 0, checksum: null, downloaded: false };
-  const canonical = canonicalBrain(brains);
-  const brainId = canonical.id;
-  const checksum = canonical.checksum ?? null;
+  const brains = await listCloudBrains(idToken);
+  if (brains.length === 0) return { brainId: null, brainCount: 0, checksum: null, downloaded: false, served: null };
+  const served = servedBrain(brains, choice);
+  const brainId = served.id;
+  const checksum = served.checksum ?? null;
+
+  // The working copy belongs to another brain (the user switched): drop it, so
+  // nothing of that brain is shown here or pushed into this one.
+  const previous = pullState.get(brainDir)?.brainId;
+  if (previous && previous !== brainId) {
+    fs.rmSync(brainDir, { recursive: true, force: true });
+    pullState.delete(brainDir);
+  }
 
   // Unchanged since our last pull/push → nothing to download (cheap freshness check).
-  if (skipIfChecksum != null && checksum != null && skipIfChecksum === checksum) {
-    return { brainId, brainCount: brains.length, checksum, downloaded: false };
+  // Only when this copy came from the same brain: a checksum match across brains
+  // would be a coincidence of identical archives, but never skip on it.
+  const sameBrain = pullState.get(brainDir)?.brainId === brainId;
+  if (sameBrain && skipIfChecksum != null && checksum != null && skipIfChecksum === checksum) {
+    return { brainId, brainCount: brains.length, checksum, downloaded: false, served };
   }
 
   const dl = await fetch(`${cloudApi()}/api/brains/${brainId}/sync`, { headers });
   // A brain that exists but has never been pushed to has no archive yet. That is
   // a new user, not an outage: there is simply nothing to download.
   if (dl.status === 404 && checksum == null) {
-    return { brainId, brainCount: brains.length, checksum: null, downloaded: false };
+    return { brainId, brainCount: brains.length, checksum: null, downloaded: false, served };
   }
   if (!dl.ok) throw new Error(`sync download ${dl.status}`);
   // Stage the download in a private random temp dir, then extract through the
@@ -399,7 +462,7 @@ async function pullFromBrainCloud(
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }
-  return { brainId, brainCount: brains.length, checksum, downloaded: true };
+  return { brainId, brainCount: brains.length, checksum, downloaded: true, served };
 }
 
 function initEmptyBrain(brainDir: string) {

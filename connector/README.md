@@ -16,7 +16,7 @@ Deployed at **`https://mcp.brainmemory.ai/mcp`** (Node service on the VPS beside
 systemd + nginx + certbot — see `deploy/`). Added at claude.ai and verified on **Claude web +
 iPhone**. Tools: `brain_recall`, `brain_status` (read) + `brain_memorize`, `brain_pin`,
 `brain_unpin`, `brain_forget`, `brain_verify` (write — writes sync back to brain-cloud; hosts gate
-them behind confirmation).
+them behind confirmation) + `brain_use` (switch between the account's brains).
 
 Two things to know in production:
 - **One brain ↔ one Google account** — the connector serves the brain of whatever **Firebase
@@ -45,7 +45,7 @@ matching real clients):
 ③ Dynamic Client Registration (RFC 7591)
 ④ authorize → code (iss + state validated, RFC 9207)
 ⑤ token → audience-bound Bearer (PKCE verified, RFC 8707)
-⑥ MCP initialize + tools/list → [brain_recall, brain_status, brain_memorize, brain_pin, brain_unpin, brain_forget, brain_verify]  (official SDK)
+⑥ MCP initialize + tools/list → [brain_recall, brain_status, brain_use, brain_memorize, brain_pin, brain_unpin, brain_forget, brain_verify]  (official SDK)
 ⑦ brain_recall(query) → the brain's REAL scored results (relevance + decayed
    strength + spreading activation), identical to the CLI
 ```
@@ -70,7 +70,8 @@ npm start         # serve MCP on http://localhost:8788
 | Tool | Kind | Description |
 |------|------|-------------|
 | `brain_recall` | read (`readOnlyHint`) | Ranked recall for a query, scored by the brain engine. |
-| `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain. |
+| `brain_status` | read (`readOnlyHint`) | Memory count + last-updated for the user's brain, and the account's brains with the one in use marked `active`. |
+| `brain_use` | write (`idempotentHint`) | Switch which of the account's brains the connector serves, by name or id. Remembered across sessions; copies nothing between brains. |
 | `brain_memorize` | write (`destructiveHint`) | Store the **explicit content** provided (never the conversation); immediately recallable. |
 | `brain_pin` / `brain_unpin` | write (`destructiveHint`, `idempotentHint`) | Move a memory into or out of the always-present tier. |
 | `brain_forget` | write (`destructiveHint`) | Archive a memory (recoverable — moved to `_archived/`, not hard-deleted). |
@@ -84,8 +85,9 @@ Writes reuse the deterministic CLIs (`memorize.js` / `pin.js` / `unpin.js` / `fo
 **One brain ↔ one Google account.** The connector has no idea which laptop you're on — it serves the
 brain belonging to whatever Firebase (Google) identity completes the sign-in. The verified `uid` maps
 deterministically to a brain user (`resolveBrainUserId`), and that user's canonical brain is pulled
-from brain-cloud. So the rule is simple: **connect with the same Google account your CLI's
-`brain cloud` syncs to.**
+from brain-cloud: the brain the user chose with `brain_use`, or else the account's oldest. So the
+rule is simple: **connect with the same Google account your CLI's `brain cloud` syncs to, and use
+the same brain** (`brain cloud brains` shows which one the CLI is linked to).
 
 To keep that rule from failing silently, `ensureUserBrain` returns an `identity` signal that the
 tools surface to you:
@@ -94,11 +96,11 @@ tools surface to you:
 |-----------|-------------------|--------------|
 | Account has **no** brain in Brain Cloud | `no-cloud-brain` | A note (in `brain_status`, and in `brain_recall` when it finds nothing) telling you this account is empty — most likely you signed in with the wrong Google account, or you're brand new. |
 | Account has exactly **one** brain | `ok` | Nothing — the common, unambiguous case. |
-| (Pro) account has **several** brains | `multiple-brains` | A note that the connector is serving your **oldest** brain (the deterministic canonical pick). |
+| Account has **several** brains | `multiple-brains` | A note naming the brain in use. `brain_status` lists them all; `brain_use` switches, and the choice (kept with the OAuth state, per user) holds for later sessions. A chosen brain that is later deleted falls back to the oldest. |
 
 This is *guidance, not enforcement* — a genuinely new user with no brain yet still gets a usable
-empty brain. **Account-linking** (letting one Google identity span several brains, or choosing which
-brain a multi-brain account exposes) is deliberately deferred.
+empty brain. **Account-linking** (letting one Google identity span several brains at once) is
+deliberately deferred; choosing one brain at a time is `brain_use`.
 
 ## Auth
 
@@ -179,7 +181,7 @@ example `uniquelocal`; `true` is refused.
 
 ## Next
 
-- **Account-linking** — let one user span several brains (or pick which brain a multi-brain account
-  exposes), superseding today's "serve the oldest brain" canonical rule. See [Identity & accounts](#identity--accounts).
+- **Account-linking** — let one user span several brains at once (recall across them), rather than
+  serving one chosen brain at a time. See [Identity & accounts](#identity--accounts).
 - **Directory submission** — remaining manual steps (test account, MCPB packaging, launch post); see
   the submission checklist in `brain-cloud/docs/connector-architecture.md` §7.

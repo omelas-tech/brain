@@ -1,4 +1,5 @@
-// Persistent OAuth state — the DCR client registry + refresh-token grants.
+// Persistent OAuth state — the DCR client registry + refresh-token grants, plus
+// each user's choice of brain (small, and lost choices would surprise users).
 //
 // Why this exists: everything else in the AS is in-memory on purpose (auth codes
 // and pending logins live seconds; access tokens live an hour and a restart just
@@ -50,6 +51,9 @@ let loaded = false;
 
 const clients = new Map<string, RegisteredClient>();
 const grants = new Map<string, RefreshGrant>(); // key: hashToken(refresh token)
+// Which Brain Cloud brain each user chose to serve (brain_use). Absent → the
+// account's oldest brain. Keyed by brain user id; survives restarts like a login.
+const brainChoices = new Map<string, string>();
 
 export const hashToken = (token: string) =>
   crypto.createHash("sha256").update(token).digest("base64url");
@@ -107,6 +111,7 @@ function resolveKey(dir: string, keyOverride?: string | null): Buffer {
 export function initOAuthState(opts?: { dir?: string | null; key?: string | null }): { persistent: boolean; dir: string | null } {
   clients.clear();
   grants.clear();
+  brainChoices.clear();
   loaded = true;
   stateDir = opts?.dir !== undefined ? opts.dir : process.env.CONNECTOR_STATE_DIR || null;
   stateKey = null;
@@ -119,6 +124,9 @@ export function initOAuthState(opts?: { dir?: string | null; key?: string | null
     if (fs.existsSync(file)) {
       const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
       for (const [id, c] of Object.entries(raw.clients ?? {})) clients.set(id, c as RegisteredClient);
+      for (const [userId, brainId] of Object.entries(raw.brainChoices ?? {})) {
+        if (typeof brainId === "string") brainChoices.set(userId, brainId);
+      }
       let dropped = 0;
       for (const [hash, g] of Object.entries<any>(raw.grants ?? {})) {
         const { fbRefreshTokenEnc, successorTokenEnc, ...rest } = g;
@@ -163,6 +171,7 @@ function persistNow(): void {
           return [hash, { ...rest, ...enc }];
         }),
       ),
+      brainChoices: Object.fromEntries(brainChoices),
     };
     const file = path.join(stateDir, STATE_FILE);
     const tmp = `${file}.tmp`;
@@ -189,6 +198,22 @@ export function putClient(clientId: string, client: RegisteredClient): void {
 export function clientCount(): number {
   ensureLoaded();
   return clients.size;
+}
+
+// ---- brain choice ----------------------------------------------------------------
+
+/** The brain this user chose to serve, or undefined for the account's oldest. */
+export function getBrainChoice(userId: string): string | undefined {
+  ensureLoaded();
+  return brainChoices.get(userId);
+}
+
+/** Remember the user's choice; `undefined` goes back to the oldest brain. */
+export function setBrainChoice(userId: string, brainId: string | undefined): void {
+  ensureLoaded();
+  if (brainId) brainChoices.set(userId, brainId);
+  else brainChoices.delete(userId);
+  persistNow();
 }
 
 // ---- refresh grants ------------------------------------------------------------

@@ -317,9 +317,11 @@ async function pollDeviceCode(apiUrl, deviceCode, interval = 5000, timeout = 600
  *
  * @param {string} brainDir
  * @param {string} [apiUrl]
- * @returns {Promise<{user_code: string, verify_url: string, waitForApproval: () => Promise<void>}>}
+ * @param {Object} [opts]
+ * @param {string} [opts.brain] brain ID or name to link (created when no brain has that name)
+ * @returns {Promise<{user_code: string, verify_url: string, waitForApproval: () => Promise<{brain: Object, brains: Object[], created: boolean}>}>}
  */
-async function login(brainDir, apiUrl) {
+async function login(brainDir, apiUrl, opts = {}) {
   const url = apiUrl || DEFAULT_API_URL;
   const codeInfo = await requestDeviceCode(url);
 
@@ -337,21 +339,19 @@ async function login(brainDir, apiUrl) {
         userEmail = meRes.data.user.email;
       }
 
-      const brainsRes = await jsonRequest(`${url}/api/brains`, 'GET', null, tokens.access_token);
-      let brainId = null;
-      if (brainsRes.status === 200 && Array.isArray(brainsRes.data) && brainsRes.data.length > 0) {
-        brainId = brainsRes.data[0].id;
-      }
+      const choice = await chooseBrain(url, tokens.access_token, opts.brain);
 
       writeConfig(brainDir, {
         api_url: url,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_at: tokens.expires_at,
-        brain_id: brainId,
+        brain_id: choice.brain.id,
+        brain_name: choice.brain.name || null,
         user_email: userEmail,
         connected_at: new Date().toISOString(),
       });
+      return choice;
     },
   };
 }
@@ -369,15 +369,17 @@ function isSecureUrl(url) {
 /**
  * Log in to a store with a static bearer token (self-hosted brain-store).
  *
- * Verifies the token, links the user's first brain (creating one when the
- * account has none), and saves the config. There is no refresh token.
+ * Verifies the token, links a brain (`opts.brain`, else the account's first,
+ * creating one when the account has none), and saves the config. There is no
+ * refresh token.
  *
  * @param {string} brainDir
  * @param {string} apiUrl
  * @param {string} token
  * @param {Object} [opts]
  * @param {boolean} [opts.allowHttp] permit plain HTTP to a non-local host
- * @returns {Promise<{user_email: string, brain_id: string, api_url: string}>}
+ * @param {string} [opts.brain] brain ID or name to link (created when no brain has that name)
+ * @returns {Promise<{user_email: string, brain_id: string, brain_name: string|null, api_url: string, brains: Object[], created: boolean}>}
  */
 async function loginWithToken(brainDir, apiUrl, token, opts = {}) {
   if (!apiUrl) throw new Error('A token login needs the store address: --api-url URL');
@@ -395,25 +397,26 @@ async function loginWithToken(brainDir, apiUrl, token, opts = {}) {
   if (meRes.status !== 200) throw new Error(`Login failed (${meRes.status}): ${meRes.data.error || ''}`);
   const user = meRes.data.user || {};
 
-  const brainsRes = await jsonRequest(`${url}/api/brains`, 'GET', null, token);
-  if (brainsRes.status !== 200) throw new Error(`Could not list brains (${brainsRes.status}).`);
-  let brainId = Array.isArray(brainsRes.data) && brainsRes.data.length > 0 ? brainsRes.data[0].id : null;
-  if (!brainId) {
-    const created = await jsonRequest(`${url}/api/brains`, 'POST', { name: 'default' }, token);
-    if (created.status !== 201) throw new Error(`Could not create a brain (${created.status}): ${created.data.error || ''}`);
-    brainId = created.data.id;
-  }
+  const choice = await chooseBrain(url, token, opts.brain);
 
   const config = {
     api_url: url,
     token_type: 'static',
     access_token: token,
-    brain_id: brainId,
+    brain_id: choice.brain.id,
+    brain_name: choice.brain.name || null,
     user_email: user.email || user.name || '',
     connected_at: new Date().toISOString(),
   };
   writeConfig(brainDir, config);
-  return { user_email: config.user_email, brain_id: brainId, api_url: url };
+  return {
+    user_email: config.user_email,
+    brain_id: choice.brain.id,
+    brain_name: config.brain_name,
+    api_url: url,
+    brains: choice.brains,
+    created: choice.created,
+  };
 }
 
 /**
@@ -421,6 +424,129 @@ async function loginWithToken(brainDir, apiUrl, token, opts = {}) {
  *
  * @param {string} brainDir
  */
+// ---------------------------------------------------------------------------
+// Choosing a brain
+// ---------------------------------------------------------------------------
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Find a brain by its ID, or by name ignoring case. Returns null when nothing
+ * matches, and throws when a name matches more than one brain.
+ *
+ * @param {Array<{id: string, name?: string}>} brains
+ * @param {string} selector
+ */
+function matchBrain(brains, selector) {
+  const sel = String(selector || '').trim();
+  if (!sel) return null;
+  const byId = brains.find((b) => b.id === sel);
+  if (byId) return byId;
+  const key = sel.toLocaleLowerCase();
+  const named = brains.filter((b) => String(b.name || '').trim().toLocaleLowerCase() === key);
+  if (named.length > 1) {
+    throw new Error(`${named.length} brains are named "${sel}". Choose one by ID: ${named.map((b) => b.id).join(', ')}`);
+  }
+  return named[0] || null;
+}
+
+/** The account's first brain, the one every client links when told nothing else. */
+function oldestBrain(brains) {
+  return [...brains].sort((a, b) =>
+    String(a.created_at || '').localeCompare(String(b.created_at || '')) || a.id.localeCompare(b.id))[0] || null;
+}
+
+async function fetchBrains(url, token) {
+  const res = await jsonRequest(`${url}/api/brains`, 'GET', null, token);
+  if (res.status !== 200) throw new Error(`Could not list brains (${res.status}).`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+async function createBrain(url, token, name) {
+  const res = await jsonRequest(`${url}/api/brains`, 'POST', { name }, token);
+  if (res.status !== 201) throw new Error(`Could not create a brain (${res.status}): ${(res.data && res.data.error) || ''}`);
+  return res.data;
+}
+
+/**
+ * The brain a login links. With a selector: the brain it names, or a new brain
+ * of that name when none exists (an unknown ID is an error, never a new brain).
+ * Without one: the oldest brain, or a new "default" brain for an empty account.
+ *
+ * @returns {Promise<{brain: Object, brains: Object[], created: boolean}>}
+ */
+async function chooseBrain(url, token, selector) {
+  const brains = await fetchBrains(url, token);
+  if (selector) {
+    const found = matchBrain(brains, selector);
+    if (found) return { brain: found, brains, created: false };
+    const name = String(selector).trim();
+    if (UUID_RE.test(name)) throw new Error(`No brain with ID ${name} in this account.`);
+    const brain = await createBrain(url, token, name);
+    return { brain, brains: [...brains, brain], created: true };
+  }
+  if (brains.length > 0) return { brain: oldestBrain(brains), brains, created: false };
+  const brain = await createBrain(url, token, 'default');
+  return { brain, brains: [brain], created: true };
+}
+
+/**
+ * The account's brains, each marked `linked` when it is the one this device
+ * syncs with.
+ *
+ * @param {string} brainDir
+ * @returns {Promise<Object[]>}
+ */
+async function listBrains(brainDir) {
+  const config = readConfig(brainDir);
+  if (!config) throw new Error('Not logged in. Run cloud login first.');
+  const token = await getValidToken(brainDir);
+  const brains = await fetchBrains(config.api_url, token);
+  return brains.map((b) => ({ ...b, linked: b.id === config.brain_id }));
+}
+
+/**
+ * Link this device to another of the account's brains.
+ *
+ * Only the link changes; the local ~/.brain/ is left as it is. The sync base is
+ * cleared, so the next push succeeds only into a brain that has no archive yet:
+ * pushing one brain's memories over another's needs a pull first, or --force.
+ *
+ * @param {string} brainDir
+ * @param {string} selector brain ID or name
+ * @param {Object} [opts]
+ * @param {boolean} [opts.create] create the brain when no brain has that name
+ * @returns {Promise<{brain: Object, previous: string|null, changed: boolean, created: boolean}>}
+ */
+async function useBrain(brainDir, selector, opts = {}) {
+  const config = readConfig(brainDir);
+  if (!config) throw new Error('Not logged in. Run cloud login first.');
+  const token = await getValidToken(brainDir);
+  const brains = await fetchBrains(config.api_url, token);
+
+  let brain = matchBrain(brains, selector);
+  let created = false;
+  if (!brain) {
+    if (!opts.create) {
+      const names = brains.map((b) => `"${b.name}"`).join(', ') || 'none';
+      throw new Error(`No brain named "${selector}". This account has: ${names}. Add --create to make it.`);
+    }
+    brain = await createBrain(config.api_url, token, String(selector).trim());
+    created = true;
+  }
+
+  const previous = config.brain_id || null;
+  if (brain.id === previous) return { brain, previous, changed: false, created };
+
+  config.brain_id = brain.id;
+  config.brain_name = brain.name || null;
+  delete config.base_checksum;
+  delete config.last_push;
+  delete config.last_pull;
+  writeConfig(brainDir, config);
+  return { brain, previous, changed: true, created };
+}
+
 function logout(brainDir) {
   deleteConfig(brainDir);
 }
@@ -545,9 +671,15 @@ async function push(brainDir, opts = {}) {
     const tarSize = fs.statSync(tarPath).size;
     const url = `${config.api_url}/api/brains/${config.brain_id}/sync`;
 
-    const conditional = !opts.force && config.base_checksum
-      ? { 'If-Match': `"${config.base_checksum}"` }
-      : null;
+    // A brain that has never synced with this link (a fresh login, or
+    // `brain cloud use`) may only fill a store brain that is still empty. A
+    // config with sync history but no checksum predates conditional sync and
+    // pushes unconditionally, as it always did.
+    let conditional = null;
+    if (!opts.force) {
+      if (config.base_checksum) conditional = { 'If-Match': `"${config.base_checksum}"` };
+      else if (!config.last_push && !config.last_pull) conditional = { 'If-None-Match': '*' };
+    }
     const res = await uploadFile(url, tarPath, token, conditional);
 
     if (res.status === 412) {
@@ -746,7 +878,7 @@ async function status(brainDir) {
     api_url: config.api_url,
     user_email: config.user_email || (user && user.email) || null,
     brain_id: config.brain_id,
-    brain_name: brain ? brain.name : null,
+    brain_name: brain ? brain.name : config.brain_name || null,
     brain_size: brain ? brain.size_bytes : null,
     brain_files: brain ? brain.file_count : null,
     last_synced: brain && brain.last_synced_at ? brain.last_synced_at : null,
@@ -772,6 +904,9 @@ module.exports = {
   status,
   readConfig,
   writeConfig,
+  listBrains,
+  useBrain,
+  matchBrain,
   // Internal — exported for testing
   requestDeviceCode,
   pollDeviceCode,

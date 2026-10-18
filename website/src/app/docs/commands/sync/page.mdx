@@ -82,8 +82,24 @@ brain cloud login          # Authenticate
 brain cloud push           # Upload ~/.brain/
 brain cloud pull           # Download to ~/.brain/
 brain cloud status         # Show connection info
+brain cloud brains         # List the account's brains
+brain cloud use <name>     # Sync with another brain
 brain cloud logout         # Clear credentials
 ```
+
+### Several Brains
+
+An account can hold more than one brain, for example one per project, created on the Brains page of the dashboard. `brain cloud login` links the account's first brain unless you name another:
+
+```bash
+brain cloud login --brain "Work"     # link "Work", creating it if no brain has that name
+brain cloud brains                   # * marks the brain this device syncs with
+brain cloud use Work                 # switch; add --create to make a new one
+```
+
+Names match ignoring case. Switching changes only which brain this device syncs with: `~/.brain/` is left as it is. Run `brain cloud pull` to load the brain you switched to. A push into a brain that already holds memories this device has not pulled is refused, so one brain's memories never land on top of another's by accident.
+
+In Claude.ai and other MCP hosts, ask the agent which brains you have (`brain_status`) and to switch (`brain_use`). The connector remembers your choice for later sessions. Use the same brain on both sides, or memories saved in one will not show up in the other.
 
 ### When a Push Is Refused
 

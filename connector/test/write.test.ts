@@ -62,7 +62,7 @@ async function main() {
     await client.connect(transport);
 
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin", "brain_verify"]);
+    assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin", "brain_use", "brain_verify"]);
     log(`① tools/list → [${tools.join(", ")}]`);
 
     // Write a memory from explicit content

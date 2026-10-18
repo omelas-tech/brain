@@ -6,7 +6,7 @@ that prefers the cloud brain). It declares one remote MCP server —
 `https://mcp.brainmemory.ai/mcp` — and nothing else; sign-in is the connector's own
 OAuth 2.1 flow (Google), so importing this plugin never grants access by itself.
 
-Tools: `brain_recall`, `brain_status`, `brain_memorize`, `brain_verify`, `brain_pin`,
+Tools: `brain_recall`, `brain_status`, `brain_use`, `brain_memorize`, `brain_verify`, `brain_pin`,
 `brain_unpin`, `brain_forget`, plus the Memory Inspector resource. Same memories as the
 local `brain` plugin when synced (`/brain:sync`). Source and deploy notes for the
 connector itself live in `../../connector/`.

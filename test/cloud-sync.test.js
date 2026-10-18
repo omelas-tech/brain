@@ -257,17 +257,40 @@ describe('cloud-sync: device-code login flow', () => {
     assert.equal(cfg.api_url, apiUrl);
   });
 
-  it('login tolerates an empty brains list (brain_id stays null)', async () => {
+  it('login creates a "default" brain for an account that has none', async () => {
     routes['POST /auth/device/request'] = (req, res) =>
       send(res, 200, { device_code: 'dev-1', user_code: 'WXYZ', verify_url: 'x', expires_in: 600 });
     routes['POST /auth/device/poll'] = (req, res) =>
       send(res, 200, { status: 'approved', tokens: { access_token: 'tok', refresh_token: 'ref', expires_at: 1 } });
     routes['GET /auth/me'] = (req, res) => send(res, 200, { user: { email: 'a@b.c' } });
     routes['GET /api/brains'] = (req, res) => send(res, 200, []);
+    routes['POST /api/brains'] = (req, res, body) => {
+      assert.equal(JSON.parse(body).name, 'default');
+      send(res, 201, { id: 'brain-new', name: 'default' });
+    };
 
     const { waitForApproval } = await cloud.login(brainDir, apiUrl);
-    await waitForApproval();
-    assert.equal(cloud.readConfig(brainDir).brain_id, null);
+    const choice = await waitForApproval();
+    assert.equal(choice.created, true);
+    assert.equal(cloud.readConfig(brainDir).brain_id, 'brain-new');
+    assert.equal(cloud.readConfig(brainDir).brain_name, 'default');
+  });
+
+  it('login --brain links the named brain, not the first', async () => {
+    routes['POST /auth/device/request'] = (req, res) =>
+      send(res, 200, { device_code: 'dev-1', user_code: 'WXYZ', verify_url: 'x', expires_in: 600 });
+    routes['POST /auth/device/poll'] = (req, res) =>
+      send(res, 200, { status: 'approved', tokens: { access_token: 'tok', refresh_token: 'ref', expires_at: 1 } });
+    routes['GET /auth/me'] = (req, res) => send(res, 200, { user: { email: 'a@b.c' } });
+    routes['GET /api/brains'] = (req, res) => send(res, 200, [
+      { id: 'brain-1', name: 'default', created_at: '2026-09-30T00:00:00Z' },
+      { id: 'brain-2', name: 'STUDIA МИРА', created_at: '2026-10-11T00:00:00Z' },
+    ]);
+
+    const { waitForApproval } = await cloud.login(brainDir, apiUrl, { brain: 'studia мира' });
+    const choice = await waitForApproval();
+    assert.equal(choice.created, false);
+    assert.equal(cloud.readConfig(brainDir).brain_id, 'brain-2');
   });
 });
 

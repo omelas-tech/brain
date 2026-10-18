@@ -4,10 +4,13 @@
  * brain cloud — CLI for syncing with Brain Cloud or a self-hosted brain-store
  *
  * Usage:
- *   brain cloud login [--api-url URL]   Authenticate via device code flow
+ *   brain cloud login [--api-url URL] [--brain NAME|ID]
+ *                                       Authenticate via device code flow
  *   brain cloud login --api-url URL --token-stdin
  *                                       Authenticate to a self-hosted store with a token
  *   brain cloud logout                  Clear stored credentials
+ *   brain cloud brains                  List the account's brains
+ *   brain cloud use NAME|ID [--create]  Sync with another brain
  *   brain cloud push [--force]          Upload ~/.brain/ to the cloud
  *   brain cloud pull                    Download from the cloud to ~/.brain/
  *   brain cloud status                  Show connection and sync status
@@ -30,7 +33,12 @@ brain cloud — Brain Cloud sync CLI
 
 Commands:
   login [--api-url URL]   Authenticate via device code flow
+        [--brain NAME|ID] Link this brain (created if no brain has that name);
+                          without it, the account's first brain
   logout                  Clear stored credentials
+  brains                  List the account's brains; * marks the linked one
+  use NAME|ID [--create]  Sync with another brain. ~/.brain/ is left as it is:
+                          pull to load that brain, or push into an empty one
   push [--force]          Upload ~/.brain/ to the cloud
   pull                    Download from the cloud to ~/.brain/
   status                  Show connection and sync status
@@ -54,6 +62,12 @@ push refuses to overwrite changes it has not pulled. --force uploads anyway.
     case 'logout':
       cmdLogout();
       break;
+    case 'brains':
+      await cmdBrains();
+      break;
+    case 'use':
+      await cmdUse(args);
+      break;
     case 'push':
       await cmdPush(args);
       break;
@@ -76,19 +90,22 @@ async function cmdLogin(args) {
     apiUrl = args[urlIdx + 1];
   }
 
+  const brain = flagValue(args, '--brain');
+
   const token = await readToken(args);
   if (token) {
     const result = await cloud.loginWithToken(BRAIN_DIR, apiUrl, token, {
       allowHttp: args.includes('--allow-http'),
+      brain,
     });
     console.log(`✓ Logged in as ${result.user_email || 'unknown'}`);
-    console.log(`  Brain ID: ${result.brain_id}`);
+    printLinked(result.brain_id, result.brain_name, result);
     console.log(`  API: ${result.api_url}`);
     return;
   }
 
   console.log('Requesting device code...');
-  const loginInfo = await cloud.login(BRAIN_DIR, apiUrl);
+  const loginInfo = await cloud.login(BRAIN_DIR, apiUrl, { brain });
 
   console.log();
   console.log('  Open this URL in your browser to log in:');
@@ -99,15 +116,56 @@ async function cmdLogin(args) {
   console.log();
   console.log(`  Waiting for approval (expires in ${Math.floor(loginInfo.expires_in / 60)} min)...`);
 
-  await loginInfo.waitForApproval();
+  const choice = await loginInfo.waitForApproval();
 
   const config = cloud.readConfig(BRAIN_DIR);
   console.log();
   console.log(`✓ Logged in as ${config.user_email || 'unknown'}`);
-  if (config.brain_id) {
-    console.log(`  Brain ID: ${config.brain_id}`);
-  }
+  printLinked(config.brain_id, config.brain_name, choice || {});
   console.log(`  API: ${config.api_url}`);
+}
+
+function flagValue(args, flag) {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return undefined;
+  if (!args[idx + 1] || args[idx + 1].startsWith('--')) throw new Error(`${flag} needs a value.`);
+  return args[idx + 1];
+}
+
+/** After a login: which brain is linked, and the others an account has. */
+function printLinked(brainId, brainName, { brains = [], created = false }) {
+  console.log(`  Brain:    ${brainName ? `"${brainName}" ` : ''}(${brainId})${created ? ' — new' : ''}`);
+  const others = brains.filter((b) => b.id !== brainId);
+  if (others.length > 0) {
+    console.log(`  This account has ${others.length} other brain${others.length === 1 ? '' : 's'}: ${others.map((b) => `"${b.name}"`).join(', ')}`);
+    console.log('  Switch with: brain cloud use <name>');
+  }
+}
+
+async function cmdBrains() {
+  const brains = await cloud.listBrains(BRAIN_DIR);
+  if (brains.length === 0) {
+    console.log('This account has no brains yet. `brain cloud push` creates one.');
+    return;
+  }
+  for (const b of brains) {
+    const synced = b.last_synced_at ? `synced ${String(b.last_synced_at).slice(0, 10)}` : 'never synced';
+    console.log(`${b.linked ? '*' : ' '} ${b.name}  (${b.id})  ${b.file_count || 0} files, ${synced}`);
+  }
+}
+
+async function cmdUse(args) {
+  const selector = args.slice(1).find((a) => !a.startsWith('--'));
+  if (!selector) throw new Error('Usage: brain cloud use <name|id> [--create]');
+  const result = await cloud.useBrain(BRAIN_DIR, selector, { create: args.includes('--create') });
+  if (!result.changed) {
+    console.log(`Already syncing with "${result.brain.name}".`);
+    return;
+  }
+  console.log(`✓ Now syncing with "${result.brain.name}" (${result.brain.id})${result.created ? ' — new' : ''}`);
+  console.log('  ~/.brain/ is unchanged. Next:');
+  console.log('    brain cloud pull   replace it with this brain\'s memories');
+  console.log('    brain cloud push   upload it, if this brain is still empty');
 }
 
 /**

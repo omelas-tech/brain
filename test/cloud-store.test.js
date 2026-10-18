@@ -226,3 +226,94 @@ describe('cloud-sync against brain-store', () => {
     });
   });
 });
+
+describe('cloud-sync: choosing a brain', () => {
+  let ref;
+  const dirs = [];
+  const brainDir = (label) => { const d = newBrain(label); dirs.push(d); return d; };
+
+  before(async () => { ref = await startReferenceStore(); });
+  after(async () => {
+    await ref.close();
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('links the first brain by default and names the others', async () => {
+    const first = await cloud.loginWithToken(brainDir('first'), ref.url, ref.token);
+    assert.equal(first.created, true);
+    const work = await cloud.loginWithToken(brainDir('work'), ref.url, ref.token, { brain: 'Work' });
+    assert.equal(work.created, true);
+    assert.equal(work.brain_name, 'Work');
+    assert.notEqual(work.brain_id, first.brain_id);
+
+    const again = await cloud.loginWithToken(brainDir('again'), ref.url, ref.token);
+    assert.equal(again.brain_id, first.brain_id);
+    assert.deepEqual(again.brains.map((b) => b.name).sort(), ['Work', 'default']);
+  });
+
+  it('matches a name ignoring case, and refuses an unknown ID', async () => {
+    const dir = brainDir('case');
+    const result = await cloud.loginWithToken(dir, ref.url, ref.token, { brain: 'WORK' });
+    assert.equal(result.brain_name, 'Work');
+    assert.equal(result.created, false);
+    await assert.rejects(
+      cloud.loginWithToken(brainDir('ghost'), ref.url, ref.token, { brain: '00000000-0000-4000-8000-000000000000' }),
+      /No brain with ID/);
+  });
+
+  it('refuses a name that matches several brains', () => {
+    const brains = [{ id: 'a', name: 'Notes' }, { id: 'b', name: 'notes' }];
+    assert.throws(() => cloud.matchBrain(brains, 'NOTES'), /2 brains are named/);
+    assert.equal(cloud.matchBrain(brains, 'b').id, 'b');
+    assert.equal(cloud.matchBrain(brains, 'other'), null);
+  });
+
+  it('a fresh login cannot push over a brain that already has an archive', async () => {
+    const laptop = brainDir('laptop');
+    await cloud.loginWithToken(laptop, ref.url, ref.token);
+    remember(laptop, 'one.md', 'the first device fills the empty brain');
+    await cloud.push(laptop);
+
+    const other = brainDir('other');
+    await cloud.loginWithToken(other, ref.url, ref.token);
+    remember(other, 'two.md', 'a new device that never pulled');
+    await assert.rejects(cloud.push(other), { name: 'PushConflictError' });
+    await cloud.pull(other);
+    assert.ok(fs.existsSync(path.join(other, 'professional', 'one.md')));
+  });
+
+  it('use switches the link, leaves ~/.brain alone, and guards the push', async () => {
+    const dir = brainDir('switch');
+    await cloud.loginWithToken(dir, ref.url, ref.token);
+    await cloud.pull(dir);
+    remember(dir, 'mine.md', 'local memory');
+
+    const listed = await cloud.listBrains(dir);
+    assert.equal(listed.filter((b) => b.linked).length, 1);
+    assert.equal(listed.find((b) => b.linked).name, 'default');
+
+    // "Work" is empty, so the first push into it goes through.
+    const used = await cloud.useBrain(dir, 'work');
+    assert.equal(used.changed, true);
+    assert.equal(used.brain.name, 'Work');
+    const config = cloud.readConfig(dir);
+    assert.equal(config.brain_name, 'Work');
+    assert.equal(config.base_checksum, undefined);
+    assert.ok(fs.existsSync(path.join(dir, 'professional', 'mine.md')));
+    await cloud.push(dir);
+
+    // Back to "default", which has an archive: pushing over it needs a pull or --force.
+    await cloud.useBrain(dir, 'default');
+    await assert.rejects(cloud.push(dir), { name: 'PushConflictError' });
+    assert.equal((await cloud.useBrain(dir, 'default')).changed, false);
+  });
+
+  it('use refuses an unknown name unless asked to create it', async () => {
+    const dir = brainDir('create');
+    await cloud.loginWithToken(dir, ref.url, ref.token);
+    await assert.rejects(cloud.useBrain(dir, 'Studia'), /Add --create/);
+    const made = await cloud.useBrain(dir, 'Studia', { create: true });
+    assert.equal(made.created, true);
+    assert.equal((await cloud.listBrains(dir)).length, 3);
+  });
+});

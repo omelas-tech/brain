@@ -62,6 +62,7 @@ and every write tool is `destructiveHint: true`.
 |---|---|
 | `brain_recall` | read |
 | `brain_status` | read |
+| `brain_use` | redirect (which brain later reads and writes reach; changes no memory) |
 | `brain_memorize` | write |
 | `brain_forget` | write |
 | `brain_unpin` | write |

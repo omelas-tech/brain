@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- **Choose a brain when an account has several.** `brain cloud login --brain
+  NAME|ID` links that brain (creating it when no brain has that name); without
+  it, login links the account's first brain as before, and now creates a
+  `default` brain for an empty account on the device flow too. `brain cloud
+  brains` lists the account's brains, and `brain cloud use NAME|ID [--create]`
+  switches which one this device syncs with, leaving `~/.brain/` as it is.
+  Names match ignoring case. In the connector, `brain_status` lists the brains
+  with the one in use marked, and a new `brain_use` tool switches; the choice is
+  kept per user across sessions, and a chosen brain that is deleted falls back
+  to the oldest.
+
+### Changed
+- A device that has never synced with its linked brain (a fresh login, or after
+  `brain cloud use`) now pushes only into a brain with no archive yet
+  (`If-None-Match: *`). Pull first, or `--force`, to replace a brain that has
+  memories. Configs that predate conditional sync keep pushing as before.
+
+### Fixed
+- The connector pushes a write to the brain its working copy came from, and
+  drops the previous brain's copy when the brain it serves changes, so one
+  brain's memories are never shown under or pushed into another.
+
 ## [0.5.0] - 2026-10-18
 
 Memory stops being a way to smuggle instructions or permissions into an agent.

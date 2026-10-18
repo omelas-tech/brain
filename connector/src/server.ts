@@ -22,9 +22,12 @@ import {
   type Session,
 } from "./auth.js";
 import { registerOAuthRoutes, mcpResource, sweepExpired } from "./oauth.js";
-import { initOAuthState } from "./persist.js";
+import { initOAuthState, setBrainChoice } from "./persist.js";
 import { activeProvider, providerProblem } from "./identity.js";
-import { ensureUserBrain, syncBack, purgeBrain, startBrainReaper } from "./store.js";
+import {
+  ensureUserBrain, syncBack, purgeBrain, startBrainReaper,
+  listCloudBrains, matchBrain, summarizeBrains, describeIdentity, pulledBrainId, type BrainSummary,
+} from "./store.js";
 import { memorize, pin, unpin, forget, verifyList, verifyApprove, verifyReject } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
 import { memoryResult } from "./result.js";
@@ -61,7 +64,8 @@ export function buildServer(session: Session): McpServer {
         "'user' only when the user stated the fact or asked to remember it. When a new fact " +
         "replaces an old one, pass the old id in supersedes instead of storing both. Memory ids " +
         "for pin, unpin and forget come from brain_recall results. Approving a memory in " +
-        "brain_verify is the user's decision — never approve one the user has not reviewed.",
+        "brain_verify is the user's decision — never approve one the user has not reviewed. " +
+        "Call brain_use only when the user asks to switch brains.",
     },
   );
 
@@ -140,7 +144,9 @@ export function buildServer(session: Session): McpServer {
   server.registerTool(
     "brain_status",
     {
-      description: "Health overview of the user's brain: memory count and last-updated time.",
+      description:
+        "Health overview of the user's brain: memory count and last-updated time, and the " +
+        "account's brains in Brain Cloud with the one in use marked active.",
       inputSchema: {},
       annotations: { readOnlyHint: true, title: "Brain status" },
     },
@@ -150,9 +156,68 @@ export function buildServer(session: Session): McpServer {
       // brain_status is the diagnostic tool — always report the identity hint here
       // (e.g. "this account has no brain in Brain Cloud") so a wrong-account
       // sign-in is visible even when the brain isn't empty for other reasons.
-      const note = session.identityNote;
-      const out = note ? { ...s, note } : s;
+      let note = session.identityNote;
+      let brains: BrainSummary[] | undefined;
+      if (session.idToken) {
+        try {
+          const cloud = await listCloudBrains(session.idToken);
+          const activeId = pulledBrainId(session.brainDir) ?? session.brainId ?? null;
+          brains = summarizeBrains(cloud, activeId);
+          note = describeIdentity(cloud.length, cloud.find((b) => b.id === activeId)).note;
+        } catch { /* the list is extra; status stands without it */ }
+      }
+      const out = { ...s, ...(brains ? { brains } : {}), ...(note ? { note } : {}) };
       return memoryResult(JSON.stringify(out, null, 2), out);
+    },
+  );
+
+  server.registerTool(
+    "brain_use",
+    {
+      description:
+        "Switch which of the account's Brain Cloud brains this connector reads and writes, by " +
+        "name or id (brain_status lists them). The choice is remembered for later sessions. " +
+        "Nothing is copied between brains.",
+      inputSchema: {
+        brain: z.string().min(1).describe("Name (case-insensitive) or id of the brain to use"),
+      },
+      annotations: { title: "Use brain", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async ({ brain }) => {
+      if (!hasScope(session, "brain.write")) return scopeError("brain_use");
+      if (!session.idToken) {
+        return { ...memoryResult("brain_use needs a Brain Cloud sign-in; this session has none."), isError: true };
+      }
+      let cloud;
+      let target;
+      try {
+        cloud = await listCloudBrains(session.idToken);
+        target = matchBrain(cloud, brain);
+      } catch (e) {
+        return { ...memoryResult(`brain_use failed: ${(e as Error).message}`), isError: true };
+      }
+      if (!target) {
+        const names = cloud.map((b) => `"${b.name ?? "default"}"`).join(", ") || "none";
+        return { ...memoryResult(`No brain named "${brain}". This account has: ${names}.`), isError: true };
+      }
+      const previous = pulledBrainId(session.brainDir) ?? session.brainId ?? null;
+      setBrainChoice(session.userId, target.id);
+      if (target.id !== previous) {
+        // Start clean from the chosen brain; the previous one stays as it is in the cloud.
+        purgeBrain(session.brainDir);
+        await ensureUserBrain({ userId: session.userId, brainDir: session.brainDir, idToken: session.idToken, refresh: true });
+        session.brainId = target.id;
+      }
+      const out = {
+        active: { id: target.id, name: target.name ?? "default" },
+        changed: target.id !== previous,
+        brains: summarizeBrains(cloud, target.id),
+        memory_count: status(session.brainDir).memory_count,
+      };
+      return memoryResult(
+        `${out.changed ? "Now using" : "Already using"} "${out.active.name}" (${out.memory_count} memories).`,
+        out,
+      );
     },
   );
 
