@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.5.1",
+    "date": "2026-10-18",
+    "sections": [
+      {
+        "category": "Added",
+        "items": [
+          "**Choose a brain when an account has several.** `brain cloud login --brain NAME|ID` links that brain (creating it when no brain has that name); without it, login links the account's first brain as before, and now creates a `default` brain for an empty account on the device flow too. `brain cloud brains` lists the account's brains, and `brain cloud use NAME|ID [--create]` switches which one this device syncs with, leaving `~/.brain/` as it is. Names match ignoring case. In the connector, `brain_status` lists the brains with the one in use marked, and a new `brain_use` tool switches; the choice is kept per user across sessions, and a chosen brain that is deleted falls back to the oldest."
+        ]
+      },
+      {
+        "category": "Changed",
+        "items": [
+          "A device that has never synced with its linked brain (a fresh login, or after `brain cloud use`) now pushes only into a brain with no archive yet (`If-None-Match: *`). Pull first, or `--force`, to replace a brain that has memories. Configs that predate conditional sync keep pushing as before."
+        ]
+      },
+      {
+        "category": "Fixed",
+        "items": [
+          "The connector pushes a write to the brain its working copy came from, and drops the previous brain's copy when the brain it serves changes, so one brain's memories are never shown under or pushed into another.",
+          "`brain memorize` reads stdin as a stream, so piping into it on macOS can no longer fail with `EAGAIN`.",
+          "The Cursor plugin manifest and the MCP Registry entry (`server.json`) now follow the package version on every release."
+        ]
+      }
+    ],
+    "note": "An account with several brains can now choose which one each device, and the connector, syncs with. A device that has just linked a brain can no longer overwrite that brain's memories with its first push."
+  },
+  {
     "version": "0.5.0",
     "date": "2026-10-18",
     "sections": [

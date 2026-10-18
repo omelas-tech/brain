@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-18
+
+An account with several brains can now choose which one each device, and the
+connector, syncs with. A device that has just linked a brain can no longer
+overwrite that brain's memories with its first push.
+
 ### Added
 - **Choose a brain when an account has several.** `brain cloud login --brain
   NAME|ID` links that brain (creating it when no brain has that name); without
@@ -28,6 +34,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - The connector pushes a write to the brain its working copy came from, and
   drops the previous brain's copy when the brain it serves changes, so one
   brain's memories are never shown under or pushed into another.
+- `brain memorize` reads stdin as a stream, so piping into it on macOS can no
+  longer fail with `EAGAIN`.
+- The Cursor plugin manifest and the MCP Registry entry (`server.json`) now
+  follow the package version on every release.
 
 ## [0.5.0] - 2026-10-18
 
