@@ -416,10 +416,11 @@ async function main() {
     process.exit(1);
   }
 
-  // Read from fd 0 rather than the '/dev/stdin' path: the path form fails with
-  // ENXIO on Linux CI runners and doesn't exist on Windows, whereas fd 0 reads
-  // piped stdin portably across Linux, macOS, and Windows.
-  inputData = fs.readFileSync(0, 'utf-8');
+  // Read stdin as a stream. The '/dev/stdin' path fails with ENXIO on Linux CI
+  // and doesn't exist on Windows; readFileSync(0) throws EAGAIN on macOS when
+  // the parent hands over a non-blocking pipe. The stream handles both.
+  process.stdin.setEncoding('utf-8');
+  for await (const chunk of process.stdin) inputData += chunk;
 
   let input;
   try {
