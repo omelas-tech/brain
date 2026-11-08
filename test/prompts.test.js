@@ -44,7 +44,7 @@ describe('Prompt source files — session lifecycle sections', () => {
   const promptFiles = [
     { file: 'claude.md', prefix: '/brain:' },
     { file: 'antigravity.md', prefix: '/brain-' },
-    { file: 'openai.md', prefix: '/brain-' },
+    { file: 'openai.md', prefix: '$brain-' },
     { file: 'opencode.md', prefix: '/brain:' },
     { file: 'copilot.md', prefix: '/brain-' },
     { file: 'kilo.md', prefix: '/brain:' },
@@ -243,15 +243,16 @@ describe('Prompt content consistency across runtimes', () => {
     }
   });
 
-  it('openai prompt uses /brain- prefix while claude uses /brain:', () => {
+  it('openai prompt uses the $brain- skill prefix while claude uses /brain:', () => {
     const claude = readPrompt('claude.md');
     const openai = readPrompt('openai.md');
 
     // Claude Code uses the /brain: prefix
     assert.ok(claude.includes('/brain:memorize'));
 
-    // OpenAI Codex uses /brain- prefix
-    assert.ok(openai.includes('/brain-memorize'));
+    // OpenAI Codex invokes skills with $ — it has no /brain- slash commands
+    assert.ok(openai.includes('$brain-memorize'));
+    assert.ok(!openai.includes('/brain-'));
     assert.ok(!openai.includes('/brain:memorize'));
   });
 });

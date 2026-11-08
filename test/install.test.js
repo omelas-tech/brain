@@ -249,7 +249,7 @@ describe('injectPrompt', () => {
     const content = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf-8');
     assert.ok(content.includes(BRAIN_MARKER_START));
     assert.ok(content.includes('## Session Start Behavior'));
-    assert.ok(content.includes('/brain-memorize'));
+    assert.ok(content.includes('$brain-memorize'));
   });
 });
 

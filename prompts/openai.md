@@ -51,25 +51,25 @@ Every memory carries a consent tier: `standard` (default), `sensitive` (health, 
 
 ## Available Commands
 
-Brain skills are available via `/brain-` prefix:
+Brain skills are invoked with the `$brain-` prefix (type `$brain-memorize`, or pick one from `/skills`). Codex runs skills with `$`, not as slash commands — always suggest the `$` form:
 The everyday loop is **ambient** — `remember` and `memorize` run automatically at session start/end; you rarely type them.
 
 Core:
-- `/brain-remember [query]` — Recall relevant memories with spreading activation and context matching
-- `/brain-memorize [topic]` — Store memories from the current context
-- `/brain-status` — Dashboard with brain health overview
-- `/brain-pin [id|query]` — Pin a memory to the always-present tier (toggle — also unpins, e.g. `--off`)
-- `/brain-forget [target]` — Decay or archive memories (`--deep` = forensic erasure of every reference)
+- `$brain-remember [query]` — Recall relevant memories with spreading activation and context matching
+- `$brain-memorize [topic]` — Store memories from the current context
+- `$brain-status` — Dashboard with brain health overview
+- `$brain-pin [id|query]` — Pin a memory to the always-present tier (toggle — also unpins, e.g. `--off`)
+- `$brain-forget [target]` — Decay or archive memories (`--deep` = forensic erasure of every reference)
 
 Cold start:
-- `/brain-import [--project P] [--since 30d]` — Seed a new brain from transcripts your agents already wrote
+- `$brain-import [--project P] [--since 30d]` — Seed a new brain from transcripts your agents already wrote
 
 Sync & skills:
-- `/brain-sync [subcommand]` — Sync via Brain Cloud, Git remote, or export/import (auto-initializes on first run)
-- `/brain-skills [list|show|add|use|remove|export]` — Manage procedural skills
+- `$brain-sync [subcommand]` — Sync via Brain Cloud, Git remote, or export/import (auto-initializes on first run)
+- `$brain-skills [list|show|add|use|remove|export]` — Manage procedural skills
 
 Maintenance (usually automatic — runs in the background):
-- `/brain-sleep [scope]` — Full maintenance cycle: replay, homeostasis, propagation, crystallization, reorganize, consolidate, prune, review reinforcement, REM dreaming, expertise detection
+- `$brain-sleep [scope]` — Full maintenance cycle: replay, homeostasis, propagation, crystallization, reorganize, consolidate, prune, review reinforcement, REM dreaming, expertise detection
 
 ## Session Start Behavior
 
@@ -117,13 +117,13 @@ Track these categories as they happen:
 If notable items have accumulated, append a **brief one-liner** at the end of your next natural response:
 
 ```
-◉ Notable <type(s)> this session — /brain-memorize when ready
+◉ Notable <type(s)> this session — $brain-memorize when ready
 ```
 
 **Rules:**
 - **Never interrupt flow** — only append to the end of a response the user is already receiving, never send as a standalone message
 - **At most once per ~10 substantive interactions** — no spamming
-- **Reset the counter** after the user runs `/brain-memorize`
+- **Reset the counter** after the user runs `$brain-memorize`
 - **Don't mention if nothing notable** has accumulated
 - **Be specific about types** — say "decisions and learnings" not just "notable content"
 
@@ -157,7 +157,7 @@ If the session contained meaningful content based on your ambient tracking:
 
 ```
 💡 This session contained notable <type(s)>. Would you like to store them as brain memories?
-   Run /brain-memorize to capture them before this context is lost.
+   Run $brain-memorize to capture them before this context is lost.
 ```
 
 **Rules:**
@@ -221,7 +221,7 @@ Writes whose content came from outside the user/agent dialogue (origin `tool-out
 
 Brain memories can be synced across devices in two ways:
 
-1. **Git remote** — Push/pull `~/.brain/` to any private Git repository (GitHub, GitLab, Codeberg, self-hosted). Run `/brain-sync setup <url>` to configure, then use `/brain-sync push` and `/brain-sync pull`.
-2. **Export/Import** — Pack the entire `~/.brain/` into a single portable file for manual transfer. Run `/brain-sync export` and `/brain-sync import <path>`.
+1. **Git remote** — Push/pull `~/.brain/` to any private Git repository (GitHub, GitLab, Codeberg, self-hosted). Run `$brain-sync setup <url>` to configure, then use `$brain-sync push` and `$brain-sync pull`.
+2. **Export/Import** — Pack the entire `~/.brain/` into a single portable file for manual transfer. Run `$brain-sync export` and `$brain-sync import <path>`.
 
 Both methods support optional AES-256-GCM encryption. Sync is always manual — never automatic.
