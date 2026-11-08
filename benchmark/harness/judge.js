@@ -40,6 +40,9 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_JUDGE_TIMEOUT_MS = 240_000;
 const DEEPSEEK_JUDGE_TIMEOUT_MS = 180_000;
 const DEEPSEEK_JUDGE_MAX_TOKENS = 4096;
+// Gemini 2.5 Pro thinks before answering and its thinking counts against
+// maxOutputTokens; at 2000 a 7-criterion verdict was cut off mid-JSON.
+const GEMINI_JUDGE_MAX_TOKENS = 8192;
 
 /**
  * The committed cross-family judge PANEL.
@@ -351,7 +354,7 @@ function callGemini(prompt, model) {
   if (!key) throw new Error('GEMINI_API_KEY not set — judge cannot run');
   const body = JSON.stringify({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: JUDGE_MAX_TOKENS },
+    generationConfig: { temperature: 0, maxOutputTokens: GEMINI_JUDGE_MAX_TOKENS },
   });
   return httpsJson({
     hostname: 'generativelanguage.googleapis.com',

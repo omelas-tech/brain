@@ -10,8 +10,11 @@
  *
  * Auth: DEEPSEEK_API_KEY (export from Keychain before running).
  * Model: DEEPSEEK_BENCH_MODEL (default deepseek-v4-pro).
- * Output budget: DEEPSEEK_NUM_PREDICT (default 8192 — v4-pro emits thinking
- *   blocks, so leave room for reasoning + the actual code).
+ * Output budget: DEEPSEEK_NUM_PREDICT (default 32768). v4-pro emits thinking
+ *   blocks that count against max_tokens; by 2026-11 it routinely spent all of
+ *   the old 8192 default on thinking and returned no text, which was then
+ *   judged as a FAIL. A run that hits the budget without any text is now
+ *   rejected (→ NO_COMPLETION, reason 'budget') instead of scored.
  */
 
 const https = require('https');
@@ -79,7 +82,7 @@ function run(prompt, { timeout = 300000 } = {}) {
 
     const body = JSON.stringify({
       model: model(),
-      max_tokens: parseInt(process.env.DEEPSEEK_NUM_PREDICT || '8192', 10),
+      max_tokens: parseInt(process.env.DEEPSEEK_NUM_PREDICT || '32768', 10),
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -108,6 +111,9 @@ function run(prompt, { timeout = 300000 } = {}) {
           const j = JSON.parse(buf);
           // Extract the assistant's TEXT blocks (skip "thinking" blocks).
           const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('');
+          if (!text.trim() && j.stop_reason === 'max_tokens') {
+            return reject(new Error(`DeepSeek output budget exhausted (max_tokens) before any answer text — raise DEEPSEEK_NUM_PREDICT`));
+          }
           resolve({
             output: text,
             raw: j,

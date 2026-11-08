@@ -716,6 +716,9 @@ function classifyError(err) {
   // prompt (e.g. the dump-everything arm) can blow the per-minute token budget
   // and 429 every subsequent call; backing off lets the window reset.
   if (/rate.?limit|overloaded|\b429\b|too many requests|quota|usage limit/.test(m)) return 'ratelimit';
+  // Model spent its whole output budget (e.g. on thinking) and produced no
+  // answer — not retried (same prompt, same budget), and never scored as FAIL.
+  if (m.includes('output budget exhausted')) return 'budget';
   if (m.includes('timed out') || m.includes('timeout')) return 'timeout';
   if (/econnreset|etimedout|enotfound|socket|network|exited with code|stream parse|result error|error_during_execution|no parseable/.test(m)) return 'infra';
   if (m.includes('parse')) return 'parse';
