@@ -22,12 +22,12 @@
       "model": "gemini-2.5-pro"
     },
     {
-      "id": "gemini_flash_lite",
-      "provider": "gemini",
-      "model": "gemini-3.1-flash-lite"
+      "id": "claude_haiku",
+      "provider": "claude",
+      "model": "claude-haiku-5-5"
     }
   ],
-  "_judges_comment": "All-Google judge panel (2026-07-05 second amendment): gemini-3.5-flash + gemini-2.5-pro + gemini-3.1-flash-lite \u2014 three distinct models/generations, one family. Agent under test = DeepSeek V4 Pro; no judge shares the agent's family (the axis that prevents self-preference, arXiv 2502.01534). DISCLOSED LIMITATION: judge-family monoculture \u2014 all three judges share Google lineage, so family-level judge bias is not averaged out; mitigated by (a) needle-fact rubrics that minimize judge discretion, (b) the old-panel Scenario A run retained for cross-panel robustness comparison. Chosen because: Anthropic key has no budget headroom, OPENAI_API_KEY in .env is invalid, and local Ollama judging was the campaign bottleneck. Upgrade path: valid OPENAI_API_KEY -> swap gemini_flash_lite for {provider: 'openai'}.",
+  "_judges_comment": "Two-family judge panel (2026-11-08 amendment): gemini-3.5-flash + gemini-2.5-pro + claude-haiku-5-5. Agent under test = DeepSeek V4 Pro; no judge shares the agent's family (the axis that prevents self-preference, arXiv 2502.01534). The claude_haiku seat replaces gemini-3.1-flash-lite, ending the all-Google monoculture disclosed in the 2026-07-05 second amendment; the two Gemini seats remain a correlated pair, so a 2-of-3 majority can still be decided by Google lineage alone. Anthropic seat is funded by the Max-plan monthly API credits ($100/cycle, hard stop when exhausted, no overage) at $0.10/$0.50 per MTok. OPENAI_API_KEY in .env is still invalid.",
   "cloud": {
     "description": "Uses each agent's default cloud API (Anthropic, Google)",
     "agents": {

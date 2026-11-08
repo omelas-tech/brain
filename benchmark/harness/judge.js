@@ -301,13 +301,31 @@ function callJudgeSpec(spec, prompt) {
   }
 }
 
-function callAnthropic(prompt, model) {
+// Newer Claude models (e.g. claude-haiku-5-5) reject `temperature` as deprecated.
+// Remember which ones did so each later call skips it instead of failing first.
+const NO_TEMPERATURE_MODELS = new Set();
+
+async function callAnthropic(prompt, model) {
+  const m = model || ANTHROPIC_MODEL;
+  const withTemp = !NO_TEMPERATURE_MODELS.has(m);
+  try {
+    return await postAnthropic(prompt, m, withTemp);
+  } catch (err) {
+    if (withTemp && /temperature/i.test(err.message) && /deprecated|not supported/i.test(err.message)) {
+      NO_TEMPERATURE_MODELS.add(m);
+      return postAnthropic(prompt, m, false);
+    }
+    throw err;
+  }
+}
+
+function postAnthropic(prompt, model, withTemp) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY not set — judge cannot run');
   const body = JSON.stringify({
-    model: model || ANTHROPIC_MODEL,
+    model,
     max_tokens: JUDGE_MAX_TOKENS,
-    temperature: 0,
+    ...(withTemp ? { temperature: 0 } : {}),
     messages: [{ role: 'user', content: prompt }],
   });
   return httpsJson({
@@ -499,7 +517,16 @@ function extractJson(raw) {
   if (start === -1 || end === -1 || end < start) {
     throw new Error(`judge produced no JSON object: ${raw.slice(0, 200)}`);
   }
-  return JSON.parse(candidate.slice(start, end + 1));
+  const body = candidate.slice(start, end + 1);
+  try {
+    return JSON.parse(body);
+  } catch (err) {
+    // Models sampled without temperature=0 (e.g. claude-haiku-5-5) occasionally
+    // emit a trailing comma before ] or }. Repair only that, and only as a fallback.
+    const repaired = body.replace(/,(\s*[\]}])/g, '$1');
+    if (repaired === body) throw err;
+    return JSON.parse(repaired);
+  }
 }
 
 function numberOr(v, fallback) {
@@ -513,4 +540,4 @@ function truncate(s, max) {
   return s.slice(0, max) + `\n…[truncated ${s.length - max} chars]`;
 }
 
-module.exports = { pickJudge, judgeOne, judgePair, judgePanel, DEFAULT_PANEL };
+module.exports = { pickJudge, judgeOne, judgePair, judgePanel, DEFAULT_PANEL, _extractJson: extractJson };
