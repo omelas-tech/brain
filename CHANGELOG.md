@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-08
+
+Codex now suggests brain commands it can actually run.
+
+### Fixed
+- **Codex: `$brain-memorize`, not `/brain-memorize`.** The Codex prompt
+  (`AGENTS.md`) listed the brain skills as `/brain-…` slash commands, so Codex
+  told users to type `/brain-memorize` and then rejected it as an unrecognized
+  command. Codex runs skills with `$` (or from `/skills`); every command in the
+  Codex prompt now uses the `$brain-` form. Re-run `brain --codex --global`
+  to refresh `~/.codex/AGENTS.md`.
+
 ## [0.5.1] - 2026-10-18
 
 An account with several brains can now choose which one each device, and the
