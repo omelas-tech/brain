@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-09
+
+Memories you actually use now get stronger, and stale facts can be retired.
+An audit of a real seven-month brain found the cognition loop idle: agents
+were shown memories 328 times and reported using them zero times, so 93% of
+memories had never been reinforced, while contradicting facts piled up with
+nothing to retire them.
+
+### Added
+- **Receipts reinforce automatically.** When a reply cites a memory with a
+  `◉ memory:` receipt that checks out against what brain surfaced, the Stop
+  hook applies spaced reinforcement to it (once per session), with Hebbian
+  co-retrieval between memories cited together. No more relying on the agent
+  to remember `brain reinforce`.
+- **`brain supersede <old>... --by <new>`.** Mark an existing memory as ended
+  by a newer one that is already stored: stamps `superseded_by` and
+  `valid_until` (the successor's start, or `--valid-until`), records
+  `supersedes` on the successor, links the pair and logs the change.
+  `--dry-run` previews.
+- **Sleep: supersession sweep (Phase 6b).** Sleep now looks for still-strong
+  facts a newer memory replaced and, with approval, bounds them with
+  `brain supersede`. Sleep also records its run in `~/.brain/sleep-log.json`.
+- **`💤 sleep due` and `📝 unsaved notables` at session start.**
+  `brain session-start` reports `sleep_due` after a week with 10+ new memories,
+  and `unsaved_notables`: items recent sessions flagged in `notable_unsaved`
+  that no later write picked up, so they can be offered for storage instead of
+  silently rotating out.
+
+### Changed
+- **Contradiction candidates include restated facts.** `memorize` now also
+  proposes same-project memories whose text is closest to the new one, so a
+  fact restated in different words and tags (a domain migration, a new deploy
+  path) is flagged, not only tag overlaps.
+- **`contexts.json` keeps 100 sessions, not 20,** in the plugin hook and every
+  host integration. Twenty was about three days of history for an active user.
+
+### Fixed
+- **Associations written in flat form now take part in recall.** Agent-run
+  sleep cycles could write edges as `"a::b"` keys, which spreading activation
+  never read. They are folded into the nested edge map on load.
+
 ## [0.5.2] - 2026-11-08
 
 Codex now suggests brain commands it can actually run.
