@@ -67,10 +67,11 @@ created, and the sync result if `--sync` was used.
 - **Pinning:** only propose `"pinned": true` (always-injected, decay-exempt)
   for durable conventions/preferences — and only set it with the user's
   agreement.
-- **Contradictions:** if the CLI reports `potential_conflicts` with a
-  pinned/stable memory, surface the contradiction and let the user decide —
-  supersede the old fact, keep both scoped (e.g. per project), or reject the
-  new one. Never silently keep both.
+- **Contradictions:** if the CLI reports `potential_conflicts`, check whether
+  the new fact replaced the older one and let the user decide — supersede the
+  old fact, keep both scoped (e.g. per project), or reject the new one. Never
+  silently keep both. Bound a stale pair noticed later with
+  `brain supersede <old_id> --by <new_id>`.
 - **Never store secrets, credentials, or trivia.**
 - If the `brain` command is not found, tell the user once: install with
   `npm install -g brain-memory`.

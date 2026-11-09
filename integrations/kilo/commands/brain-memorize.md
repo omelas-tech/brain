@@ -64,10 +64,11 @@ created, and the sync result if `--sync` was used.
 - **Pinning:** only propose `"pinned": true` (always-injected, decay-exempt)
   for durable conventions/preferences — and only set it with the user's
   agreement.
-- **Contradictions:** if the CLI reports `potential_conflicts` with a
-  pinned/stable memory, surface the contradiction and let the user decide —
+- **Contradictions:** if the CLI reports `potential_conflicts`, read the
+  older memory and, if the new fact replaced it, let the user decide —
   supersede, keep both scoped, or reject the new one. Never silently keep
-  both.
+  both. A stale pair noticed later is bounded with
+  `brain supersede <old_id> --by <new_id>`.
 - **Never store secrets, credentials, or trivia.**
 - The Brain Memory Kilo plugin sets `BRAIN_AGENT=kilo` automatically; without
   it, prefix invocations with `BRAIN_AGENT=kilo`. If the `brain` command is

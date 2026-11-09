@@ -67,7 +67,7 @@ alongside it:
 - **`hooks/brain-session-start`** — injects the `brain session-start` payload
   at `agent:bootstrap` (ambient recall without touching the memory slot).
 - **`hooks/brain-session-end`** — appends a session entry to
-  `~/.brain/contexts.json` on `/new`/`/reset` (last 20 kept) and nudges
+  `~/.brain/contexts.json` on `/new`/`/reset` (last 100 kept) and nudges
   memorization when the session had substance.
 - **`skill/brain-memory`** — teaches the agent the `brain recall` /
   `brain reinforce` / `brain memorize` workflow with life-domain examples.

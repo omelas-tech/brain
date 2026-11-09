@@ -35,7 +35,7 @@ const {
   atomicWriteSync,
   validateBrainPath,
 } = require('../src/index-manager');
-const { addDocument, createSearchIndex, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
+const { addDocument, bm25Search, createSearchIndex, readSearchIndex, writeSearchIndex } = require('../src/tfidf');
 const { appendAudit } = require('../src/audit');
 const { lintMemoryContent } = require('../src/content-lint');
 const { contentHash } = require('../src/integrity');
@@ -364,6 +364,37 @@ function findTagOverlaps(index, newTags, newId, minOverlap = 2) {
   return overlaps;
 }
 
+/**
+ * Same-project memories whose text is closest to the new one — the second
+ * candidate source for contradiction proposals.
+ *
+ * Tag overlap alone misses the commonest reversal: a fact restated in new
+ * words with different tags ("primary domain migrated to brainmemory.ai" vs an
+ * older "API lives at api.brainmemory.work"). Lexical neighbours inside the
+ * same project catch those. Scoped to the project so a generic word overlap
+ * across unrelated work never becomes a proposal, and capped small because
+ * every candidate still has to pass proposeSupersessions' type filter and the
+ * agent's judgement.
+ */
+function findTextNeighbors(searchIndex, index, mem, newId, limit = 3) {
+  try {
+    const project = mem.encoding_context && mem.encoding_context.project;
+    if (!project) return [];
+    const query = `${mem.title || ''} ${mem.content || ''}`.slice(0, 2000);
+    const scores = bm25Search(searchIndex, query);
+    const ranked = Object.entries(scores)
+      .filter(([mid]) => mid !== newId && index.memories[mid])
+      .filter(([mid]) => (index.memories[mid].encoding_context || {}).project === project)
+      .sort((a, b) => b[1] - a[1]);
+    if (!ranked.length) return [];
+    const top = ranked[0][1];
+    // Relative floor: only neighbours close to the best match, not the tail.
+    return ranked.filter(([, sc]) => sc >= top * 0.6).slice(0, limit).map(([mid]) => mid);
+  } catch {
+    return [];
+  }
+}
+
 function trySync() {
   const brainDir = getBrainDir();
 
@@ -667,7 +698,7 @@ async function main() {
     const potentialConflicts = proposeSupersessions(
       index,
       { ...mem, created: now },
-      tagOverlaps,
+      [...new Set([...tagOverlaps, ...findTextNeighbors(searchIndex, index, mem, id)])],
       { now },
     );
 

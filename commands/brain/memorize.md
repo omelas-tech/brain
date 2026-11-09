@@ -150,6 +150,10 @@ If a stored memory's result includes `potential_conflicts`, the new write overla
 - **Keep both, scoped** — e.g. pin each to its own project. Right when the two facts coexist rather than replace ("Postgres for analytics" vs "Postgres for sessions").
 - **Reject the new one** — the old fact stands.
 
+Candidates come from tag overlap **and** from same-project memories whose text is closest to the new one, so a fact restated in different words (and different tags) is still caught.
+
+**Already stored both?** When you notice a stale memory after the fact — during recall, or because the new memory was written without `supersedes` — bound the pair directly instead of writing a duplicate: `brain supersede <old_id> --by <new_id> [--valid-until <date>]` (`--dry-run` to preview). Same confirmation rule applies.
+
 Never auto-resolve. Tag overlap is a *relatedness* signal, not a contradiction signal — only the conversation can tell whether B actually ended A, so surface the proposal and let the user decide.
 
 ### Superseding an outdated memory (temporal invalidation)

@@ -33,7 +33,7 @@ memory:
 | Pre-turn | Prefetches relevant memories for the user's message (background thread) |
 | Tools | `brain_recall` (recall + auto-reinforce + full bodies), `brain_memorize` (validated store), `brain_reinforce` |
 | Pre-compression | Reminds the model to store un-memorized notable content before context is discarded |
-| Session end | Appends a session entry to `~/.brain/contexts.json` (last 20 kept) |
+| Session end | Appends a session entry to `~/.brain/contexts.json` (last 100 kept) |
 | Built-in memory writes | Mirrors MEMORY.md entries into `~/.brain` as deduplicated observations |
 
 ## Configuration

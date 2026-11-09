@@ -90,12 +90,12 @@ class TestSessionEndHook(HookTestCase):
         for key in ("started", "ended", "topics", "task_type", "notable_unsaved"):
             self.assertIn(key, entries[0])
 
-    def test_keeps_last_20(self):
-        for i in range(25):
+    def test_keeps_last_100(self):
+        for i in range(105):
             self.mod.handle_session_end({"session_id": f"s{i}"})
         entries = json.loads((self.tmp / "contexts.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(entries), 20)
-        self.assertEqual(entries[-1]["session_id"], "s24")
+        self.assertEqual(len(entries), 100)
+        self.assertEqual(entries[-1]["session_id"], "s104")
 
 
 class TestEndToEnd(HookTestCase):

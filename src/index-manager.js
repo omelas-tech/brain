@@ -276,7 +276,53 @@ function groupByCategory(index) {
 function readAssociations(projectRoot) {
   const filePath = path.join(getBrainDir(projectRoot), ASSOCIATIONS_FILE);
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  return normalizeAssociations(JSON.parse(fs.readFileSync(filePath, 'utf-8')));
+}
+
+/**
+ * Fold flat `"a::b": {source, target, weight, …}` edges into the nested
+ * adjacency map (`edges[a][b]`) every reader expects.
+ *
+ * The sleep cycle is agent-driven and some agents wrote propagation / dream /
+ * manual links in the flat shape. The scorer looks edges up by memory id, so a
+ * flat key could never match a node: those links were stored but never fired
+ * during spreading activation. Normalizing on read repairs existing brains on
+ * the next write, and any future flat edge is absorbed the same way.
+ * Bidirectional, like reinforceEdge; an existing nested edge keeps the higher
+ * weight.
+ *
+ * @param {Object} associations
+ * @returns {Object} the same object, normalized in place
+ */
+function normalizeAssociations(associations) {
+  if (!associations || typeof associations !== 'object') return associations;
+  const edges = associations.edges;
+  if (!edges || typeof edges !== 'object') return associations;
+  for (const key of Object.keys(edges)) {
+    if (!key.includes('::')) continue;
+    const flat = edges[key];
+    delete edges[key];
+    if (!flat || typeof flat !== 'object') continue;
+    const [a, b] = key.split('::');
+    const src = flat.source || a;
+    const dst = flat.target || b;
+    if (!src || !dst || src === dst) continue;
+    const edge = {
+      weight: typeof flat.weight === 'number' ? flat.weight : 0.2,
+      co_retrievals: flat.co_retrievals ?? flat.co_activations ?? 0,
+      last_activated: flat.last_activated || flat.created || new Date().toISOString(),
+      origin: flat.origin || 'manual',
+    };
+    for (const extra of ['note', 'insight', 'dream_score']) {
+      if (flat[extra] !== undefined) edge[extra] = flat[extra];
+    }
+    for (const [from, to] of [[src, dst], [dst, src]]) {
+      if (!edges[from] || typeof edges[from] !== 'object') edges[from] = {};
+      const existing = edges[from][to];
+      if (!existing || (existing.weight ?? 0) < edge.weight) edges[from][to] = { ...edge };
+    }
+  }
+  return associations;
 }
 
 /**
@@ -630,6 +676,7 @@ module.exports = {
   groupByCategory,
   // Phase 1: Associative Network
   readAssociations,
+  normalizeAssociations,
   writeAssociations,
   reinforceEdge,
   getNeighbors,

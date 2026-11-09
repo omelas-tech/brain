@@ -163,12 +163,14 @@ describe('hooks/session-end.mjs', () => {
     assert.equal(entry.source, 'session-end-hook');
   });
 
-  it('appends and trims to the newest 20, preserving the wrapper shape', () => {
-    const many = { version: 1, extra: true, sessions: Array.from({ length: 20 }, (_, i) => ({ session_id: String(i) })) };
+  it('appends and trims to the newest MAX_CONTEXT_ENTRIES, preserving the wrapper shape', () => {
+    const max = sessionEnd.MAX_CONTEXT_ENTRIES;
+    assert.equal(max, 100);
+    const many = { version: 1, extra: true, sessions: Array.from({ length: max }, (_, i) => ({ session_id: String(i) })) };
     const next = sessionEnd.appendContextEntry(many, { session_id: 'new' });
-    assert.equal(next.sessions.length, 20);
+    assert.equal(next.sessions.length, max);
     assert.equal(next.sessions[0].session_id, '1');
-    assert.equal(next.sessions[19].session_id, 'new');
+    assert.equal(next.sessions[max - 1].session_id, 'new');
     assert.equal(next.extra, true);
     const bare = sessionEnd.appendContextEntry([{ session_id: 'a' }], { session_id: 'b' });
     assert.deepEqual(bare, { version: 1, sessions: [{ session_id: 'a' }, { session_id: 'b' }] });
@@ -318,6 +320,41 @@ describe('hooks/citation-check.mjs', () => {
     const warned = await promptRecall.handlePrompt({ prompt: 'translate this haiku into finnish for me', session_id: 'cs1' });
     assert.match(warned.hookSpecificOutput.additionalContext, /Made up memory/);
     assert.deepEqual(surfaced.pendingViolations(brainDir, 'cs1'), []);
+  });
+
+  it('reinforces memories cited with a verified receipt, once per session', async () => {
+    const im = require(path.join(ROOT, 'src', 'index-manager.js'));
+    const index = im.readIndex();
+    const rel = 'professional/reinforce-me.md';
+    fs.mkdirSync(path.join(brainDir, 'professional'), { recursive: true });
+    fs.writeFileSync(path.join(brainDir, rel), '---\nid: mem_r1\nstrength: 0.5\naccess_count: 0\n---\n# Reinforce me\n');
+    fs.writeFileSync(path.join(brainDir, 'professional', 'other.md'), '---\nid: mem_r2\nstrength: 0.5\naccess_count: 0\n---\n# Other\n');
+    index.memories.mem_r1 = {
+      path: rel, title: 'Reinforce me', type: 'decision', strength: 0.5, decay_rate: 0.99,
+      created: '2026-01-01T00:00:00.000Z', last_accessed: '2026-01-01T00:00:00.000Z', access_count: 0, tags: [],
+    };
+    index.memories.mem_r2 = {
+      path: 'professional/other.md', title: 'Other', type: 'decision', strength: 0.5, decay_rate: 0.99,
+      created: '2026-01-01T00:00:00.000Z', last_accessed: '2026-01-01T00:00:00.000Z', access_count: 0, tags: [],
+    };
+    im.writeIndex(index);
+    surfaced.recordSurfaced(brainDir, { session: 'rs1', source: 'recall', results: [
+      { id: 'mem_r1', receipt: receipt('Reinforce me') },
+      { id: 'mem_r2', receipt: receipt('Other') },
+    ] });
+
+    await citation.handleStop({ session_id: 'rs1', last_assistant_message: `Answer.\n\n${receipt('Reinforce me')}` });
+    let after = im.readIndex().memories;
+    assert.equal(after.mem_r1.access_count, 1, 'cited memory reinforced');
+    assert.ok(after.mem_r1.strength > 0.5);
+    assert.equal(after.mem_r2.access_count, 0, 'surfaced but uncited memory untouched');
+    assert.match(fs.readFileSync(path.join(brainDir, rel), 'utf-8'), /access_count: 1/);
+
+    // Citing it again in the same session is the same recall, not a second one.
+    await citation.handleStop({ session_id: 'rs1', last_assistant_message: receipt('Reinforce me') });
+    after = im.readIndex().memories;
+    assert.equal(after.mem_r1.access_count, 1);
+    assert.ok(surfaced.readLedger(brainDir).some((e) => e.kind === 'used' && e.id === 'mem_r1' && e.session === 'rs1'));
   });
 
   it('stays silent for clean replies and replies without receipts', async () => {

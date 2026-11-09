@@ -42,7 +42,7 @@ Only one external memory provider can be active at a time; Hermes' built-in MEMO
 | Pre-turn | Prefetches relevant memories for the user's message (background thread, non-blocking) |
 | Tools | `brain_recall` (deterministic recall + full bodies + auto-reinforce), `brain_memorize` (validated store), `brain_reinforce` (spaced reinforcement by ID) |
 | Pre-compression | Reminds the model to store un-memorized notable content before context is discarded |
-| Session end | Appends a session entry to `~/.brain/contexts.json` (last 20 kept) |
+| Session end | Appends a session entry to `~/.brain/contexts.json` (last 100 kept) |
 | Built-in memory writes | Mirrors MEMORY.md entries into `~/.brain` as content-hash-deduplicated observations |
 | Backup | `~/.brain` is declared via `backup_paths()` so `hermes backup` captures it |
 

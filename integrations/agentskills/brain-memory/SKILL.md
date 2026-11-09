@@ -118,7 +118,8 @@ brain audit --window 7d           # scan for poisoning patterns (bursts, cliques
 ## Guidelines
 
 - Never store secrets, credentials, or trivia.
-- If `brain memorize` reports `potential_conflicts` with a pinned/stable
-  memory, surface the contradiction and let the user decide.
+- If `brain memorize` reports `potential_conflicts`, check whether the new
+  fact replaced the older one and let the user decide. Bound a stale pair
+  noticed later with `brain supersede <old_id> --by <new_id>`.
 - On session boundaries, append a summary to `~/.brain/contexts.json` (keep the
-  last 20) so future sessions get context-dependent recall.
+  last 100) so future sessions get context-dependent recall.

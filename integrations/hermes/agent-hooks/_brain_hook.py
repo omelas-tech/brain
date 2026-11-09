@@ -10,7 +10,7 @@ response on stdout). Two modes, selected by argv[1]:
                  (Note: `on_session_start` is observer-only in Hermes — context
                  injection is only honored on `pre_llm_call`.)
   session-end  — for the `on_session_end` event. Appends a session entry to
-                 ~/.brain/contexts.json (last 20 kept) and emits {}.
+                 ~/.brain/contexts.json (last 100 kept) and emits {}.
 
 Failures never break the agent: every error path prints {} and exits 0.
 Stdlib only, Python 3.10+.
@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SUBPROCESS_TIMEOUT = 15
-KEEP_ENTRIES = 20
+KEEP_ENTRIES = 100
 
 
 def brain_dir() -> Path:

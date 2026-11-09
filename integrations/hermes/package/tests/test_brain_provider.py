@@ -779,13 +779,13 @@ def test_session_switch_reset_allows_new_entry(env):
     assert entries[1]["session_id"] == "sess-2"
 
 
-def test_append_context_entry_truncates_to_last_20(env):
-    for i in range(25):
+def test_append_context_entry_truncates_to_last_100(env):
+    for i in range(105):
         brain_module.append_context_entry({"session_id": f"s{i}"}, directory=env.brain_home)
     entries = json.loads((env.brain_home / "contexts.json").read_text(encoding="utf-8"))
-    assert len(entries) == 20
+    assert len(entries) == 100
     assert entries[0]["session_id"] == "s5"
-    assert entries[-1]["session_id"] == "s24"
+    assert entries[-1]["session_id"] == "s104"
 
 
 def test_append_context_entry_preserves_dict_container_shape(env):

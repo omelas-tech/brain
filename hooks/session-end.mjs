@@ -14,7 +14,9 @@
 
 import { hasBrain, isMain, loadModule, projectFromInput, runHook } from "./lib.mjs";
 
-export const MAX_CONTEXT_ENTRIES = 20;
+// 100, not 20: at a few sessions a day, 20 entries was about three days of
+// history, and `notable_unsaved` rotated out before anyone read it back.
+export const MAX_CONTEXT_ENTRIES = 100;
 
 /** Build the entry in the shape the prompt-based session-end contract uses. */
 export function buildContextEntry(input, now = new Date()) {

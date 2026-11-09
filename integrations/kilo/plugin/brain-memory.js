@@ -47,7 +47,7 @@ import path from "node:path";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_BUFFER = 4 * 1024 * 1024;
 const DEFAULT_MAX_INJECTION_TOKENS = 1200;
-const MAX_CONTEXT_ENTRIES = 20;
+const MAX_CONTEXT_ENTRIES = 100;
 
 /* ------------------------------------------------------------------ *
  * small utilities

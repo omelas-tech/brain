@@ -314,7 +314,7 @@ def _extract_ids(obj: Any, acc: Optional[List[str]] = None) -> List[str]:
     return acc
 
 
-def append_context_entry(entry: Dict[str, Any], directory: Optional[Path] = None, keep: int = 20) -> None:
+def append_context_entry(entry: Dict[str, Any], directory: Optional[Path] = None, keep: int = 100) -> None:
     """Append a session entry to ``<brain_dir>/contexts.json`` keeping the last ``keep``.
 
     Tolerates both container shapes: a bare JSON array, or an object with a
@@ -839,7 +839,7 @@ class BrainMemoryProvider(MemoryProvider):
                     break
 
     def on_session_end(self, messages: List[Dict[str, Any]]) -> None:
-        """Append a session entry to ~/.brain/contexts.json (keep last 20)."""
+        """Append a session entry to ~/.brain/contexts.json (keep last 100)."""
         with self._state_lock:
             if self._context_saved:
                 return

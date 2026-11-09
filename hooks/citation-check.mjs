@@ -8,6 +8,10 @@
  * logged as a `citation_violation` audit event and queued so prompt-recall
  * tells the agent on its next turn.
  *
+ * It also reinforces the memories whose receipts check out: a verified
+ * receipt is the strongest signal that a memory was used, and agents rarely
+ * run `brain reinforce` on their own.
+ *
  * Advisory, never blocking: the hook prints `{}`, so the reply is delivered
  * unchanged. Blocking a Stop would make the agent keep talking, which is a
  * worse failure than a flagged receipt.
@@ -77,12 +81,28 @@ export async function handleStop(input, options = {}) {
 
   const session = sessionOf(record);
   const surfaced = options.surfaced || loadModule("src/surfaced.js");
-  const { unsurfaced } = surfaced.checkCitations(brainDir(), { session, text });
+  const dir = brainDir();
+
+  // Implicit reinforcement: every verified receipt is a memory that shaped the
+  // answer. Best-effort — a failed write must never disturb the reply.
+  try {
+    const ids = surfaced.citedUnreinforcedIds(dir, { session, text });
+    if (ids.length) {
+      const { reinforceMemories } = options.reinforce || loadModule("src/reinforce.js");
+      const { reinforced } = reinforceMemories(ids, { brainDir: dir });
+      const usedIds = reinforced.map((r) => r.id);
+      if (usedIds.length) surfaced.recordUsed(dir, { session, ids: usedIds });
+    }
+  } catch {
+    // never block the Stop
+  }
+
+  const { unsurfaced } = surfaced.checkCitations(dir, { session, text });
   if (!unsurfaced.length) return {};
 
-  surfaced.recordViolation(brainDir(), { session, titles: unsurfaced });
+  surfaced.recordViolation(dir, { session, titles: unsurfaced });
   const { appendAudit } = options.audit || loadModule("src/audit.js");
-  appendAudit(brainDir(), {
+  appendAudit(dir, {
     ts: new Date().toISOString(),
     event: "citation_violation",
     session,

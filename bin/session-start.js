@@ -17,7 +17,9 @@
  * Output (JSON):
  *   {
  *     memory_count, pinned[], skills_index[], context_recall[],
- *     due_for_review, low_confidence_alerts[], budget{}
+ *     due_for_review, low_confidence_alerts[], budget{},
+ *     sleep_due? {due, days_since_last, memorized_since},
+ *     unsaved_notables? {count, items[]}
  *   }
  *
  * pinned[] (Phase 1) and skills_index[] (Phase 2) are present but empty here;
@@ -41,6 +43,7 @@ const {
   readAssociations,
   readReviewQueue,
   readConfig,
+  readContexts,
   getBrainDir,
 } = require('../src/index-manager');
 
@@ -122,6 +125,93 @@ function buildContextQuery(args) {
  * @param {Object} [args] - { project, topics, task, top, budget }
  * @returns {Object} The session-start payload
  */
+// --- Maintenance signals -------------------------------------------------
+//
+// Sleep (consolidation, supersession sweep, pruning) is agent-driven, so it
+// only runs when someone asks. In practice that meant three runs in eight
+// months while ~50 memories a month arrived. These two signals let the agent
+// offer it at the right moment instead of never.
+const SLEEP_DUE_DAYS = 7;
+const SLEEP_DUE_MIN_WRITES = 10;
+const SLEEP_DUE_ANY_AGE_WRITES = 40;
+const NOTABLE_WINDOW_DAYS = 14;
+const NOTABLE_MAX_ITEMS = 3;
+const NOTABLE_MAX_CHARS = 160;
+
+/** Best-known instant of the last sleep cycle, or null. */
+function lastSleepAt(brainDir, index) {
+  const candidates = [];
+  if (index && index.last_sleep) candidates.push(Date.parse(index.last_sleep));
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(brainDir, 'sleep-log.json'), 'utf-8'));
+    if (raw && raw.last_sleep) candidates.push(Date.parse(raw.last_sleep));
+  } catch (_) { /* absent */ }
+  // Agents that ran sleep before it was tracked left timestamped backups.
+  try {
+    for (const name of fs.readdirSync(path.join(brainDir, '_sleep_backups'))) {
+      const m = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})/.exec(name);
+      if (m) candidates.push(Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}Z`));
+    }
+  } catch (_) { /* absent */ }
+  const valid = candidates.filter((t) => Number.isFinite(t));
+  return valid.length ? Math.max(...valid) : null;
+}
+
+/** Whether a sleep cycle is overdue, with the numbers behind it. */
+function sleepDue(brainDir, index, nowMs) {
+  const last = lastSleepAt(brainDir, index);
+  const since = last ?? 0;
+  let writes = 0;
+  for (const e of Object.values(index.memories || {})) {
+    if (Date.parse(e.created) > since) writes++;
+  }
+  const days = last == null ? null : Math.floor((nowMs - last) / 86400000);
+  const due = (days == null ? writes >= SLEEP_DUE_MIN_WRITES : days >= SLEEP_DUE_DAYS && writes >= SLEEP_DUE_MIN_WRITES)
+    || writes >= SLEEP_DUE_ANY_AGE_WRITES;
+  return { due, days_since_last: days, memorized_since: writes };
+}
+
+/**
+ * Notable items recent sessions flagged but never memorized.
+ *
+ * contexts.json keeps a bounded window of sessions, and `notable_unsaved` was
+ * write-only: nothing ever read it back, so whatever a session judged worth
+ * keeping silently rotated out. Surfacing the newest few lets the next
+ * session offer to store them. A session counts as handled once a memory for
+ * the same project was written after it ended.
+ */
+function unsavedNotables(projectRoot, index, project, nowMs) {
+  let sessions = [];
+  try {
+    const ctx = readContexts(projectRoot);
+    sessions = Array.isArray(ctx) ? ctx : (ctx && Array.isArray(ctx.sessions) ? ctx.sessions : []);
+  } catch (_) { return null; }
+  let lastWrite = 0;
+  for (const e of Object.values(index.memories || {})) {
+    const p = (e.encoding_context || {}).project;
+    if (project && p !== project) continue;
+    const t = Date.parse(e.created);
+    if (t > lastWrite) lastWrite = t;
+  }
+  const items = [];
+  let total = 0;
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const s = sessions[i] || {};
+    if (project && s.project !== project) continue;
+    const ended = Date.parse(s.ended);
+    if (!Number.isFinite(ended) || nowMs - ended > NOTABLE_WINDOW_DAYS * 86400000) continue;
+    if (ended <= lastWrite) continue;
+    for (const n of Array.isArray(s.notable_unsaved) ? s.notable_unsaved : []) {
+      if (typeof n !== 'string' || !n.trim()) continue;
+      total++;
+      if (items.length < NOTABLE_MAX_ITEMS) {
+        items.push(n.length > NOTABLE_MAX_CHARS ? `${n.slice(0, NOTABLE_MAX_CHARS - 1)}…` : n);
+      }
+    }
+  }
+  return total ? { count: total, items } : null;
+}
+
 function computeSessionStart(projectRoot, args = {}) {
   const top = args.top || 5;
   const brainDir = getBrainDir(projectRoot);
@@ -340,6 +430,16 @@ function computeSessionStart(projectRoot, args = {}) {
     low_confidence_alerts,
     // Low-trust memories held out of context_recall by recall_low_trust_max.
     ...(lowTrustSuppressed > 0 ? { low_trust_suppressed: lowTrustSuppressed } : {}),
+    // Maintenance prompts — see sleepDue / unsavedNotables above.
+    ...(() => {
+      const nowMs = Date.now();
+      const extra = {};
+      const sd = sleepDue(getBrainDir(projectRoot), index, nowMs);
+      if (sd.due) extra.sleep_due = sd;
+      const un = unsavedNotables(projectRoot, index, args.project || null, nowMs);
+      if (un) extra.unsaved_notables = un;
+      return extra;
+    })(),
     // How much of what brain surfaced over the last week the agent used
     // (src/surfaced.js) — injected-vs-used telemetry.
     recall_usage_7d: usageSummary(getBrainDir(projectRoot), { sinceMs: Date.now() - 7 * 86400000 }),

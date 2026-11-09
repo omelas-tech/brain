@@ -38,7 +38,7 @@ test("append to missing/empty file starts a fresh array", () => {
   assert.deepEqual(out2, [entry]);
 });
 
-test("append keeps only the last 20 entries", () => {
+test("append keeps only the last MAX_CONTEXT_ENTRIES entries", () => {
   let content = null;
   for (let i = 0; i < MAX_CONTEXT_ENTRIES + 7; i++) {
     content = appendContextEntry(content, { session_id: `s${i}` });

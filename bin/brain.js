@@ -28,6 +28,7 @@ const VERSION = require('../package.json').version;
 const DELEGATED = {
   recall: 'recall.js',
   reinforce: 'reinforce.js',
+  supersede: 'supersede.js',
   memorize: 'memorize.js',
   cloud: 'cloud-sync.js',
   'session-start': 'session-start.js',
@@ -66,6 +67,8 @@ Memory
   recall --reindex            Rebuild the search index
   memorize [--sync]           Store memories from a JSON payload on stdin
   reinforce <id> [<id>...]    Spaced reinforcement + Hebbian co-retrieval
+  supersede <old> [<old>...] --by <new> [--valid-until ISO] [--dry-run]
+                              Mark existing memories as ended by a newer one
   pin <id> [--scope global|project:<name>] [--priority N]
                               Pin a memory into the always-present tier
   unpin <id>                  Remove a memory from the always-present tier

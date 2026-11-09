@@ -2,7 +2,7 @@
  * brain-session-end hook handler.
  *
  * On `command:new` / `command:reset`, appends a session summary entry to
- * `~/.brain/contexts.json` (keeping the last 20, matching the brain plugin's
+ * `~/.brain/contexts.json` (keeping the last 100, matching the brain plugin's
  * session-end contract) and — when the ending session had substance — pushes
  * a gentle "memorize?" nudge onto the command reply. Nothing is stored
  * automatically; the model/user decides what to remember.

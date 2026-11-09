@@ -26,7 +26,7 @@ When a session is ending (user signals they are done, says bye/thanks, or the co
 }
 ```
 
-Keep only the last 20 session entries in `contexts.json` to prevent unbounded growth. The `notable_unsaved` field preserves what happened even if the user didn't memorize — future sessions can reference it.
+Keep only the last 100 session entries in `contexts.json` to prevent unbounded growth. The `notable_unsaved` field preserves what happened even if the user didn't memorize — future sessions can reference it.
 
 **Do not wait for explicit session-end signals** — if the conversation appears to be wrapping up, save context proactively.
 

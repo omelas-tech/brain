@@ -136,6 +136,37 @@ function checkCitations(brainDir, { session, text, nowMs }) {
   return { cited, unsurfaced: [...new Set(cited.filter((t) => !seen.has(t)))] };
 }
 
+/**
+ * Ids of memories a reply cited with a verified receipt that have not yet been
+ * reinforced in this session — the Stop hook's implicit "used" signal.
+ *
+ * A receipt says the memory shaped the answer, and the citation lock already
+ * checks it against what was surfaced, so it is a better usage signal than an
+ * explicit `brain reinforce` the agent rarely remembers to run. Each memory is
+ * reinforced at most once per session (once per window when unscoped): citing
+ * the same memory in five consecutive replies is one recall, not five, and
+ * repeated boosts would inflate strength the way homeostasis exists to stop.
+ *
+ * @param {string} brainDir
+ * @param {Object} opts - { session, text, nowMs }
+ * @returns {string[]}
+ */
+function citedUnreinforcedIds(brainDir, { session, text, nowMs }) {
+  const cited = new Set(citedTitles(text));
+  if (!cited.size) return [];
+  const now = nowMs ?? Date.now();
+  const inScope = (e) => (session && e.session === session)
+    || (!e.session && now - Date.parse(e.ts) <= UNSCOPED_WINDOW_MS);
+  const byTitle = new Map();
+  const used = new Set();
+  for (const e of readLedger(brainDir)) {
+    if (!inScope(e)) continue;
+    if (e.kind === 'surfaced' && e.id && cited.has(e.title)) byTitle.set(e.title, e.id);
+    else if (e.kind === 'used' && e.id) used.add(e.id);
+  }
+  return [...new Set(byTitle.values())].filter((id) => !used.has(id));
+}
+
 /** Violations recorded for a session since its last ack. */
 function pendingViolations(brainDir, session) {
   if (!session) return [];
@@ -183,6 +214,7 @@ module.exports = {
   receiptTitle,
   citedTitles,
   checkCitations,
+  citedUnreinforcedIds,
   pendingViolations,
   usageSummary,
 };

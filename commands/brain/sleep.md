@@ -21,6 +21,7 @@ Sleep performs an integrity sweep plus nine phases, mimicking real neuroscience:
    - **4b. Procedural Crystallization** — Distill repeated procedures into reusable skills (CoALA Phase 3)
 5. **Reorganize** — Detect flat clusters and restructure into deeper sub-categories
 6. **Consolidate** — Merge weak related memories into stronger combined knowledge
+   - **6b. Supersession Sweep** — Find older facts a newer memory quietly replaced and bound them with `brain supersede`
 7. **Prune** — Archive memories that have decayed beyond recovery, including context-shift obsolescence (Tier B §10.1)
 8. **REM Dreaming** — Discover creative cross-domain associations via analogical reasoning
 9. **Expertise Detection** — Identify dense knowledge areas and generate expertise profiles
@@ -409,6 +410,33 @@ During deep sleep, the brain merges related experiences into generalized knowled
 
 ---
 
+## Phase 6b: Supersession Sweep (Truth Maintenance)
+
+Decay retires memories that fade; nothing retires memories that are **still strong but no longer true**. In a long-lived brain this is the main source of contradictions: every migration, rebrand, pricing change, or redesign leaves the old memory asserting the old state. Recall then shows both, and the older one often wins on strength.
+
+### Steps
+
+1. Group live memories (not `superseded_by`, no `valid_until`) by `encoding_context.project`, then by subject — deploy procedure, domain/URLs, brand/design system, pricing, auth, hosting/infrastructure, "which service is canonical", release process, plus anything where two titles describe the same thing.
+2. Within each group, read the bodies and look for **incompatible current-state claims**: two domains, two deploy commands, two palettes, two prices, "X is live" vs "X was retired". Also flag *goals* whose outcome a later memory records (done or abandoned) and *status notes* ("uncommitted", "not yet deployed", "phase 3 remaining") that a later memory resolved.
+3. For each conflict, the **newer accurate memory is the successor**. If no single memory states the current truth (it is spread across several, or only exists in the conversation), propose writing one with `brain memorize` that passes `supersedes`.
+4. Present the list:
+   ```
+   ## Phase 6b: Supersession Sweep
+
+     <old title> (<date>)  →  superseded by  <new title> (<date>)
+       conflict: "<old claim>" vs "<new claim>"
+   ```
+5. On approval, apply each with the CLI (it stamps `superseded_by` + `valid_until`, records `supersedes` on the successor, links the pair, and logs to audit):
+   ```bash
+   brain supersede <old_id> [<old_id>...] --by <new_id>            # boundary = successor's start
+   brain supersede <old_id> --by <new_id> --valid-until 2026-06-04  # known cut-over date
+   ```
+   Use `--dry-run` first when unsure. Never hand-edit `superseded_by`.
+
+Two facts that **coexist** (Postgres for analytics *and* for sessions; a global default overridden per project) are not a supersession — scope them instead (tags/project), or note the exception in the newer memory.
+
+---
+
 ## Phase 7: Prune (Synaptic Pruning)
 
 During sleep, the brain prunes weak synaptic connections to maintain efficiency. Here, we archive memories that have faded beyond usefulness.
@@ -563,6 +591,7 @@ After all phases complete, present a comprehensive sleep report:
 ║  Phase 4 — Crystallized:      <N> episodic → semantic         ║
 ║  Phase 5 — Reorganized:       <N> memories, <M> new dirs      ║
 ║  Phase 6 — Consolidated:      <N> memories merged into <M>    ║
+║  Phase 6b — Superseded:       <N> stale facts bounded         ║
 ║  Phase 7 — Pruned:            <N> faded memories archived     ║
 ║  Phase 8 — REM Dreams:        <N> creative insights           ║
 ║  Phase 9 — Expertise:         <N> domains profiled            ║
@@ -601,3 +630,6 @@ After all phases complete, present a comprehensive sleep report:
 7. **Idempotent expertise** — if `_expertise.md` already exists, update it rather than creating a duplicate.
 8. **Skip empty phases** — if there's nothing to do in a phase (e.g., no flat clusters to reorganize), briefly note it and move on.
 9. **Salience protection** — never auto-prune memories with salience >= 0.7.
+10. **Edge shape** — `associations.json` edges are a nested map, `edges[<src_id>][<dst_id>] = {weight, co_retrievals, last_activated, origin}`, written in both directions. Never write flat `"a::b"` keys (the reader folds them in, but they are a sign of hand-rolled writes).
+11. **Folder and project hygiene** — in Phase 5, merge synonym folders (e.g. `tools/` vs `tooling/`, `workflow/` vs `workflows/`, `patterns/` vs `engineering/patterns/`) and keep one `encoding_context.project` slug per project (no display names, no aliases).
+12. **Record the run** — as the very last step, write `~/.brain/sleep-log.json` as `{"last_sleep": "<ISO now>", "phases_run": [...]}`. `brain session-start` reads it to decide when to report `sleep_due`; without it, sleep looks overdue forever.

@@ -103,9 +103,10 @@ Guidelines:
 - Only propose `"pinned": true` (always-injected, decay-exempt) for durable
   conventions — and only with the user's agreement.
 - Never store secrets, credentials, or trivia.
-- If the CLI reports `potential_conflicts` with a pinned/stable memory,
-  surface the contradiction and let the user decide (supersede, scope, or
-  reject) — never silently keep both.
+- If the CLI reports `potential_conflicts`, check whether the new fact
+  replaced the older one and let the user decide (supersede, scope, or
+  reject) — never silently keep both. Bound a stale pair noticed later with
+  `brain supersede <old_id> --by <new_id>`.
 
 ## Session awareness
 
@@ -113,4 +114,4 @@ Guidelines:
   payload (pinned facts, relevant memories, skills index) — internalize it
   silently; do not dump it.
 - On session boundaries, append a summary entry to `~/.brain/contexts.json`
-  (keep only the last 20) so future sessions get context-dependent recall.
+  (keep only the last 100) so future sessions get context-dependent recall.

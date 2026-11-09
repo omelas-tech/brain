@@ -20,7 +20,7 @@ global `~/.brain/` directory shared across all your AI agents.
 - **Pre-compaction flush** — prompts a silent `brain_memorize` pass before
   context compaction so nothing durable is lost.
 - **Session boundaries** — `/new` and `/reset` append a summary entry to
-  `~/.brain/contexts.json` (last 20 kept) for context-dependent recall in
+  `~/.brain/contexts.json` (last 100 kept) for context-dependent recall in
   future sessions.
 
 ## Install

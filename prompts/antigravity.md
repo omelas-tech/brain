@@ -94,6 +94,8 @@ Only add extra lines if actionable:
 - `⚠️ <N> low-confidence memories used frequently` — if `low_confidence_alerts` is non-empty
 - `⌛ <N> pinned memories expired` — if `expired_pins > 0` (their validity window closed; update or unpin them)
 - `⊘ <N> pending verification` — if `pending_verification > 0` (memories from untrusted sources are quarantined for review — resolve with `brain verify list`)
+- `📝 <N> notable items from recent sessions never memorized` — if `unsaved_notables` is present (offer to store the relevant ones, with consent)
+- `💤 sleep due` — if `sleep_due` is present (maintenance overdue; mention once, never run `/brain:sleep` unasked)
 
 The aggregator is budget-bounded (`~/.brain/config.json`) and never exceeds the working-memory token budget, so just internalize whatever it returns. **The goal is ambient awareness** — know about past decisions, learnings, and preferences without reciting them.
 
@@ -149,7 +151,7 @@ When a session is ending (user says bye/thanks/done, conversation wraps up, or y
 }
 ```
 
-Keep only the last 20 session entries. The `notable_unsaved` field preserves what happened even if the user didn't memorize — future sessions can reference it.
+Keep only the last 100 session entries. The `notable_unsaved` field preserves what happened even if the user didn't memorize — `brain session-start` reads it back as `unsaved_notables` so a later session can offer to store it.
 
 ### Step 2: Suggest Memorization (if warranted)
 

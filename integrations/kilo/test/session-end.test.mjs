@@ -75,18 +75,18 @@ test("repeated idles upsert the same session entry (started kept, ended advances
   assert.equal(entries[0].ended, times[2]);
 });
 
-test("keeps only the newest 20 session entries", async (t) => {
+test("keeps only the newest 100 session entries", async (t) => {
   const home = makeFakeHome();
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
 
   const hooks = await makeHooks(home);
-  for (let i = 0; i < 25; i += 1) {
+  for (let i = 0; i < 105; i += 1) {
     await hooks["event"](idle(`ses-${i}`));
   }
   const entries = readContexts(home);
-  assert.equal(entries.length, 20);
+  assert.equal(entries.length, 100);
   assert.ok(entries[0].session_id.endsWith("-ses-5"), "oldest trimmed");
-  assert.ok(entries.at(-1).session_id.endsWith("-ses-24"));
+  assert.ok(entries.at(-1).session_id.endsWith("-ses-104"));
 });
 
 test("session.deleted also records the boundary", async (t) => {

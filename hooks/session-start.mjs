@@ -43,6 +43,14 @@ export function buildContext(payload, { project, host }) {
   if (Array.isArray(payload.low_confidence_alerts) && payload.low_confidence_alerts.length > 0) {
     extras.push(`⚠️ ${payload.low_confidence_alerts.length} low-confidence memories used frequently`);
   }
+  if (payload.unsaved_notables && payload.unsaved_notables.count > 0) {
+    extras.push(`📝 ${payload.unsaved_notables.count} notable items from recent sessions never memorized — /brain:memorize`);
+  }
+  if (payload.sleep_due && payload.sleep_due.due) {
+    const sd = payload.sleep_due;
+    const age = sd.days_since_last == null ? "never run" : `${sd.days_since_last}d ago`;
+    extras.push(`💤 sleep due (last ${age}, ${sd.memorized_since} new memories) — /brain:sleep`);
+  }
   const statusLine = `◉ Brain active — ${count} memories (${recall} in project context)`;
 
   return [
@@ -60,7 +68,11 @@ export function buildContext(payload, { project, host }) {
     "- Every ~10 substantive interactions, if notable decisions or learnings accumulated, append one line " +
       "`◉ Notable <types> this session — /brain:memorize when ready` to a reply. Do not memorize without consent.",
     "- When the session is wrapping up, save a summary entry to `~/.brain/contexts.json` (topics, task type, " +
-      "memories created/recalled, notable unsaved items; keep the last 20) and suggest memorizing if warranted.",
+      "memories created/recalled, notable unsaved items; keep the last 100) and suggest memorizing if warranted.",
+    "- `unsaved_notables` are items earlier sessions flagged but never stored; when relevant, offer to memorize them " +
+      "(with consent). `sleep_due` means maintenance is overdue; mention it once, never run sleep unasked.",
+    "- Receipts reinforce automatically: a verified receipt in your final reply strengthens that memory, so cite " +
+      "honestly and you need not run `brain reinforce` yourself.",
     `- ${COMMANDS[host] || COMMANDS.unknown}`,
     "```json",
     JSON.stringify(payload),

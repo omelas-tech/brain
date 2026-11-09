@@ -63,13 +63,13 @@ class TestOnSessionEnd(BrainTestCase):
 
 
 class TestAppendContextEntry(BrainTestCase):
-    def test_truncates_to_last_20(self):
-        for i in range(25):
+    def test_truncates_to_last_100(self):
+        for i in range(105):
             self.mod.append_context_entry({"session_id": f"s{i}"}, directory=self.brain_home)
         entries = json.loads((self.brain_home / "contexts.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(entries), 20)
+        self.assertEqual(len(entries), 100)
         self.assertEqual(entries[0]["session_id"], "s5")
-        self.assertEqual(entries[-1]["session_id"], "s24")
+        self.assertEqual(entries[-1]["session_id"], "s104")
 
     def test_preserves_dict_container_shape(self):
         path = self.brain_home / "contexts.json"

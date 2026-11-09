@@ -16,7 +16,7 @@
  * - Pre-compaction flush: the memory capability's flushPlanResolver asks the
  *   host to run a silent brain_memorize pass before compaction.
  * - Session boundaries (/new, /reset) append an entry to ~/.brain/contexts.json
- *   (last 20 kept), porting the brain session-end contract.
+ *   (last 100 kept), porting the brain session-end contract.
  *
  * Known upstream bug: tools registered via the api.registerTool() factory
  * sometimes fail to appear in the agent runtime tool list

@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const MAX_CONTEXT_ENTRIES = 20;
+export const MAX_CONTEXT_ENTRIES = 100;
 
 /**
  * Resolve the brain directory, honoring the same BRAIN_DIR override the
