@@ -5,34 +5,34 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import BrainField from "./components/BrainField";
 import DecayCurve from "./components/DecayCurve";
+import { SuiteDotPlot } from "./components/BenchmarkCharts";
 import { changelog } from "../lib/changelog-data";
 
 // Latest released version, baked in at build time from CHANGELOG.md (the
 // changelog is cut at every release, so this never drifts from npm).
 const VERSION = changelog[0]?.version ?? "0.0.0";
 
-// FAQ structured data — eligible for FAQ rich results and used as direct
-// answer fuel by AI search engines. Every answer below is factual.
+// FAQ — rendered on the page and as FAQPage structured data. Facts only.
 const FAQ = [
   {
     q: "What is Brain Memory?",
-    a: "Brain Memory is a hierarchical, file-system-based memory system for AI coding agents. Modeled on human neuroscience, memories decay on an Ebbinghaus curve, strengthen through recall, connect via associative networks, and consolidate during a sleep cycle.",
+    a: "Long-term memory for AI agents. Agents store decisions, conventions and preferences as Markdown files and recall them in later sessions.",
   },
   {
-    q: "Which AI agents does Brain Memory support?",
-    a: "The universal path is the hosted MCP connector (https://mcp.brainmemory.ai/mcp) — one connector reaches Claude Code, OpenAI Codex CLI, OpenCode, GitHub Copilot CLI, Kilo, the Claude.ai apps, ChatGPT, Google Antigravity, OpenClaw, and Hermes Agent. There's also a free local-first native plugin for Claude Code, Codex, OpenCode, Copilot CLI, Kilo, and Antigravity (experimental), plus dedicated memory-engine integrations for OpenClaw and Hermes. A deterministic recall engine produces identical scoring across every agent and model — one brain, any model, every agent.",
+    q: "Which agents does it work with?",
+    a: "Through the hosted MCP connector: Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, Antigravity, the Claude apps and ChatGPT. The local plugin supports the same CLIs. OpenClaw and Hermes use it as their memory engine.",
   },
   {
-    q: "Is Brain Memory free and open source?",
-    a: "Yes. Brain Memory is free and open source, published on npm as brain-memory and developed in the open by Omelas on GitHub.",
+    q: "Where are memories stored?",
+    a: "In ~/.brain/ on your machine, one Markdown file per memory. There is no database. Set BRAIN_DIR to keep the folder elsewhere.",
   },
   {
-    q: "Where are my memories stored?",
-    a: "All memories live in a single global ~/.brain/ directory in your home folder as human-readable Markdown files with YAML frontmatter. There is no database and no server — the file system is the database, so it is fully browseable, Git-friendly, and portable.",
+    q: "How is it different from a vector database?",
+    a: "Recall is computed from the files, without embeddings or model calls: keyword relevance, strength after decay, links between memories and the current project. Every agent gets the same ranking.",
   },
   {
-    q: "How is Brain Memory different from a vector database?",
-    a: "Instead of opaque embeddings in a vector store, Brain Memory uses transparent Markdown files scored by a deterministic engine that combines TF-IDF relevance, neuroscience-inspired strength and decay, spreading activation across an associative network, and context-dependent recall. It requires no runtime dependencies and is readable by both humans and agents.",
+    q: "Is it free?",
+    a: "Yes. The plugin is MIT-licensed and published on npm as brain-memory. Brain Cloud sync is optional.",
   },
 ];
 
@@ -82,27 +82,16 @@ export default function Home() {
         <div className="hero-inner">
           <div className="hero-copy">
             <span className="hero-tag">
-              <span className="dot" />v{VERSION} · live on npm
+              <span className="dot" />v{VERSION} · on npm
             </span>
             <h1>
-              Memory for AI&nbsp;agents,
+              Long-term memory
               <br />
-              <span className="serif">modeled on the&nbsp;brain.</span>
+              <span className="serif">for AI&nbsp;agents.</span>
             </h1>
-            <div className="hero-spec" aria-hidden="true">
-              <span>SYS / brain-memory</span>
-              <span className="sep">//</span>
-              <span>arch: hierarchical-fs</span>
-              <span className="sep">//</span>
-              <span>decay: e^(−λt)</span>
-              <span className="sep">//</span>
-              <span className="ok">recall: deterministic</span>
-            </div>
             <p className="sub">
-              A hierarchical, file-system memory that{" "}
-              <b>decays on an Ebbinghaus curve</b>, strengthens through recall,
-              and consolidates during sleep. One hosted MCP connector reaches Claude&nbsp;Code,
-              Codex&nbsp;CLI, OpenCode, Copilot&nbsp;CLI, Kilo, Antigravity, and the Claude &amp; ChatGPT apps — <b>one brain, any model, every agent.</b>
+              Agents remember decisions, conventions and preferences across sessions.
+              Memories are Markdown files in <code>~/.brain/</code>, shared by every agent you use.
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#quickstart">
@@ -121,7 +110,6 @@ export default function Home() {
             <div className="hero-badges">
               <span className="badge"><span className="k">npm</span><span className="v">v{VERSION}</span></span>
               <span className="badge"><span className="k">license</span><span className="v">MIT</span></span>
-              <span className="badge"><span className="k">deterministic</span><span className="v">recall</span></span>
             </div>
           </div>
         </div>
@@ -137,34 +125,12 @@ export default function Home() {
         <div className="scroll-cue" aria-hidden="true"><span>scroll</span><span className="line" /></div>
       </header>
 
-      {/* ============ 01 WHAT'S INSIDE ============ */}
-      <section className="section" id="inside">
-        <div className="wrap wide">
-          <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">01</span> What&apos;s inside</span>
-            <h2>A memory architecture, not a vector store.</h2>
-          </div>
-          <div className="feature-grid reveal">
-            {features.map((f) => (
-              <div className="feature" key={f.title}>
-                <div className="ft-top">
-                  <svg className="ft-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: f.icon }} />
-                  <h3>{f.title}</h3>
-                  <span className="ft-num">/</span>
-                </div>
-                <p>{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 02 HOW IT WORKS ============ */}
+      {/* ============ 01 HOW IT WORKS ============ */}
       <section className="section" id="how">
         <div className="wrap wide">
           <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">02</span> How it works</span>
-            <h2>The lifecycle of a memory.</h2>
+            <span className="eyebrow"><span className="idx">01</span> How it works</span>
+            <h2>Three steps.</h2>
           </div>
           <div className="works-layout">
             <div className="steps reveal">
@@ -173,7 +139,7 @@ export default function Home() {
                   <span className="st-num">{String(i + 1).padStart(2, "0")}</span>
                   <div>
                     <h3>{s.title}</h3>
-                    <p dangerouslySetInnerHTML={{ __html: s.body }} />
+                    <p>{s.body}</p>
                   </div>
                 </div>
               ))}
@@ -195,45 +161,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ============ 02 SPECIFICATION ============ */}
+      <section className="section" id="spec">
+        <div className="wrap wide">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">02</span> Specification</span>
+            <h2>What every brain includes.</h2>
+          </div>
+          <table className="data-table reveal">
+            <tbody>
+              {spec.map((r) => (
+                <tr key={r.k}><td style={{ width: "28%" }}>{r.k}</td><td>{r.v}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* ============ 03 BENCHMARKS ============ */}
       <section className="section" id="benchmarks">
         <div className="wrap wide">
           <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">03</span> Benchmark results</span>
-            <h2>Six-scenario suite for long-term agent memory.</h2>
+            <span className="eyebrow"><span className="idx">03</span> Benchmarks</span>
+            <h2>Tested against keyword search, vector search and full-context prompts.</h2>
             <p className="lede">
-              Grounded in 2025–2026 long-term-memory evaluation methodology —
-              LongMemEval, MemoryAgentBench, SWE-Bench-CL, Mem0, BEAM. DeepSeek V4
-              Pro under test, graded by a cross-family judge <em>panel</em>
-              {" "}(Gemini + Gemma-4 + Qwen-3.5, majority vote), distractor
-              haystacks, floor-to-oracle arm matrix.{" "}
-              <a href="/docs/benchmarks">Methodology →</a>{" "}
-              <a href="/docs/benchmarks/results">Live results →</a>
+              Claude Sonnet 5.5, 10 runs per arm, graded by a three-judge panel from other model families.
+              Wins, ties and nulls are all published.{" "}
+              <a href="/docs/benchmarks/results">Results →</a>{" "}
+              <a href="/docs/benchmarks">Methodology →</a>
             </p>
           </div>
 
           <div className="stat-row reveal">
-            <div className="stat"><div className="v">100<span className="u">%</span></div><div className="k">brain pass-rate on the 1000-distractor haystack — where BM25 &amp; vector retrievers both score 0%</div></div>
-            <div className="stat"><div className="v">3,199</div><div className="k">brain tokens / success on Scenario A — the leanest of every passing arm</div></div>
-            <div className="stat"><div className="v">−31<span className="u">%</span></div><div className="k">tokens vs dumping all skills — load only the one needed (Scenario D)</div></div>
+            <div className="stat"><div className="v">9<span className="u">/10</span></div><div className="k">passed with 1,000 distractor memories. BM25 and vector search: 0/10.</div></div>
+            <div className="stat"><div className="v">−28<span className="u">%</span></div><div className="k">tokens when only the needed skill is loaded, at the same pass rate.</div></div>
+            <div className="stat"><div className="v">10<span className="u">/10</span></div><div className="k">completed with a poisoned memory present. Without quarantine: 0/10.</div></div>
           </div>
 
-          <table className="data-table scenarios reveal">
-            <thead><tr><th style={{ width: "40%" }}>Scenario</th><th>What it tests</th></tr></thead>
-            <tbody>
-              {scenarioRows.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <span className="sc-id">{r.id}</span> <span className="sc-name">{r.name}</span>
-                    <span className="sc-q">&ldquo;{r.pitch}&rdquo;</span>
-                  </td>
-                  <td>{r.tests}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <BenchmarkResults />
+          <div className="reveal">
+            <SuiteDotPlot />
+          </div>
+          <p className="qs-note reveal">
+            Judge agreement with human grading has not been measured yet. Raw data:{" "}
+            <a href="/benchmarks/sonnet-5-5-suite-2026-11-10.json">JSON</a>.
+          </p>
         </div>
       </section>
 
@@ -241,12 +212,12 @@ export default function Home() {
       <section className="section" id="neuro">
         <div className="wrap wide">
           <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">04</span> Neuroscience foundations</span>
-            <h2>Every mechanism maps to a published model.</h2>
+            <span className="eyebrow"><span className="idx">04</span> Mechanisms</span>
+            <h2>Each mechanism follows a published model.</h2>
           </div>
           <div className="neuro-table reveal">
             <table className="data-table">
-              <thead><tr><th style={{ width: "32%" }}>Mechanism</th><th>Implementation in Brain Memory</th></tr></thead>
+              <thead><tr><th style={{ width: "32%" }}>Mechanism</th><th>In Brain Memory</th></tr></thead>
               <tbody>
                 {neuroRows.map((r) => (
                   <tr key={r.name}><td>{r.name}</td><td>{r.impl}</td></tr>
@@ -257,45 +228,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ============ 05 RESEARCH ============ */}
-      <section className="section" id="references">
-        <div className="wrap">
-          <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">05</span> Research &amp; references</span>
-            <h2>Grounded in the literature.</h2>
-            <p className="lede">
-              Brain Memory&apos;s architecture and benchmark methodology draw on the
-              academic literature on language-agent memory and evaluation. Selected
-              citations below.
-            </p>
-          </div>
-
-          {referenceGroups.map((group) => (
-            <div className="ref-group reveal" key={group.heading}>
-              <h4>{group.heading}</h4>
-              {group.refs.map((ref) => (
-                <div className="ref" key={ref.id}>
-                  <a href={ref.url} target="_blank" rel="noopener noreferrer" className="r-title">{ref.title}</a>
-                  <span className="r-meta">{ref.id}</span>
-                  <p className="r-desc">{ref.note}</p>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ============ 06 COMPATIBILITY ============ */}
+      {/* ============ 05 COMPATIBILITY ============ */}
       <section className="section" id="compat">
         <div className="wrap wide">
           <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">06</span> Compatibility</span>
-            <h2>One memory store. Every agent.</h2>
+            <span className="eyebrow"><span className="idx">05</span> Compatibility</span>
+            <h2>One store. Every agent.</h2>
             <p className="lede">
-              The universal path is the <b>hosted MCP connector</b> — one
-              streamable-HTTP + OAuth endpoint that reaches every host below.
-              Prefer to stay local? The free <b>native plugin</b> writes to
-              <code>~/.brain/</code> for the current CLIs.
+              Add the hosted MCP connector to any agent below. Sign-in is OAuth.
             </p>
           </div>
 
@@ -318,12 +258,9 @@ export default function Home() {
           </div>
 
           <div className="section-head reveal" style={{ marginTop: 48 }}>
-            <h2>Or run it local-first.</h2>
+            <h2>Or run it locally.</h2>
             <p className="lede">
-              <code>npm i -g brain-memory &amp;&amp; brain</code> installs the
-              free native plugin — slash commands and prompt sections wired into
-              the agent&apos;s own config, all pointing at a single
-              <code>~/.brain/</code>.
+              The npm plugin writes to <code>~/.brain/</code> on your machine. No account needed.
             </p>
           </div>
           <div className="compat-grid reveal">
@@ -335,19 +272,16 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p className="qs-note reveal">
-            * Antigravity native support is experimental. For everything else —
-            the Claude.ai apps and ChatGPT included — use the MCP connector above.
-          </p>
+          <p className="qs-note reveal">* Experimental.</p>
         </div>
       </section>
 
-      {/* ============ 07 QUICK START ============ */}
+      {/* ============ 06 QUICK START ============ */}
       <section className="section" id="quickstart">
         <div className="wrap">
           <div className="section-head reveal">
-            <span className="eyebrow"><span className="idx">07</span> Quick start</span>
-            <h2>Install globally, then wire your runtime.</h2>
+            <span className="eyebrow"><span className="idx">06</span> Quick start</span>
+            <h2>Install, then connect your agent.</h2>
           </div>
           <div className="qs-block reveal">
             <div className="qs-line">
@@ -357,11 +291,48 @@ export default function Home() {
             </div>
           </div>
           <p className="qs-note reveal">
-            Then run <code>brain --claude</code> (or <code>--codex</code> /{" "}
-            <code>--opencode</code> / <code>--antigravity</code>, or <code>--all</code>) to configure your runtime(s).
-            For the Claude and ChatGPT apps, add the MCP connector instead. One store,
-            deterministic recall, every agent.
+            Then run <code>brain --claude</code>, <code>--codex</code>, <code>--opencode</code> or{" "}
+            <code>--all</code>. For the Claude and ChatGPT apps, add the MCP connector.
           </p>
+        </div>
+      </section>
+
+      {/* ============ 07 QUESTIONS ============ */}
+      <section className="section" id="faq">
+        <div className="wrap">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">07</span> FAQ</span>
+            <h2>Questions.</h2>
+          </div>
+          <table className="data-table reveal">
+            <tbody>
+              {FAQ.map(({ q, a }) => (
+                <tr key={q}><td style={{ width: "34%" }}>{q}</td><td>{a}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ============ 08 REFERENCES ============ */}
+      <section className="section" id="references">
+        <div className="wrap">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="idx">08</span> References</span>
+            <h2>Sources.</h2>
+          </div>
+
+          {referenceGroups.map((group) => (
+            <div className="ref-group reveal" key={group.heading}>
+              <h4>{group.heading}</h4>
+              {group.refs.map((ref) => (
+                <div className="ref" key={ref.id}>
+                  <a href={ref.url} target="_blank" rel="noopener noreferrer" className="r-title">{ref.title}</a>
+                  <span className="r-meta">{ref.id}</span>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -422,99 +393,37 @@ function CopyButton({
   );
 }
 
-/* ─── Benchmark results (real data, per-scenario tabs) ────────────── */
-function BenchmarkResults() {
-  const tabs = Object.keys(scenarioData);
-  const [active, setActive] = useState(tabs[0]);
-  const data = scenarioData[active];
-
-  return (
-    <div className="reveal">
-      <div className="bench-tabs">
-        {tabs.map((t) => (
-          <button
-            key={t}
-            className={`bench-tab${active === t ? " active" : ""}`}
-            onClick={() => setActive(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-      <div className="bench-meta">{data.subtitle}</div>
-
-      <div style={{ overflowX: "auto" }}>
-        <table className="results">
-          <thead>
-            <tr><th>arm</th><th>tok / success</th><th>recall@5</th><th>pass</th></tr>
-          </thead>
-          <tbody>
-            {data.arms.map((row) => {
-              const hl = row.arm.startsWith("brain-full") || row.arm.startsWith("brain-real") || row.arm.startsWith("brain-skills loaded");
-              return (
-                <tr key={row.arm} className={hl ? "hl" : ""}>
-                  <td>{row.arm}</td>
-                  <td>{row.tokensPerSuccess}</td>
-                  <td>{row.recallAt5}</td>
-                  <td className={row.passRate === "0%" ? "danger" : "pass"}>{row.passRate}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="bench-note">{data.takeaway}</p>
-      <p className="bench-note">
-        Agent under test: DeepSeek V4 Pro (single-shot) · graded by a cross-family
-        panel — Gemini + Gemma-4 + Qwen-3.5, majority vote · 3 runs per arm. At
-        n=3 the token gaps are directional, not yet statistically significant; the
-        pass-rate gradient is the result.
-      </p>
-    </div>
-  );
-}
 
 /* ─── Static content ──────────────────────────────────────────────── */
-const features = [
-  { title: "Hierarchical memory", icon: '<path d="M3 4h6l2 2h10v3M3 4v16h18V9M3 9h18"/>', body: "The directory tree is the semantic structure. Browse memory in any file explorer — no opaque embeddings." },
-  { title: "Strength & decay", icon: '<path d="M3 20c4-12 14-12 18 0M3 20h18"/>', body: "Memories fade along an exponential forgetting curve. Recall arrests decay and pushes strength back up." },
-  { title: "Associative network", icon: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3 9M17 8l-4 8"/>', body: "Weighted edges link related memories. Recalling one activates its neighbours via spreading activation." },
-  { title: "Spaced reinforcement", icon: '<path d="M4 18V8m6 10V5m6 13v-7"/><circle cx="4" cy="6" r="1.5"/><circle cx="10" cy="3" r="1.5"/><circle cx="16" cy="9" r="1.5"/>', body: "Longer intervals between recalls produce larger, more durable boosts. The spacing effect, by design." },
-  { title: "Cognitive types", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 4v8l5 3"/>', body: "Episodic, semantic, and procedural memories each carry their own decay rate and consolidation rules." },
-  { title: "Cross-agent", icon: '<path d="M7 8H4v8h3m10-8h3v8h-3M7 12h10"/>', body: "Claude Code, Codex CLI, OpenCode, Copilot CLI, Kilo, and Antigravity share one store — plus the Claude and ChatGPT apps via the hosted MCP connector, OpenClaw and Hermes as native memory engines, and any LLM underneath. Switch model or agent, keep your memory. Identical scoring, deterministic recall everywhere." },
-  { title: "Sleep & consolidation", icon: '<path d="M17 6a5 5 0 0 1 0 10h-1M7 18a5 5 0 0 1 0-10h1M9 12h6"/>', body: "A nine-phase nightly cycle: replay, consolidation, pruning, reorganization, REM-style recombination." },
-  { title: "Poisoning-resistant", icon: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', body: "Every memory records where it came from, and origin bounds what it may claim — planted facts can't pin, entrench, or outrank what you said. A SHA-256 baseline per file catches edits made outside any write path. All five OWASP ASI06 defense layers, in a memory you can still read in a text editor." },
-  { title: "Sync your way — no lock-in", icon: '<path d="M12 3v6m0 0l3-3m-3 3L9 6m-5 9a8 8 0 0 0 16 0"/><rect x="3" y="15" width="18" height="6" rx="2"/>', body: "Plain files in a folder. Point BRAIN_DIR at Google Drive, Dropbox, or iCloud — or sync via git or encrypted export. No account required." },
-];
-
 const steps = [
-  { title: "Memorize", body: 'Agents write decisions, learnings, and preferences as Markdown with YAML frontmatter. Initial strength is set by <span class="mono-em">type</span> and <span class="mono-em">impact</span>.' },
-  { title: "Decay", body: "Strength decays exponentially at each memory's own rate. Episodic fades fast; procedural is sticky." },
-  { title: "Recall", body: 'Deterministic scoring: <span class="mono-em">TF-IDF × decayed-strength + spreading-activation × context-match</span>. Identical results across every agent.' },
-  { title: "Reinforce", body: "Recalled memories strengthen via spaced reinforcement. Longer gaps → larger boosts; the decay rate itself improves with each recall." },
-  { title: "Sleep", body: "The nine-phase cycle runs maintenance: replay, synaptic homeostasis, knowledge propagation, semantic crystallization, pruning, REM recombination, expertise detection." },
+  { title: "Remember", body: "The agent saves decisions, conventions and preferences as Markdown files." },
+  { title: "Recall", body: "At session start and on request, the most relevant memories are loaded into context." },
+  { title: "Maintain", body: "Memories fade unless used. Recall strengthens them. A sleep cycle consolidates and prunes." },
 ];
 
-const scenarioRows = [
-  { id: "A", name: "Noisy Project Folder", pitch: "200 memories from 6 projects — does brain find the 3 relevant ones?", tests: "Retrieval under distractors · LongMemEval-S analog" },
-  { id: "B", name: "Three Sessions, One Decision", pitch: "Postgres Monday, gRPC rewrite Wednesday, new resource Friday — still Postgres?", tests: "Multi-session continuity · pinned-tier ablation" },
-  { id: "C", name: "The Contradiction Test", pitch: "Tabs, then spaces, then tabs again — which version wins?", tests: "Decay-weighted recency · contradiction handling" },
-  { id: "D", name: "Skill Progressive Disclosure", pitch: "Five skills indexed, one needed — does brain load just the one?", tests: "Procedural skills (L0/L1/L2) token efficiency" },
-  { id: "E", name: "Continual Coding", pitch: "Five bugs in order — does bug 5 finish faster than bug 1?", tests: "Forward transfer · agent writes its own memories" },
-  { id: "F", name: "Abstention", pitch: "No deployment target in memory — does the agent ask or invent?", tests: "Confabulation resistance · stale-fact rejection" },
+/** The specification table — facts only, no adjectives. */
+const spec = [
+  { k: "Storage", v: "One Markdown file per memory in ~/.brain/, with YAML frontmatter. No database." },
+  { k: "Recall", v: "Keyword relevance, strength after decay, links between memories and project context. No model calls; the same ranking in every agent." },
+  { k: "Memory types", v: "Eight types, from decision to observation, each with its own strength and decay rate." },
+  { k: "Time", v: "A newer fact can supersede an older one. Past states stay queryable by date." },
+  { k: "Skills", v: "Procedures stored as SKILL.md files and loaded only when a task needs them." },
+  { k: "Safety", v: "Every memory records its origin. Content from tools or the web waits for your approval before recall." },
+  { k: "Sync", v: "Git remote, encrypted export, any synced folder via BRAIN_DIR, or Brain Cloud." },
+  { k: "Requirements", v: "Node.js 18 or later. No runtime dependencies." },
+  { k: "License", v: "MIT" },
 ];
 
 const neuroRows = [
-  { name: "Spreading activation", impl: "Recalling memory A automatically surfaces its linked neighbours B and C along weighted edges." },
-  { name: "Hebbian learning", impl: "Memories recalled together strengthen their mutual link — neurons that fire together, wire together." },
-  { name: "Context-dependent recall", impl: "Memories encoded in a similar context score higher at retrieval time." },
-  { name: "Spacing effect", impl: "Longer recall intervals produce larger, longer-lasting strength boosts." },
-  { name: "Ebbinghaus decay", impl: "Exponential forgetting with per-memory decay rates set by cognitive type." },
-  { name: "Synaptic homeostasis", impl: "Global strength down-scaling during sleep prevents runaway inflation." },
+  { name: "Ebbinghaus decay", impl: "Strength falls exponentially, at a rate set by memory type." },
+  { name: "Spacing effect", impl: "Longer gaps between recalls give larger, longer-lasting boosts." },
+  { name: "Spreading activation", impl: "Recalling a memory also surfaces its linked memories." },
+  { name: "Hebbian learning", impl: "Memories recalled together become more strongly linked." },
+  { name: "Context-dependent recall", impl: "Memories from the current project rank higher." },
+  { name: "Synaptic homeostasis", impl: "Sleep scales all strengths down to prevent inflation." },
 ];
 
-// The universal path — one hosted MCP connector (streamable-HTTP + OAuth)
-// reaches every host below. Per-host is just how you point each one at the URL.
+// The hosted MCP connector (streamable HTTP + OAuth) reaches every host below.
 const connectorHosts = [
   { name: "Claude Code", vendor: "Anthropic", setup: "claude mcp add --transport http brain …/mcp" },
   { name: "Codex CLI", vendor: "OpenAI", setup: "codex mcp add brain --url …/mcp" },
@@ -526,7 +435,7 @@ const connectorHosts = [
   { name: "Antigravity", vendor: "Google", setup: "mcp_config.json → serverUrl" },
 ];
 
-// The free local-first native plugin (~/.brain/) for the current CLIs.
+// The local npm plugin (~/.brain/) for the current CLIs.
 const nativeHosts = [
   { name: "Claude Code", vendor: "Anthropic", flag: "--claude" },
   { name: "Codex CLI", vendor: "OpenAI", flag: "--codex" },
@@ -540,105 +449,38 @@ const referenceGroups = [
   {
     heading: "Foundations",
     refs: [
-      { title: "Cognitive Architectures for Language Agents (CoALA)", id: "arXiv 2309.02427", url: "https://arxiv.org/abs/2309.02427", note: "Sumers, Yao, Narasimhan, Griffiths — the agent-memory model Brain Memory implements. Pinned tier, procedural skills, and budget-aware working memory map to CoALA's semantic / procedural / episodic decomposition." },
-      { title: "MemGPT: Towards LLMs as Operating Systems", id: "arXiv 2310.08560", url: "https://arxiv.org/abs/2310.08560", note: "Packer et al. — paging-style memory management that motivated budget-bounded working memory." },
-      { title: "Generative Agents: Interactive Simulacra of Human Behavior", id: "arXiv 2304.03442", url: "https://arxiv.org/abs/2304.03442", note: "Park et al. — recency · importance · relevance retrieval that inspired the recall scoring weights." },
-      { title: "Ebbinghaus — Über das Gedächtnis (1885)", id: "foundational", url: "https://en.wikipedia.org/wiki/Forgetting_curve", note: "The original forgetting curve. Brain Memory's exponential decay and spaced-reinforcement boosts follow it directly." },
+      { title: "Cognitive Architectures for Language Agents (CoALA)", id: "arXiv 2309.02427", url: "https://arxiv.org/abs/2309.02427" },
+      { title: "MemGPT: Towards LLMs as Operating Systems", id: "arXiv 2310.08560", url: "https://arxiv.org/abs/2310.08560" },
+      { title: "Generative Agents: Interactive Simulacra of Human Behavior", id: "arXiv 2304.03442", url: "https://arxiv.org/abs/2304.03442" },
+      { title: "Ebbinghaus — Über das Gedächtnis (1885)", id: "foundational", url: "https://en.wikipedia.org/wiki/Forgetting_curve" },
     ],
   },
   {
     heading: "Memory benchmarks",
     refs: [
-      { title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory", id: "arXiv 2410.10813", url: "https://arxiv.org/abs/2410.10813", note: "Distractor-haystack design (Scenario A) and the rubric-based LLM judge." },
-      { title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents", id: "arXiv 2507.05257", url: "https://arxiv.org/abs/2507.05257", note: "Four competencies — accurate retrieval, test-time learning, long-range understanding, selective forgetting. FactConsolidation inspired Scenario C (The Contradiction Test)." },
-      { title: "SWE-Bench-CL: Continual Learning for Coding Agents", id: "arXiv 2507.00014", url: "https://arxiv.org/abs/2507.00014", note: "Forward transfer in continual coding — basis for Scenario E." },
-      { title: "Mem0: Scalable Long-Term Memory for Production AI Agents", id: "arXiv 2504.19413", url: "https://arxiv.org/abs/2504.19413", note: "Tokens-per-query co-reported with accuracy — source of the tokens-per-successful-task metric." },
-      { title: "BEAM: Benchmarking Long-Term Memory up to 10M Tokens", id: "arXiv 2510.27246", url: "https://arxiv.org/abs/2510.27246", note: "Structured memory beats a 10M-token context window, and the gap widens with scale — memory still matters past long context." },
+      { title: "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory", id: "arXiv 2410.10813", url: "https://arxiv.org/abs/2410.10813" },
+      { title: "MemoryAgentBench: A Unified Evaluation for Long-Term Memory Agents", id: "arXiv 2507.05257", url: "https://arxiv.org/abs/2507.05257" },
+      { title: "SWE-Bench-CL: Continual Learning for Coding Agents", id: "arXiv 2507.00014", url: "https://arxiv.org/abs/2507.00014" },
+      { title: "Mem0: Scalable Long-Term Memory for Production AI Agents", id: "arXiv 2504.19413", url: "https://arxiv.org/abs/2504.19413" },
+      { title: "BEAM: Benchmarking Long-Term Memory up to 10M Tokens", id: "arXiv 2510.27246", url: "https://arxiv.org/abs/2510.27246" },
     ],
   },
   {
     heading: "Methodology",
     refs: [
-      { title: "Preference Leakage: A Pitfall in LLM-as-a-Judge", id: "arXiv 2502.01534", url: "https://arxiv.org/abs/2502.01534", note: "Same-family judging inflates scores (~24% leakage vs ~3% cross-family). The benchmark judges DeepSeek with a panel of non-DeepSeek families." },
-      { title: "Replacing Judges with Juries: a Panel of LLM Evaluators (PoLL)", id: "arXiv 2404.18796", url: "https://arxiv.org/abs/2404.18796", note: "A panel of smaller, disjoint-family judges beats a single large judge on human agreement, with less intra-model bias — the basis for the Gemini + Gemma-4 + Qwen-3.5 panel." },
-      { title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", id: "arXiv 2306.05685", url: "https://arxiv.org/abs/2306.05685", note: "Documents position, verbosity, and self-enhancement bias; origin of the swap-consistency check the benchmark applies to pairwise judgments." },
-      { title: "When Judgment Becomes Noise", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293", note: "Judge verdicts carry large unexplained variance — report uncertainty rather than aggregate it away. Why results are published with n=3 error bars, not bare point estimates." },
-      { title: "LastingBench: Defending Benchmarks Against Data Leakage", id: "arXiv 2506.21614", url: "https://arxiv.org/abs/2506.21614", note: "Synthetic, decay-driven scenarios guard against memorised public-set answers." },
+      { title: "Preference Leakage: A Pitfall in LLM-as-a-Judge", id: "arXiv 2502.01534", url: "https://arxiv.org/abs/2502.01534" },
+      { title: "Replacing Judges with Juries: a Panel of LLM Evaluators (PoLL)", id: "arXiv 2404.18796", url: "https://arxiv.org/abs/2404.18796" },
+      { title: "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", id: "arXiv 2306.05685", url: "https://arxiv.org/abs/2306.05685" },
+      { title: "When Judgment Becomes Noise", id: "arXiv 2509.20293", url: "https://arxiv.org/abs/2509.20293" },
+      { title: "LastingBench: Defending Benchmarks Against Data Leakage", id: "arXiv 2506.21614", url: "https://arxiv.org/abs/2506.21614" },
     ],
   },
   {
     heading: "Memory security",
     refs: [
-      { title: "OWASP Top 10 for Agentic Applications — ASI06: Memory & Context Poisoning", id: "OWASP 2026", url: "https://genai.owasp.org/", note: "Names the attack class: adversarial content written into persistent memory, executing days later. Its five prescribed defense layers — input moderation, provenance-bearing sanitization, trust-aware retrieval, behavioral monitoring, forensics — map one-to-one onto content lint, origin ceilings, trust-weighted recall, brain audit, and the append-only audit log." },
-      { title: "MemGhost: Persistent Manipulation of LLM Agents via Memory Injection", id: "arXiv 2607.05189", url: "https://arxiv.org/abs/2607.05189", note: "The failure mode provenance defends against: content the agent merely read persuades it to write a fact, which then hardens — pinned, decay-exempt, and boosted by its own planted neighbours." },
-      { title: "A Survey on Long-Term Memory Security in LLM Agents", id: "arXiv 2604.16548", url: "https://arxiv.org/abs/2604.16548", note: "Six-phase memory lifecycle (write, store, retrieve, execute, share, forget) and Verifiable Memory Governance. Its central finding — that integrity cannot be retrofitted at retrieval time alone — is why Brain baselines content at write time rather than validating at recall." },
+      { title: "OWASP Top 10 for Agentic Applications — ASI06: Memory & Context Poisoning", id: "OWASP 2026", url: "https://genai.owasp.org/" },
+      { title: "MemGhost: Persistent Manipulation of LLM Agents via Memory Injection", id: "arXiv 2607.05189", url: "https://arxiv.org/abs/2607.05189" },
+      { title: "A Survey on Long-Term Memory Security in LLM Agents", id: "arXiv 2604.16548", url: "https://arxiv.org/abs/2604.16548" },
     ],
   },
 ];
-
-interface ArmRow { arm: string; tokensPerSuccess: string; recallAt5: string; passRate: string; }
-interface ScenarioResult { subtitle: string; takeaway: string; arms: ArmRow[]; }
-const scenarioData: Record<string, ScenarioResult> = {
-  "A · Noisy folder": {
-    subtitle: "Scenario A — retrieval under a 1000-distractor haystack",
-    takeaway:
-      "Brain is the only retriever whose memories let the model succeed under heavy noise — BM25 (R@5 0.33) and vector embeddings (R@5 0.00) both fail outright — and it passes at the lowest tokens-per-success of any passing arm. Turning the pinned tier off drops it to 67%.",
-    arms: [
-      { arm: "no-memory (floor)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
-      { arm: "vector (embeddings)", tokensPerSuccess: "—", recallAt5: "0.00", passRate: "0%" },
-      { arm: "keyword (BM25)", tokensPerSuccess: "—", recallAt5: "0.33", passRate: "0%" },
-      { arm: "brain-full", tokensPerSuccess: "3,199", recallAt5: "0.67", passRate: "100%" },
-      { arm: "brain-no-pin", tokensPerSuccess: "5,135", recallAt5: "0.33", passRate: "67%" },
-      { arm: "oracle (ceiling)", tokensPerSuccess: "3,572", recallAt5: "1.00", passRate: "100%" },
-      { arm: "context-dump 8k", tokensPerSuccess: "5,856", recallAt5: "—", passRate: "100%" },
-      { arm: "context-dump 60k", tokensPerSuccess: "20,689", recallAt5: "—", passRate: "100%" },
-    ],
-  },
-  "B · Continuity": {
-    subtitle: "Scenario B — one decision held across three sessions",
-    takeaway:
-      "Postgres was decided despite a discarded Mongo prototype. Brain recalls it perfectly (R@5 1.0) and passes at the fewest tokens-per-success. Here the haystack is small enough that plain BM25 also succeeds — on this one, memory's edge is efficiency, not correctness.",
-    arms: [
-      { arm: "fixture-only (floor)", tokensPerSuccess: "2,546", recallAt5: "—", passRate: "67%" },
-      { arm: "keyword (BM25)", tokensPerSuccess: "2,721", recallAt5: "1.00", passRate: "100%" },
-      { arm: "brain-real", tokensPerSuccess: "1,871", recallAt5: "1.00", passRate: "100%" },
-      { arm: "brain-no-pin", tokensPerSuccess: "2,072", recallAt5: "1.00", passRate: "100%" },
-      { arm: "oracle (ceiling)", tokensPerSuccess: "1,734", recallAt5: "1.00", passRate: "100%" },
-    ],
-  },
-  "C · Contradiction": {
-    subtitle: "Scenario C — tabs → spaces → tabs, which version wins?",
-    takeaway:
-      "An honest null. Everything clusters near 67% — single-shot indentation is a noisy signal — and dumping all three versions in chronological order (so the latest wins) edges out retrieval here. Brain neither clearly wins nor loses contradiction in this setup.",
-    arms: [
-      { arm: "fixture-only (floor)", tokensPerSuccess: "1,218", recallAt5: "—", passRate: "67%" },
-      { arm: "keyword (BM25)", tokensPerSuccess: "1,775", recallAt5: "1.00", passRate: "33%" },
-      { arm: "brain-real", tokensPerSuccess: "1,572", recallAt5: "1.00", passRate: "67%" },
-      { arm: "brain-no-pin", tokensPerSuccess: "1,058", recallAt5: "1.00", passRate: "67%" },
-      { arm: "oracle (ceiling)", tokensPerSuccess: "915", recallAt5: "1.00", passRate: "67%" },
-      { arm: "dump-all-chrono", tokensPerSuccess: "469", recallAt5: "—", passRate: "100%" },
-    ],
-  },
-  "D · Skills": {
-    subtitle: "Scenario D — five skills indexed, one needed",
-    takeaway:
-      "Loading just the relevant skill passes 100% at 1,580 tokens-per-success — ~31% leaner than dumping every skill body (2,289). The index-only and no-skills arms fail: a single-shot model can't load a skill on demand the way an agent would, which is exactly what the skills tier automates.",
-    arms: [
-      { arm: "fixture-only (floor)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
-      { arm: "brain-skills L0 (index)", tokensPerSuccess: "—", recallAt5: "—", passRate: "0%" },
-      { arm: "brain-skills loaded (L1)", tokensPerSuccess: "1,580", recallAt5: "—", passRate: "100%" },
-      { arm: "brain-skills all-loaded", tokensPerSuccess: "2,289", recallAt5: "—", passRate: "100%" },
-    ],
-  },
-  "F · Abstention": {
-    subtitle: "Scenario F — no deployment target in memory",
-    takeaway:
-      "Another honest null. DeepSeek abstains correctly with or without brain (100%) — the base model already declines to invent a deploy target — while a noisy keyword retriever drags it to 67%. Memory neither helps nor hurts abstention here.",
-    arms: [
-      { arm: "fixture-only (floor)", tokensPerSuccess: "775", recallAt5: "—", passRate: "100%" },
-      { arm: "keyword (BM25)", tokensPerSuccess: "1,238", recallAt5: "—", passRate: "67%" },
-      { arm: "brain-real", tokensPerSuccess: "920", recallAt5: "—", passRate: "100%" },
-      { arm: "oracle (ceiling)", tokensPerSuccess: "890", recallAt5: "—", passRate: "100%" },
-    ],
-  },
-};

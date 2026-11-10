@@ -1,5 +1,18 @@
 [
   {
+    "version": "0.6.1",
+    "date": "2026-11-10",
+    "sections": [
+      {
+        "category": "Changed",
+        "items": [
+          "**README: November 2026 benchmark results.** The benchmark section now reports the confirmatory run — Claude Sonnet 5.5 under test, N=10 per arm, a Gemini 3.5 Flash + Gemini 2.5 Pro + DeepSeek V4 Pro judge panel — across scenarios A–D, F and the new poisoned-haystack scenario G, replacing the June n=3 numbers. Full tables and raw JSON: [brainmemory.ai/docs/benchmarks/results](https://brainmemory.ai/docs/benchmarks/results/)."
+        ]
+      }
+    ],
+    "note": "First npm release of the 0.6.0 work: 0.6.0 was tagged but never published, so everything listed under 0.6.0 below reaches npm with this version."
+  },
+  {
     "version": "0.6.0",
     "date": "2026-11-09",
     "sections": [

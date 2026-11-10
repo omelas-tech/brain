@@ -41,7 +41,7 @@ export default function DocsLayout({
           <div className="flex items-center gap-3">
             <SearchDialog />
             <div className="nav-links">
-              <a href="/#inside" className="hidden md:inline-flex">How it works</a>
+              <a href="/#how" className="hidden md:inline-flex">How it works</a>
               <a href="/#benchmarks" className="hidden md:inline-flex">Benchmarks</a>
               <Link href="/docs" className="hidden md:inline-flex active">Docs</Link>
               <Link href="/blog" className="hidden md:inline-flex">Blog</Link>

@@ -28,9 +28,9 @@ const instrumentSerif = Instrument_Serif({
 
 const TITLE = "Brain Memory — Memory for AI Agents";
 const DESCRIPTION =
-  "A hierarchical, file-system-based memory system for AI coding agents. Inspired by human neuroscience — memories decay, strengthen through recall, and connect via associative networks.";
+  "Long-term memory for AI agents. Decisions, conventions and preferences are stored as Markdown files and recalled across sessions in Claude Code, Codex, ChatGPT and other agents.";
 const OG_DESCRIPTION =
-  "A hierarchical, file-system-based memory system for AI coding agents inspired by human neuroscience.";
+  "Long-term memory for AI agents, stored as Markdown files and shared by every agent you use.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

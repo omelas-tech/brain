@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Glyph from "./Glyph";
 
 // Homepage in-page sections the nav scroll-spies / jumps to.
-const SECTIONS = ["inside", "benchmarks"];
+const SECTIONS = ["how", "benchmarks"];
 
 export default function Header() {
   const pathname = usePathname();
@@ -64,7 +64,7 @@ export default function Header() {
         </Link>
 
         <div className="nav-links">
-          <a href={sectionHref("inside")} className={`hidden md:inline-flex${sectionActive("inside") ? " active" : ""}`}>How it works</a>
+          <a href={sectionHref("how")} className={`hidden md:inline-flex${sectionActive("how") ? " active" : ""}`}>How it works</a>
           <a href={sectionHref("benchmarks")} className={`hidden md:inline-flex${sectionActive("benchmarks") ? " active" : ""}`}>Benchmarks</a>
           <Link href="/docs" className={`hidden md:inline-flex${docsActive ? " active" : ""}`}>Docs</Link>
           <Link href="/blog" className={`hidden md:inline-flex${blogActive ? " active" : ""}`}>Blog</Link>
@@ -89,7 +89,7 @@ export default function Header() {
       {isMenuOpen && (
         <div className="md:hidden border-t border-[var(--border)] bg-[var(--nav-bg)] backdrop-blur-xl">
           <div className="flex flex-col px-6 py-3 gap-1 font-mono text-sm">
-            <a href={sectionHref("inside")} className={`py-2 hover:text-[var(--fg)] ${sectionActive("inside") ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>How it works</a>
+            <a href={sectionHref("how")} className={`py-2 hover:text-[var(--fg)] ${sectionActive("how") ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>How it works</a>
             <a href={sectionHref("benchmarks")} className={`py-2 hover:text-[var(--fg)] ${sectionActive("benchmarks") ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Benchmarks</a>
             <Link href="/docs" className={`py-2 hover:text-[var(--fg)] ${docsActive ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Docs</Link>
             <Link href="/blog" className={`py-2 hover:text-[var(--fg)] ${blogActive ? "text-[var(--accent)]" : "text-[var(--fg-2)]"}`} onClick={() => setIsMenuOpen(false)}>Blog</Link>
