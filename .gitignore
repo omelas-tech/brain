@@ -57,3 +57,6 @@ benchmark/data/
 
 # claude plugin eval run artifacts
 evals/results/
+
+# Raw benchmark campaign output (logs, judge dumps) lives in the private brain-cloud repo
+benchmark/results/_*/

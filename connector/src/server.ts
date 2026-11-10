@@ -105,7 +105,7 @@ export function buildServer(session: Session): McpServer {
           "brain believed at a given time.",
         ),
       },
-      annotations: { readOnlyHint: true, title: "Recall memories" },
+      annotations: { title: "Recall memories", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ query, limit, project, as_of, as_known_of }) => {
       await ensureFresh();
@@ -148,7 +148,7 @@ export function buildServer(session: Session): McpServer {
         "Health overview of the user's brain: memory count and last-updated time, and the " +
         "account's brains in Brain Cloud with the one in use marked active.",
       inputSchema: {},
-      annotations: { readOnlyHint: true, title: "Brain status" },
+      annotations: { title: "Brain status", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => {
       await ensureFresh();
@@ -181,7 +181,7 @@ export function buildServer(session: Session): McpServer {
       inputSchema: {
         brain: z.string().min(1).describe("Name (case-insensitive) or id of the brain to use"),
       },
-      annotations: { title: "Use brain", readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+      annotations: { title: "Use brain", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ brain }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_use");
@@ -285,7 +285,7 @@ export function buildServer(session: Session): McpServer {
           "words is held for verification and can never be pinned.",
         ),
       },
-      annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: true },
+      annotations: { title: "Memorize", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     async ({ content, title, type, tags, origin, valid_from, valid_until, supersedes, authorized_by }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_memorize");
@@ -321,7 +321,7 @@ export function buildServer(session: Session): McpServer {
       description:
         "Pin a memory, by `id`, to the always-present tier so it loads every session and never decays.",
       inputSchema: { id: z.string().describe("Memory id, e.g. mem_20260101_abc123") },
-      annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+      annotations: { title: "Pin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_pin");
@@ -336,7 +336,7 @@ export function buildServer(session: Session): McpServer {
     {
       description: "Remove a memory, by `id`, from the always-present tier (returns it to normal recall + decay).",
       inputSchema: { id: z.string().describe("Memory id to unpin") },
-      annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+      annotations: { title: "Unpin memory", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_unpin");
@@ -353,7 +353,7 @@ export function buildServer(session: Session): McpServer {
         "Archive a memory, by `id`, so it stops surfacing in recall (recoverable — moved to " +
         "_archived/, not permanently deleted).",
       inputSchema: { id: z.string().describe("Memory id to archive") },
-      annotations: { title: "Forget memory", readOnlyHint: false, destructiveHint: true },
+      annotations: { title: "Forget memory", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     async ({ id }) => {
       if (!hasScope(session, "brain.write")) return scopeError("brain_forget");
@@ -376,7 +376,7 @@ export function buildServer(session: Session): McpServer {
         action: z.enum(["list", "approve", "reject"]).default("list").describe("What to do"),
         ids: z.array(z.string()).optional().describe("Memory ids for approve/reject"),
       },
-      annotations: { title: "Verify memories", readOnlyHint: false, destructiveHint: true },
+      annotations: { title: "Verify memories", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     async ({ action, ids }) => {
       await ensureFresh();

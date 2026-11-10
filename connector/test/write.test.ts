@@ -61,8 +61,15 @@ async function main() {
     const client = new Client({ name: "write-test", version: "0.0.1" });
     await client.connect(transport);
 
-    const tools = (await client.listTools()).tools.map((t) => t.name).sort();
+    const listed = (await client.listTools()).tools;
+    const tools = listed.map((t) => t.name).sort();
     assert.deepEqual(tools, ["brain_forget", "brain_memorize", "brain_pin", "brain_recall", "brain_status", "brain_unpin", "brain_use", "brain_verify"]);
+    // Plugin directories reject a server unless every tool states these three hints.
+    for (const t of listed) {
+      for (const hint of ["readOnlyHint", "destructiveHint", "openWorldHint"] as const) {
+        assert.equal(typeof t.annotations?.[hint], "boolean", `${t.name} must set ${hint}`);
+      }
+    }
     log(`① tools/list → [${tools.join(", ")}]`);
 
     // Write a memory from explicit content
