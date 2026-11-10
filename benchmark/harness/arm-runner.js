@@ -669,7 +669,10 @@ async function connectorGatedRecall({ arm, homeDir, setup, gate }) {
     task: setup.context?.task_type,
     top: Math.max(top, 10),
   });
-  const text = formatRecallForPrompt(ranked.slice(0, top));
+  const text = formatRecallForPrompt(ranked.slice(0, top), homeDir);
+  if (ranked.length && !text.replace(/•[^:]*:/g, '').trim()) {
+    throw new Error('connector-gated: recalled memories have no readable content (harness bug)');
+  }
   const retrieval = oracleIds ? scoreRetrieval(ranked, oracleIds) : null;
   return { text, retrieval, gate: { invoked: true, query: decision.query, hits: ranked.length } };
 }
@@ -733,6 +736,9 @@ function classifyError(err) {
   // Model spent its whole output budget (e.g. on thinking) and produced no
   // answer — not retried (same prompt, same budget), and never scored as FAIL.
   if (m.includes('output budget exhausted')) return 'budget';
+  // Provider safety layer blocked the prompt before any output. A real,
+  // reportable outcome (not retried) — but not an answer to judge.
+  if (m.includes('api refusal')) return 'refusal';
   if (m.includes('timed out') || m.includes('timeout')) return 'timeout';
   if (/econnreset|etimedout|enotfound|socket|network|exited with code|stream parse|result error|error_during_execution|no parseable/.test(m)) return 'infra';
   if (m.includes('parse')) return 'parse';
@@ -778,9 +784,30 @@ function scoreRetrievalFromSessionStart(payload, oracleIds) {
 // All three formatters below are HEADER-LESS — wrapContextBlock() supplies the
 // single canonical header so prompt structure is uniform across arms.
 
-function formatRecallForPrompt(ranked) {
+function formatRecallForPrompt(ranked, homeDir) {
   if (!ranked || ranked.length === 0) return '';
-  return ranked.map((m) => `  • ${m.title || m.id}: ${m.body || ''}`.trim()).join('\n');
+  // `brain recall` returns metadata (id, title, path, score) — not the memory
+  // text. The connector's brain_recall hands the model the memory content, so
+  // read each file from the isolated brain. Before 2026-11-10 this arm passed
+  // bare ids, and the model was told it "recalled" memories with no content.
+  return ranked.map((m) => {
+    const body = m.body || readMemoryBody(m.path, homeDir);
+    return `  • ${m.title || m.id}: ${body}`.trim();
+  }).join('\n');
+}
+
+function readMemoryBody(memPath, homeDir) {
+  if (!memPath) return '';
+  const candidates = path.isAbsolute(memPath)
+    ? [memPath]
+    : [path.join(homeDir || '', '.brain', memPath), path.join(homeDir || '', memPath)];
+  for (const f of candidates) {
+    try {
+      const raw = fs.readFileSync(f, 'utf8');
+      return raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+    } catch { /* try next */ }
+  }
+  return '';
 }
 
 // estimate tokens for a string (chars/4 heuristic, matching distractors.js)

@@ -76,6 +76,10 @@ function run(prompt, { timeout = 300000 } = {}) {
         try {
           const j = JSON.parse(buf);
           const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('');
+          if (j.stop_reason === 'refusal') {
+            const cat = (j.stop_details && j.stop_details.category) || 'unspecified';
+            return reject(new Error(`Claude API refusal (safety classifier, category: ${cat}) — no answer generated`));
+          }
           if (!text.trim() && j.stop_reason === 'max_tokens') {
             return reject(new Error('Claude output budget exhausted (max_tokens) before any answer text — raise CLAUDE_NUM_PREDICT'));
           }
