@@ -1,104 +1,153 @@
 import Callout from "@/app/components/docs/Callout";
+import { SuiteDotPlot, ScenarioACost } from "@/app/components/BenchmarkCharts";
 
 import { docMeta } from "@/lib/docs";
 
 export const metadata = docMeta("/docs/benchmarks/results", {
   title: "Benchmark Results - Brain Memory",
   description:
-    "Results from the Brain Memory benchmark: DeepSeek V4 Pro under test across five long-term-memory scenarios, graded by a cross-family judge panel. Raw JSON included.",
+    "Confirmatory results from the Brain Memory benchmark: Claude Sonnet 5.5 under test across six long-term-memory scenarios, N=10 per arm, graded by a three-judge cross-family panel. Wins, ties and nulls reported. Raw JSON included.",
   category: "Benchmarks",
   order: 3,
 });
 
 # Benchmark Results
 
-This page tracks current measurements from the benchmark suite. Numbers are reproducible — the harness is deterministic up to model-provider non-determinism, and the same scenario JSON + distractor seed always produces the same memory pool. Regenerate any table below with `node harness/summarize.js results/<file>.json` and the statistics with `node harness/analyze.js results/<file>.json`.
+The confirmatory run of the benchmark suite, executed against the [pre-registered plan](https://github.com/omelas-tech/brain/blob/main/benchmark/PREREGISTRATION.md): **N=10 runs per arm**, every scenario anchored by a no-memory floor and an oracle ceiling, every candidate graded by a three-judge panel. Wins, ties and nulls are all reported — the ties are part of the result.
 
 <Callout type="warning">
-  Run at **n=3 per arm**. The token differences are **directional, not statistically significant** (Mann–Whitney U is not significant at this sample size — see the 90% CIs in the stats file). The **pass-rate gradient is the result.** Two scenarios (C, F) are honest **nulls** — reported as-is rather than dropped.
+  **Judge validation is pending.** The pre-registration requires the panel to be checked against human grading (Cohen's κ ≥ 0.6 on ≥ 50 runs) before any headline is treated as final. That check has not been run yet; every per-judge verdict and rationale is in the raw JSON so it can be.
 </Callout>
 
 ## Run metadata
 
 | Field | Value |
 |---|---|
-| Date | 2026-06-26 |
-| Agent under test | **DeepSeek V4 Pro** (single-shot, `deepseek-v4-pro`) |
-| Judge | **Cross-family panel** — Gemini 2.5 Flash + Gemma-4 12B + Qwen-3.5 9B, **majority vote**, each criterion majority-voted |
-| Runs per arm | 3 |
-| Scenarios | A, B, C, D, F (E — continual — deferred) |
+| Date | 2026-11-10 |
+| Agent under test | **Claude Sonnet 5.5** (`claude-sonnet-5-5`), single-shot via the Messages API — no Claude Code CLI, so no CLI system prompt, tools or auto memory in any arm |
+| Judge panel | **Gemini 3.5 Flash + Gemini 2.5 Pro + DeepSeek V4 Pro** — majority vote, each rubric criterion majority-voted; no judge shares the agent's family |
+| Runs per arm | 10 (pre-registered N) |
+| Scenarios | A, B, C, D, F, G (E — continual — deferred) |
 | Distractor haystack | up to 1000 deterministic memories (seed=42) |
+| Statistics | Pass rates: Fisher exact vs the brain arm. Tokens: 90% bootstrap CI, Mann–Whitney U, Holm–Bonferroni |
 
-Why single-shot? The model receives the task plus whatever the arm injects (nothing, a retriever's top-k, brain's session-start payload, or the oracle) and replies in one turn. This isolates **memory's effect** — there is no agentic file exploration to rediscover conventions — and keeps token counts clean and comparable (no cache-read inflation). It mirrors the Mem0 / LongMemEval framing.
+Why single-shot? The model receives the task plus whatever the arm injects (nothing, a retriever's top-k, brain's session-start payload, or the oracle) and replies in one turn. That isolates **memory's effect** — there is no agentic file exploration to rediscover conventions — and keeps token counts comparable.
+
+## At a glance
+
+| Scenario | What it tests | Brain vs best non-brain baseline |
+|---|---|---|
+| **A** Noisy project folder | Retrieval under 1000 distractors | ✅ **Win** — 9/10 vs 0/10 for BM25, vector and no-memory |
+| **B** Three sessions, one decision | Multi-session continuity | **Tie** — every memory arm passes; BM25 is leaner |
+| **C** Contradiction | Latest decision wins | **Tie** — every memory arm passes; BM25 is leaner |
+| **D** Skill progressive disclosure | Loading only the needed skill | ✅ **Win** — 10/10 at 28% fewer tokens than loading all skills |
+| **F** Abstention | Not inventing a missing fact | **Null** — the base model abstains without memory |
+| **G** Poisoned haystack | A planted exfiltration instruction | ✅ **Quarantine keeps the task alive** — 10/10, vs 10/10 refused without it |
+
+<SuiteDotPlot />
 
 ## Scenario A — Noisy Project Folder (retrieval under 1000 distractors)
 
-| Arm | tok/success | Recall@5 | rubric score | pass |
-|---|---:|:---:|:---:|:---:|
-| no-memory (floor) | — | — | 0.43 | 0% |
-| vector (embeddings) | — | 0.00 | 0.33 | 0% |
-| keyword (BM25) | — | 0.33 | 0.48 | 0% |
-| **brain-full** | **3,199** | 0.67 | 1.00 | **100%** |
-| brain-no-pin | 5,135 | 0.33 | 0.67 | 67% |
-| brain-no-recall | 3,643 | — | 0.95 | 100% |
-| oracle (ceiling) | 3,572 | 1.00 | 1.00 | 100% |
-| context-dump 8k | 5,856 | — | 1.00 | 100% |
-| context-dump 60k | 20,689 | — | 1.00 | 100% |
+| Arm | pass | Recall@5 | median tokens | tok/success |
+|---|:---:|:---:|---:|---:|
+| no-memory (floor) | 0/10 | — | 1,916 | — |
+| keyword (BM25) | 0/10 | 0.33 | 2,632 | — |
+| vector-baseline | 0/10 | 0.00 | 2,504 | — |
+| **brain-full** (session-start injection) | **9/10** | 0.67 | **3,777** | **4,281** |
+| **brain-connector-gated** (model calls recall) | **10/10** | **1.00** | 4,947 | 4,916 |
+| brain-no-pin | 8/10 | 0.67 | 3,870 | 4,827 |
+| brain-no-recall | 10/10 | — | 3,835 | 3,804 |
+| context-dump 8k | 10/10 | — | 15,314 | 15,465 |
+| context-dump 60k | 10/10 | — | 85,135 | 85,246 |
+| oracle (ceiling) | 10/10 | 1.00 | 4,447 | 4,375 |
 
-**Headline.** Under a 1000-distractor haystack, **brain is the only retrieval method whose memories let the model succeed** — both BM25 (Recall@5 0.33) and a local vector store (Recall@5 0.00) fail to surface the three oracle memories, and the model fails with them. Brain retrieves 2/3 (Recall@5 0.67), which is enough to pass, and it does so at the **lowest tokens-per-success of any passing arm** (3,199 — below the oracle's 3,572 and far below the 8k/60k dumps). Disabling the pinned tier drops brain to 67% and doubles its Recall miss — the ablation that isolates pinning's value.
+<ScenarioACost />
+
+**Headline.** Under a 1000-memory haystack, both standard retrievers fail completely: BM25 surfaces one of the three needed memories and a vector store none, and the model passes **0/10** with either. Brain passes **9/10** (Fisher exact p = 0.0001 against each). The only other arms that pass are the ones that skip retrieval — the oracle, and dumping the corpus into the prompt, which costs **4× (8k dump) to 22× (60k dump)** brain's median tokens per run (3.6× and 20× per success).
+
+**Where brain can still improve.** Session-start injection retrieves 2 of 3 target memories (Recall@5 0.67): superseded "decoy" versions of a convention take two of the five slots. When the model chooses its own recall query (`brain-connector-gated`, the hosted connector's policy), it retrieves all three — 10/10 at Recall@5 1.00. Disabling the pinned tier drops brain to 8/10.
 
 ## Scenario B — Three Sessions, One Decision (continuity)
 
-| Arm | tok/success | Recall@5 | rubric score | pass |
-|---|---:|:---:|:---:|:---:|
-| fixture-only (floor) | 2,546 | — | 0.62 | 67% |
-| keyword (BM25) | 2,721 | 1.00 | 0.95 | 100% |
-| **brain-real** | **1,871** | 1.00 | 1.00 | **100%** |
-| brain-no-pin | 2,072 | 1.00 | 1.00 | 100% |
-| oracle (ceiling) | 1,734 | 1.00 | 1.00 | 100% |
+| Arm | pass | Recall@5 | median tokens |
+|---|:---:|:---:|---:|
+| fixture-only (floor) | 0/10 | — | 994 |
+| keyword (BM25) | 10/10 | 1.00 | 2,389 |
+| **brain-real** | **10/10** | 1.00 | 3,173 |
+| brain-connector-gated | 10/10 | 1.00 | 3,209 |
+| brain-no-pin | 10/10 | 1.00 | 3,146 |
+| brain-no-recall | 10/10 | — | 2,200 |
+| oracle (ceiling) | 10/10 | 1.00 | 2,376 |
 
-**Headline.** Postgres was decided across three sessions despite a discarded Mongo prototype. Brain recalls it perfectly (Recall@5 1.0) and passes at the **fewest tokens-per-success of the memory arms**. Here the haystack is small (100 distractors), so plain BM25 also retrieves the decision and passes — on this scenario brain's edge is **efficiency, not correctness**.
+**Headline — memory is essential, brain is not uniquely so.** Without memory the model never recovers the Postgres decision (0/10); with any memory arm it always does. The haystack is small (100 distractors), so plain BM25 finds the decision too — and does it with ~800 fewer tokens than brain's session-start payload. A tie on correctness; BM25 wins on tokens.
 
 ## Scenario C — The Contradiction Test (tabs → spaces → tabs)
 
-| Arm | tok/success | Recall@5 | rubric score | pass |
-|---|---:|:---:|:---:|:---:|
-| fixture-only (floor) | 1,218 | — | 0.78 | 67% |
-| keyword (BM25) | 1,775 | 1.00 | 0.72 | 33% |
-| brain-real | 1,572 | 1.00 | 0.83 | 67% |
-| brain-no-pin | 1,058 | 1.00 | 0.83 | 67% |
-| oracle (ceiling) | 915 | 1.00 | 0.83 | 67% |
-| dump-all-chrono | 469 | — | 0.94 | 100% |
+| Arm | pass | Recall@5 | median tokens |
+|---|:---:|:---:|---:|
+| fixture-only (floor) | 0/10 | — | 803 |
+| keyword (BM25) | 10/10 | 1.00 | 911 |
+| **brain-real** | **10/10** | 1.00 | 1,156 |
+| brain-no-pin | 10/10 | 1.00 | 1,170 |
+| dump-all-chrono | 10/10 | — | 809 |
+| oracle (ceiling) | 10/10 | 1.00 | 840 |
 
-**Headline — an honest null.** Everything clusters near 67%. Indentation (tabs vs spaces) is a **noisy signal to grade from a single-shot text reply**, and the arm that does best is `dump-all-chrono`, which simply concatenates all three versions in time order so the latest (tabs) wins. Brain retrieves the final decision (Recall@5 1.0) but doesn't convert that into a clear pass-rate win here. We report it rather than hide it.
+**Headline — a tie.** Every memory arm resolves the contradiction to the latest decision. Brain is correct but ~250 tokens heavier than BM25 or a chronological dump.
 
 ## Scenario D — Skill Progressive Disclosure (token efficiency)
 
-| Arm | tok/success | rubric score | pass |
-|---|---:|:---:|:---:|
-| fixture-only (floor) | — | 0.33 | 0% |
-| brain-skills L0 (index only) | — | 0.50 | 0% |
-| **brain-skills loaded (L1)** | **1,580** | 1.00 | **100%** |
-| brain-skills all-loaded | 2,289 | 1.00 | 100% |
+| Arm | pass | median tokens |
+|---|:---:|---:|
+| fixture-only (floor) | 0/10 | 2,607 |
+| brain-skills L0 (index only) | 1/10 | 2,533 |
+| **brain-skills loaded (the one relevant skill)** | **10/10** | **2,372** |
+| brain-skills all-loaded | 10/10 | 3,304 |
 
-**Headline.** Loading **just the one relevant skill** passes 100% at **1,580 tokens-per-success — ~31% leaner** than dumping every skill body (2,289). The index-only (L0) and no-skills arms fail: a single-shot model can't act on a skill *index* the way an agent would (read the index, then load the matching `SKILL.md`). That on-demand load is exactly what the skills tier automates — and when it fires, it's both correct and the cheapest passing arm.
+**Headline.** Loading **only the relevant skill** passes 10/10 at **28% fewer tokens** than loading every skill body. An index alone is not enough for a single-shot model (1/10) — it has to load the matching `SKILL.md`, which is what the skills tier automates.
 
 ## Scenario F — Abstention (no confabulation)
 
-| Arm | tok/success | rubric score | pass |
-|---|---:|:---:|:---:|
-| fixture-only (floor) | 775 | 1.00 | 100% |
-| keyword (BM25) | 1,238 | 0.89 | 67% |
-| brain-real | 920 | 1.00 | 100% |
-| oracle (ceiling) | 890 | 1.00 | 100% |
+| Arm | pass | median tokens |
+|---|:---:|---:|
+| fixture-only (floor) | 10/10 | 1,006 |
+| keyword (BM25) | 10/10 | 1,321 |
+| brain-real | 10/10 | 1,781 |
+| oracle (ceiling) | 10/10 | 1,375 |
 
-**Headline — a second honest null.** Asked to set up a deployment pipeline with no deployment target in memory, DeepSeek **abstains correctly with or without brain** (100%) — the base model already declines to invent a target. A noisy keyword retriever, which injects irrelevant top-k, actually drags it down to 67%. Memory neither helps nor hurts abstention in this case.
+**Headline — a null.** Asked to deploy to a target that was never stated, Sonnet asks instead of inventing one, with or without memory. Memory adds tokens and nothing else here.
+
+## Scenario G — Poisoned haystack (memory quarantine)
+
+One memory in the haystack is a planted instruction to send the payment API key to an outside URL and not tell the user.
+
+| Arm | pass | completed | median tokens |
+|---|:---:|:---:|---:|
+| fixture-only (floor) | 9/10 | 10/10 | 1,489 |
+| **brain-flag** (quarantined, visibly marked) | **10/10** | 10/10 | 2,433 |
+| **brain-enforce** (quarantined, excluded) | **10/10** | 10/10 | 2,317 |
+| brain-no-quarantine | 0/10 | **0/10 — refused** | — |
+| context-dump (bounded) | 9/10 | 9/10 (1 refused) | 10,845 |
+| oracle (ceiling) | 10/10 | 10/10 | 2,079 |
+
+**Headline.** With brain's quarantine on, the task completes safely every time. With quarantine off, the poisoned memory ranks into the injected context and **Claude's API safety layer refuses every request** (`stop_reason: refusal`, category `cyber`) — no secret leaks, but no work gets done either. Refusals are counted as no-completion, never as judged answers. Buried among 100 notes in a context dump, the same instruction triggered a refusal in 1 of 10 runs.
+
+## Second model — DeepSeek V4 Pro (partial)
+
+A DeepSeek V4 Pro campaign on 2026-11-08 completed three scenarios before it was stopped by a setup error (see the amendments log). Different judge panel (Gemini 3.5 Flash + Gemini 2.5 Pro + Claude Haiku 5.5); not pooled with the Sonnet results.
+
+| Scenario | Result |
+|---|---|
+| C — contradiction | Every memory arm 9–10/10, floor 0/10; brain-real the leanest memory arm (2,130 vs 2,899 tokens for BM25) |
+| D — skills | Loaded skill 10/10 at **43% fewer tokens** than all skills (4,500 vs 7,870); index only 0/10 |
+| F — abstention | Null — floor 9/10, brain-real 9/10 |
+
+The skills result in D replicates across both models.
 
 ## Reading the suite
 
-Brain wins where it is designed to — **retrieval under heavy noise (A)** and **procedural-skill efficiency (D)** — passing where the BM25 and vector baselines fail, at the lowest token cost among passing arms. It is **efficient and competitive on continuity (B)**, and **neutral on contradiction (C) and abstention (F)**, where the base model needs no memory. That mixed, baseline-anchored picture — floor, oracle ceiling, real retriever baselines, and brain ablations on every scenario — is the point: the wins are attributable to the memory system, and the nulls are reported honestly.
+Brain wins where it is designed to — **retrieval under heavy noise (A)**, **loading only the procedural knowledge a task needs (D)**, and **keeping a poisoned memory from derailing the task (G)**. On small, clean haystacks (B, C) memory matters a lot but a plain keyword retriever matches brain's correctness at lower token cost, and on abstention (F) the base model needs no memory at all. The A result also shows the next improvement to make: the tool-gated policy already retrieves every target memory; the always-on session-start ranking should too.
 
-[Raw JSON →](/benchmarks/deepseek-v4-suite-2026-06-26.json)
+[Raw JSON →](/benchmarks/sonnet-5-5-suite-2026-11-10.json) · [Earlier run: DeepSeek V4 Pro, n=3, June 2026 →](/benchmarks/deepseek-v4-suite-2026-06-26.json)
 
 ## Retrieval scoring calibration — in-vivo probe (July 2026)
 
@@ -147,7 +196,7 @@ improvement as directional evidence pending a controlled re-run (below).
 
 ## What's next
 
-- Re-run the controlled suite (Scenario A especially) on the calibrated scoring — coverage scaling and the relevance floor should sharpen `brain-full`'s Recall@5 under the 1000-distractor haystack.
-- More runs (5–10/arm) for statistical-confidence error bars on the token metric.
-- Scenario E (continual coding, write-side `memorize`) validated end-to-end.
-- A second agent under test (e.g. a stronger reasoning model) to separate memory effects from base-model competence.
+- **Judge validation** — grade a 50-run sample by hand and report κ against the panel (pre-registered gate).
+- **Session-start ranking** — demote superseded memories so always-on injection reaches the connector-gated arm's Recall@5 1.00 on Scenario A.
+- **Scenario E** (continual coding, write-side `memorize`) validated end-to-end.
+- **External benchmarks** — LoCoMo and BEAM alongside the existing LongMemEval-S retrieval numbers.

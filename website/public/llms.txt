@@ -63,6 +63,7 @@ Brain Memory stores every memory as a human-readable Markdown file with YAML fro
 
 ## Blog
 
+- [Three wins, two ties, one null: benchmarking Brain on Claude Sonnet 5.5](https://brainmemory.ai/blog/three-wins-two-ties-one-null) (2026-11-10): 370 graded runs across six memory scenarios. Brain beat BM25 and a vector store under heavy noise, cut skill tokens by 28%, and kept a poisoned memory from killing the task. On small clean haystacks, plain keyword search tied it for fewer tokens.
 - [Ranking a poisoned memory lower is not a defense](https://brainmemory.ai/blog/ranking-is-not-a-defense) (2026-10-18): We planted one wrong answer per question in LongMemEval. Trust-weighted recall still put it first nine times in ten. Brain 0.5.0 keeps untrusted memories out until you approve them, treats remembered permissions as their own class, and checks every memory the agent cites.
 - [We tried to add embeddings. Our own benchmark said no.](https://brainmemory.ai/blog/we-tried-embeddings) (2026-09-07): A real embedding model, given every advantage, failed to beat BM25 on a 1,021-memory corpus with 1,000 distractors. Here is the experiment, the numbers, and what would change our mind.
 - [When a memory stops being true](https://brainmemory.ai/blog/when-a-memory-stops-being-true) (2026-08-08): Decay handles memories that fade. It doesn't handle memories that were true and then, on a specific day, weren't. Brain now models truth-based invalidation: supersede the old fact, keep it answerable, let the new one win.

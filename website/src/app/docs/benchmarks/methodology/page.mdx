@@ -18,15 +18,15 @@ Every choice in the harness is grounded in a specific finding from the 2024-2026
 
 `harness/judge.js` evaluates each run against an explicit per-question rubric of binary criteria. Rather than a single judge, the harness uses a **panel of three judges, every one from a different family than the agent under test** — so no judge can preference-leak toward its own outputs ([Preference Leakage, 2502.01534](https://arxiv.org/abs/2502.01534): same-family judging inflates scores ~24% vs ~3% cross-family). A panel of smaller, disjoint-family judges also beats a single large judge on human agreement with less intra-model bias ([Panel of LLM evaluators / PoLL, 2404.18796](https://arxiv.org/abs/2404.18796)).
 
-For the current suite the agent under test is **DeepSeek V4 Pro**, judged by:
+For the current suite (2026-11-10) the agent under test is **Claude Sonnet 5.5**, judged by:
 
 | Judge | Family | Host |
 |---|---|---|
-| Gemini 2.5 Flash | Google | cloud API |
-| Gemma-4 12B | Google (open) | local (Ollama) |
-| Qwen-3.5 9B | Alibaba | local (Ollama) |
+| Gemini 3.5 Flash | Google | cloud API |
+| Gemini 2.5 Pro | Google | cloud API |
+| DeepSeek V4 Pro | DeepSeek | cloud API |
 
-A candidate **passes only on a majority vote**, and **each rubric criterion is decided by majority** across judges — so a single small-model judge's noise is averaged out rather than deciding the result. Every per-judge verdict and the panel agreement are stored for transparency. The panel composition is the one knob tied to the agent: any judge sharing the agent's family is excluded. (Gemma and Gemini share Google lineage — a minor judge-to-judge correlation — but neither is the DeepSeek family, which is what matters for agent objectivity.)
+A candidate **passes only on a majority vote**, and **each rubric criterion is decided by majority** across judges — so a single judge's noise is averaged out rather than deciding the result. Every per-judge verdict and the panel agreement are stored for transparency. The panel composition is the one knob tied to the agent: any judge sharing the agent's family is excluded, which is why no Claude model sits on this panel. (The two Gemini seats share Google lineage and can form a majority on their own — a disclosed judge-to-judge correlation, but neither is the agent's family, which is what matters for objectivity.) Earlier runs used other panels — DeepSeek V4 Pro was judged by Gemini + Gemma-4 + Qwen-3.5 in June 2026 — and every change is logged with its date and reason in the pre-registration's amendments log.
 
 For pairwise judgments (arm-A vs arm-B), the judge is called **twice** with the candidate order swapped and the verdict kept only if it survives both orderings — the swap-consistency check from [MT-Bench, 2306.05685](https://arxiv.org/abs/2306.05685). Each judgment uses a **binary criteria list**; LongMemEval reports 97% agreement with humans using this format ([LongMemEval, 2410.10813](https://arxiv.org/abs/2410.10813)).
 
@@ -132,6 +132,6 @@ The Brain Memory architecture itself is a direct implementation of the CoALA age
 - [**Preference Leakage** in LLM-as-judge (arxiv 2502.01534)](https://arxiv.org/abs/2502.01534) — same-family judging inflates scores (~24% vs ~3% cross-family). The benchmark judges with a panel of non-agent families.
 - [**Panel of LLM evaluators / PoLL** (arxiv 2404.18796)](https://arxiv.org/abs/2404.18796) — a jury of smaller, disjoint-family judges beats a single large judge on human agreement, with less intra-model bias. The basis for the three-judge panel.
 - [**MT-Bench** — Judging LLM-as-a-Judge (arxiv 2306.05685)](https://arxiv.org/abs/2306.05685) — documents position, verbosity, and self-enhancement bias; origin of the swap-consistency check.
-- [**When Judgment Becomes Noise** (arxiv 2509.20293)](https://arxiv.org/abs/2509.20293) — LLM-judge verdicts carry large unexplained variance; report uncertainty rather than aggregate it away. Why results ship with n=3 error bars.
+- [**When Judgment Becomes Noise** (arxiv 2509.20293)](https://arxiv.org/abs/2509.20293) — LLM-judge verdicts carry large unexplained variance; report uncertainty rather than aggregate it away. Why results ship with confidence intervals and per-judge verdicts.
 - [**Silent Judge** — LLM evaluator shortcuts (arxiv 2509.26072)](https://arxiv.org/abs/2509.26072) — shortcut biases that motivate rubric-based judging with explicit oracle answers.
 - [**LastingBench** (arxiv 2506.21614)](https://arxiv.org/abs/2506.21614) — benchmark-leakage defense. Brain's distractor corpus is deterministic synthetic data for the same reason.

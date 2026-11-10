@@ -85,6 +85,11 @@
   /* blueprint grid hairlines (technical layer) */
   --grid-minor: rgba(16, 34, 52, 0.05);
   --grid-major: rgba(16, 34, 52, 0.085);
+
+  /* Benchmark charts — validated (dataviz validate_palette.js, light vs #FFFFFF) */
+  --viz-brain: #1B8FC4;
+  --viz-base:  #C08312;
+  --viz-floor: #8A97A2;
 }
 
 /* ============================================================
@@ -126,6 +131,11 @@
 
   --grid-minor: rgba(231, 245, 240, 0.045);
   --grid-major: rgba(231, 245, 240, 0.08);
+
+  /* validated vs #0D1012 */
+  --viz-brain: #1FA0DB;
+  --viz-base:  #C4812A;
+  --viz-floor: #6B7571;
 }
 
 /* ---- Base ---- */

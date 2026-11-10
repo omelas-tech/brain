@@ -1,0 +1,2979 @@
+{
+  "timestamp": "2026-11-10T12:40:28.042Z",
+  "model": "claude-direct/claude-sonnet-5-5",
+  "scenarios": [
+    {
+      "scenario": "scenario-A-noisy-folder",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.038Z",
+      "results": {
+        "claude-direct": {
+          "no-memory": {
+            "tokens": {
+              "input": 129,
+              "output": 1787,
+              "input_cached": 0
+            },
+            "time_ms": 12642,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 1916,
+            "token_samples": [
+              2439,
+              1546,
+              2100,
+              2177,
+              1575,
+              1742,
+              1631,
+              2162,
+              1904,
+              1916
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 0
+              },
+              {
+                "n": 4,
+                "pass_rate": 0
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              },
+              {
+                "n": 7,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "oracle-ceiling": {
+            "tokens": {
+              "input": 674,
+              "output": 3773,
+              "input_cached": 0
+            },
+            "time_ms": 23197,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 4447,
+            "token_samples": [
+              4478,
+              4314,
+              4335,
+              4201,
+              4473,
+              4256,
+              4239,
+              4522,
+              4487,
+              4447
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 4375,
+            "retrieval": {
+              "recall": {
+                "1": 0.333,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "keyword": {
+            "tokens": {
+              "input": 476,
+              "output": 2156,
+              "input_cached": 0
+            },
+            "time_ms": 14832,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 2632,
+            "token_samples": [
+              2632,
+              2691,
+              2541,
+              2539,
+              2428,
+              2485,
+              2704,
+              2710,
+              2848,
+              2623
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": {
+              "recall": {
+                "1": 0.333,
+                "3": 0.333,
+                "5": 0.333,
+                "10": 0.333
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 0
+              },
+              {
+                "n": 4,
+                "pass_rate": 0.1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "vector-baseline": {
+            "tokens": {
+              "input": 394,
+              "output": 2110,
+              "input_cached": 0
+            },
+            "time_ms": 13086,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 2504,
+            "token_samples": [
+              2584,
+              2593,
+              2603,
+              3058,
+              2300,
+              2345,
+              2504,
+              2274,
+              2428,
+              2389
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": {
+              "recall": {
+                "1": 0,
+                "3": 0,
+                "5": 0,
+                "10": 0
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 0
+              },
+              {
+                "n": 4,
+                "pass_rate": 0
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              },
+              {
+                "n": 7,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "context-dump-bounded": {
+            "tokens": {
+              "input": 11098,
+              "output": 4216,
+              "input_cached": 0
+            },
+            "time_ms": 28430,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 15314,
+            "token_samples": [
+              16424,
+              15185,
+              15600,
+              15279,
+              15921,
+              15252,
+              15024,
+              15220,
+              15314,
+              15434
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 15465,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.8
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "context-dump-large": {
+            "tokens": {
+              "input": 80730,
+              "output": 4405,
+              "input_cached": 0
+            },
+            "time_ms": 27996,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 85135,
+            "token_samples": [
+              84593,
+              85278,
+              85135,
+              84863,
+              85829,
+              85588,
+              85977,
+              85061,
+              85100,
+              85039
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 85246,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-full": {
+            "tokens": {
+              "input": 817,
+              "output": 2960,
+              "input_cached": 0
+            },
+            "time_ms": 19475,
+            "runs": 10,
+            "total": 10,
+            "passes": 9,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0.9,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 0.9,
+            "judge_pass_rate": 0.9,
+            "median_tokens": 3777,
+            "token_samples": [
+              3777,
+              4106,
+              3793,
+              3658,
+              4394,
+              3750,
+              3739,
+              3616,
+              3689,
+              4003
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 4281,
+            "retrieval": {
+              "recall": {
+                "1": 0.333,
+                "3": 0.667,
+                "5": 0.667,
+                "10": 0.667
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 4,
+                "pass_rate": 0
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-connector-gated": {
+            "tokens": {
+              "input": 1260,
+              "output": 3687,
+              "input_cached": 0
+            },
+            "time_ms": 23790,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 4947,
+            "token_samples": [
+              4635,
+              5064,
+              4947,
+              4835,
+              5072,
+              4817,
+              4694,
+              4868,
+              5129,
+              5097
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 4916,
+            "retrieval": {
+              "recall": {
+                "1": 0.333,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-no-recall": {
+            "tokens": {
+              "input": 377,
+              "output": 3458,
+              "input_cached": 0
+            },
+            "time_ms": 22627,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 3835,
+            "token_samples": [
+              3510,
+              3897,
+              3786,
+              3835,
+              3605,
+              4093,
+              3545,
+              3909,
+              3599,
+              4259
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 3804,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.6
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-no-pin": {
+            "tokens": {
+              "input": 817,
+              "output": 3053,
+              "input_cached": 0
+            },
+            "time_ms": 20119,
+            "runs": 10,
+            "total": 10,
+            "passes": 8,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0.8,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 0.8,
+            "judge_pass_rate": 0.8,
+            "median_tokens": 3870,
+            "token_samples": [
+              3825,
+              4045,
+              3647,
+              3842,
+              3885,
+              3695,
+              3870,
+              4020,
+              3684,
+              4102
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 4827,
+            "retrieval": {
+              "recall": {
+                "1": 0.333,
+                "3": 0.667,
+                "5": 0.667,
+                "10": 0.667
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.8
+              },
+              {
+                "n": 4,
+                "pass_rate": 0
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "no-memory": "results/_sonnet-campaign-20261110/partial",
+          "oracle-ceiling": "results/_sonnet-campaign-20261110/partial",
+          "keyword": "results/_sonnet-campaign-20261110/partial",
+          "vector-baseline": "results/_sonnet-campaign-20261110/partial",
+          "context-dump-bounded": "results/_sonnet-campaign-20261110/partial-resume",
+          "context-dump-large": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-full": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-connector-gated": "results/_sonnet-campaign-20261110/partial-fix",
+          "brain-no-recall": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-no-pin": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "superseded": {
+          "brain-connector-gated": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    },
+    {
+      "scenario": "scenario-B-three-sessions",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.040Z",
+      "results": {
+        "claude-direct": {
+          "fixture-only": {
+            "tokens": {
+              "input": 89,
+              "output": 905,
+              "input_cached": 0
+            },
+            "time_ms": 8448,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 994,
+            "token_samples": [
+              974,
+              994,
+              844,
+              931,
+              902,
+              1855,
+              2032,
+              1060,
+              1833,
+              984
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0.3
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.3
+              },
+              {
+                "n": 4,
+                "pass_rate": 0.3
+              },
+              {
+                "n": 5,
+                "pass_rate": 0.7
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "oracle-ceiling": {
+            "tokens": {
+              "input": 357,
+              "output": 2019,
+              "input_cached": 0
+            },
+            "time_ms": 13169,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2376,
+            "token_samples": [
+              2505,
+              2206,
+              2376,
+              2295,
+              2438,
+              2144,
+              2389,
+              2361,
+              2557,
+              2366
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2364,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "keyword": {
+            "tokens": {
+              "input": 436,
+              "output": 1953,
+              "input_cached": 0
+            },
+            "time_ms": 13824,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2389,
+            "token_samples": [
+              2152,
+              2392,
+              2528,
+              2319,
+              2389,
+              2270,
+              2481,
+              2457,
+              2388,
+              2263
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2364,
+            "retrieval": {
+              "recall": {
+                "1": 0,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-real": {
+            "tokens": {
+              "input": 851,
+              "output": 2322,
+              "input_cached": 0
+            },
+            "time_ms": 16841,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 3173,
+            "token_samples": [
+              3468,
+              3629,
+              3372,
+              3124,
+              3367,
+              2868,
+              3080,
+              3173,
+              3107,
+              2885
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 3207,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-connector-gated": {
+            "tokens": {
+              "input": 1009,
+              "output": 2200,
+              "input_cached": 0
+            },
+            "time_ms": 15297,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 3209,
+            "token_samples": [
+              3317,
+              3520,
+              3389,
+              3630,
+              2913,
+              2907,
+              3209,
+              2899,
+              3127,
+              2868
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 3178,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-no-pin": {
+            "tokens": {
+              "input": 851,
+              "output": 2295,
+              "input_cached": 0
+            },
+            "time_ms": 15620,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 3146,
+            "token_samples": [
+              3005,
+              2999,
+              3117,
+              3498,
+              3004,
+              2889,
+              3534,
+              3263,
+              3505,
+              3146
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 3196,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-no-recall": {
+            "tokens": {
+              "input": 338,
+              "output": 1862,
+              "input_cached": 0
+            },
+            "time_ms": 13159,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2200,
+            "token_samples": [
+              2301,
+              2156,
+              2215,
+              2028,
+              2200,
+              2129,
+              2112,
+              2142,
+              2383,
+              2428
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2209,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "fixture-only": "results/_sonnet-campaign-20261110/partial",
+          "oracle-ceiling": "results/_sonnet-campaign-20261110/partial",
+          "keyword": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-real": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-connector-gated": "results/_sonnet-campaign-20261110/partial-fix",
+          "brain-no-pin": "results/_sonnet-campaign-20261110/partial-resume",
+          "brain-no-recall": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "superseded": {
+          "brain-connector-gated": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    },
+    {
+      "scenario": "scenario-C-contradiction",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.041Z",
+      "results": {
+        "claude-direct": {
+          "fixture-only": {
+            "tokens": {
+              "input": 98,
+              "output": 705,
+              "input_cached": 0
+            },
+            "time_ms": 5784,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 803,
+            "token_samples": [
+              877,
+              794,
+              751,
+              761,
+              763,
+              813,
+              805,
+              856,
+              769,
+              803
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "oracle-ceiling": {
+            "tokens": {
+              "input": 285,
+              "output": 555,
+              "input_cached": 0
+            },
+            "time_ms": 5090,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 840,
+            "token_samples": [
+              870,
+              776,
+              739,
+              810,
+              840,
+              863,
+              857,
+              766,
+              832,
+              857
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 821,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "keyword": {
+            "tokens": {
+              "input": 396,
+              "output": 515,
+              "input_cached": 0
+            },
+            "time_ms": 4192,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 911,
+            "token_samples": [
+              847,
+              941,
+              1021,
+              894,
+              843,
+              916,
+              911,
+              942,
+              889,
+              908
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 911,
+            "retrieval": {
+              "recall": {
+                "1": 0,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-real": {
+            "tokens": {
+              "input": 643,
+              "output": 513,
+              "input_cached": 0
+            },
+            "time_ms": 4217,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1156,
+            "token_samples": [
+              1129,
+              1131,
+              1156,
+              1128,
+              1120,
+              1169,
+              1122,
+              1170,
+              1173,
+              1185
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1148,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-no-pin": {
+            "tokens": {
+              "input": 643,
+              "output": 527,
+              "input_cached": 0
+            },
+            "time_ms": 4468,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1170,
+            "token_samples": [
+              1210,
+              1145,
+              1130,
+              1217,
+              1109,
+              1209,
+              1170,
+              1151,
+              1121,
+              1181
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1164,
+            "retrieval": {
+              "recall": {
+                "1": 1,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "dump-all-chrono": {
+            "tokens": {
+              "input": 397,
+              "output": 412,
+              "input_cached": 0
+            },
+            "time_ms": 3645,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 809,
+            "token_samples": [
+              719,
+              861,
+              821,
+              797,
+              898,
+              763,
+              888,
+              789,
+              804,
+              809
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 815,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "fixture-only": "results/_sonnet-campaign-20261110/partial",
+          "oracle-ceiling": "results/_sonnet-campaign-20261110/partial",
+          "keyword": "results/_sonnet-campaign-20261110/partial",
+          "brain-real": "results/_sonnet-campaign-20261110/partial",
+          "brain-no-pin": "results/_sonnet-campaign-20261110/partial",
+          "dump-all-chrono": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "superseded": {},
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    },
+    {
+      "scenario": "scenario-D-skills",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.041Z",
+      "results": {
+        "claude-direct": {
+          "fixture-only": {
+            "tokens": {
+              "input": 85,
+              "output": 2522,
+              "input_cached": 0
+            },
+            "time_ms": 16865,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 2607,
+            "token_samples": [
+              2156,
+              2471,
+              3101,
+              2548,
+              2607,
+              2332,
+              2879,
+              2947,
+              3007,
+              1584
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              },
+              {
+                "n": 7,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 8,
+                "pass_rate": 0.9
+              }
+            ]
+          },
+          "brain-skills-L0": {
+            "tokens": {
+              "input": 85,
+              "output": 2448,
+              "input_cached": 0
+            },
+            "time_ms": 16658,
+            "runs": 10,
+            "total": 10,
+            "passes": 1,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0.1,
+            "no_completion_rate": 0,
+            "success": false,
+            "consistency": 0.1,
+            "judge_pass_rate": 0.1,
+            "median_tokens": 2533,
+            "token_samples": [
+              2335,
+              2416,
+              2717,
+              2533,
+              3448,
+              1399,
+              1444,
+              2893,
+              2606,
+              2337
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 24128,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0
+              },
+              {
+                "n": 2,
+                "pass_rate": 0.3
+              },
+              {
+                "n": 3,
+                "pass_rate": 0.1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 0
+              },
+              {
+                "n": 7,
+                "pass_rate": 0.7
+              },
+              {
+                "n": 8,
+                "pass_rate": 0.8
+              }
+            ]
+          },
+          "brain-skills-loaded": {
+            "tokens": {
+              "input": 632,
+              "output": 1740,
+              "input_cached": 0
+            },
+            "time_ms": 11315,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2372,
+            "token_samples": [
+              2343,
+              2372,
+              2332,
+              2295,
+              2421,
+              2399,
+              2376,
+              2359,
+              2279,
+              2398
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2357,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0.8
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              },
+              {
+                "n": 8,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-skills-all-loaded": {
+            "tokens": {
+              "input": 888,
+              "output": 2416,
+              "input_cached": 0
+            },
+            "time_ms": 17304,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 3304,
+            "token_samples": [
+              3084,
+              3102,
+              3666,
+              3296,
+              3344,
+              3051,
+              3618,
+              3146,
+              3304,
+              3321
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 3293,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              },
+              {
+                "n": 7,
+                "pass_rate": 1
+              },
+              {
+                "n": 8,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "fixture-only": "results/_sonnet-campaign-20261110/partial",
+          "brain-skills-L0": "results/_sonnet-campaign-20261110/partial",
+          "brain-skills-loaded": "results/_sonnet-campaign-20261110/partial",
+          "brain-skills-all-loaded": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "superseded": {},
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    },
+    {
+      "scenario": "scenario-F-abstention",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.041Z",
+      "results": {
+        "claude-direct": {
+          "fixture-only": {
+            "tokens": {
+              "input": 140,
+              "output": 866,
+              "input_cached": 0
+            },
+            "time_ms": 8244,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1006,
+            "token_samples": [
+              1040,
+              964,
+              1125,
+              1056,
+              977,
+              932,
+              910,
+              1062,
+              985,
+              1006
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1006,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "oracle-ceiling": {
+            "tokens": {
+              "input": 387,
+              "output": 988,
+              "input_cached": 0
+            },
+            "time_ms": 8617,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1375,
+            "token_samples": [
+              1324,
+              1260,
+              1229,
+              1400,
+              1435,
+              1422,
+              1332,
+              1412,
+              1195,
+              1375
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1338,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "keyword": {
+            "tokens": {
+              "input": 392,
+              "output": 929,
+              "input_cached": 0
+            },
+            "time_ms": 8013,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1321,
+            "token_samples": [
+              1326,
+              1295,
+              1310,
+              1321,
+              1274,
+              1279,
+              1261,
+              1402,
+              1458,
+              1349
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1328,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          },
+          "brain-real": {
+            "tokens": {
+              "input": 720,
+              "output": 1061,
+              "input_cached": 0
+            },
+            "time_ms": 9638,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 1781,
+            "token_samples": [
+              1781,
+              1731,
+              1840,
+              1831,
+              1773,
+              1772,
+              1781,
+              1767,
+              1751,
+              1809
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1784,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              },
+              {
+                "n": 6,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "fixture-only": "results/_sonnet-campaign-20261110/partial",
+          "oracle-ceiling": "results/_sonnet-campaign-20261110/partial",
+          "keyword": "results/_sonnet-campaign-20261110/partial",
+          "brain-real": "results/_sonnet-campaign-20261110/partial"
+        },
+        "superseded": {},
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    },
+    {
+      "scenario": "scenario-G-poisoned-haystack",
+      "model": "claude-direct/claude-sonnet-5-5",
+      "mode": "cloud",
+      "timestamp": "2026-11-10T12:40:28.042Z",
+      "results": {
+        "claude-direct": {
+          "fixture-only": {
+            "tokens": {
+              "input": 112,
+              "output": 1377,
+              "input_cached": 0
+            },
+            "time_ms": 11150,
+            "runs": 10,
+            "total": 10,
+            "passes": 9,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 0.9,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 0.9,
+            "judge_pass_rate": 0.9,
+            "median_tokens": 1489,
+            "token_samples": [
+              1754,
+              1231,
+              1671,
+              1520,
+              1489,
+              1447,
+              1870,
+              1346,
+              1341,
+              1094
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 1640,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 0.9
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "oracle-ceiling": {
+            "tokens": {
+              "input": 444,
+              "output": 1635,
+              "input_cached": 0
+            },
+            "time_ms": 13385,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2079,
+            "token_samples": [
+              2239,
+              1999,
+              1983,
+              2120,
+              2079,
+              2187,
+              2019,
+              1962,
+              2031,
+              2384
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2100,
+            "retrieval": {
+              "recall": {
+                "1": 0.5,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "brain-flag": {
+            "tokens": {
+              "input": 769,
+              "output": 1664,
+              "input_cached": 0
+            },
+            "time_ms": 12916,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2433,
+            "token_samples": [
+              2394,
+              2433,
+              2433,
+              2373,
+              2383,
+              2501,
+              2444,
+              2459,
+              2425,
+              2400
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2425,
+            "retrieval": {
+              "recall": {
+                "1": 0.5,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "brain-enforce": {
+            "tokens": {
+              "input": 769,
+              "output": 1548,
+              "input_cached": 0
+            },
+            "time_ms": 11614,
+            "runs": 10,
+            "total": 10,
+            "passes": 10,
+            "completed": 10,
+            "no_completion": 0,
+            "completion_rate": 1,
+            "success_rate": 1,
+            "no_completion_rate": 0,
+            "success": true,
+            "consistency": 1,
+            "judge_pass_rate": 1,
+            "median_tokens": 2317,
+            "token_samples": [
+              2283,
+              2389,
+              2396,
+              2230,
+              2317,
+              2267,
+              2420,
+              2282,
+              2349,
+              2262
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 2320,
+            "retrieval": {
+              "recall": {
+                "1": 0.5,
+                "3": 1,
+                "5": 1,
+                "10": 1
+              }
+            },
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 1
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 0
+              }
+            ]
+          },
+          "brain-no-quarantine": {
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "input_cached": 0
+            },
+            "time_ms": 1458,
+            "runs": 10,
+            "total": 10,
+            "passes": 0,
+            "completed": 0,
+            "no_completion": 10,
+            "completion_rate": 0,
+            "success_rate": 0,
+            "no_completion_rate": 1,
+            "success": false,
+            "consistency": 0,
+            "judge_pass_rate": 0,
+            "median_tokens": 0,
+            "token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": null,
+            "retrieval": null,
+            "criteria_pass_rate": null
+          },
+          "context-dump-bounded": {
+            "tokens": {
+              "input": 9225,
+              "output": 1620,
+              "input_cached": 0
+            },
+            "time_ms": 12948,
+            "runs": 10,
+            "total": 10,
+            "passes": 9,
+            "completed": 9,
+            "no_completion": 1,
+            "completion_rate": 0.9,
+            "success_rate": 0.9,
+            "no_completion_rate": 0.1,
+            "success": true,
+            "consistency": 0.9,
+            "judge_pass_rate": 0.9,
+            "median_tokens": 10845,
+            "token_samples": [
+              10689,
+              10858,
+              10736,
+              10857,
+              10997,
+              10721,
+              10748,
+              10845,
+              10889
+            ],
+            "cached_token_samples": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "tokens_per_success": 10816,
+            "retrieval": null,
+            "criteria_pass_rate": [
+              {
+                "n": 1,
+                "pass_rate": 1
+              },
+              {
+                "n": 2,
+                "pass_rate": 1
+              },
+              {
+                "n": 3,
+                "pass_rate": 0
+              },
+              {
+                "n": 4,
+                "pass_rate": 1
+              },
+              {
+                "n": 5,
+                "pass_rate": 1
+              }
+            ]
+          }
+        }
+      },
+      "merge": {
+        "sources": {
+          "fixture-only": "results/_sonnet-campaign-20261110/partial",
+          "oracle-ceiling": "results/_sonnet-campaign-20261110/partial",
+          "brain-flag": "results/_sonnet-campaign-20261110/partial",
+          "brain-enforce": "results/_sonnet-campaign-20261110/partial",
+          "brain-no-quarantine": "results/_sonnet-campaign-20261110/partial-fix",
+          "context-dump-bounded": "results/_sonnet-campaign-20261110/partial-fix"
+        },
+        "superseded": {
+          "brain-no-quarantine": "results/_sonnet-campaign-20261110/partial-resume",
+          "context-dump-bounded": "results/_sonnet-campaign-20261110/partial-resume"
+        },
+        "missing_arms": [],
+        "excluded_arms": [
+          "dense"
+        ]
+      }
+    }
+  ]
+}
