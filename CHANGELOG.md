@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-10
+
+First npm release of the 0.6.0 work: 0.6.0 was tagged but never published, so
+everything listed under 0.6.0 below reaches npm with this version.
+
+### Changed
+- **README: November 2026 benchmark results.** The benchmark section now
+  reports the confirmatory run — Claude Sonnet 5.5 under test, N=10 per arm,
+  a Gemini 3.5 Flash + Gemini 2.5 Pro + DeepSeek V4 Pro judge panel — across
+  scenarios A–D, F and the new poisoned-haystack scenario G, replacing the
+  June n=3 numbers. Full tables and raw JSON:
+  [brainmemory.ai/docs/benchmarks/results](https://brainmemory.ai/docs/benchmarks/results/).
+
 ## [0.6.0] - 2026-11-09
 
 Memories you actually use now get stronger, and stale facts can be retired.
