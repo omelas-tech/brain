@@ -13,6 +13,15 @@
 /** @type {BlogPost[]} */
 export const blogPosts = [
   {
+    title: "Three wins, two ties, one null: benchmarking Brain on Claude Sonnet 5.5",
+    description:
+      "370 graded runs across six memory scenarios. Brain beat BM25 and a vector store under heavy noise, cut skill tokens by 28%, and kept a poisoned memory from killing the task. On small clean haystacks, plain keyword search tied it for fewer tokens.",
+    href: "/blog/three-wins-two-ties-one-null",
+    date: "2026-11-10",
+    readingTime: "8 min",
+    tag: "Benchmarks",
+  },
+  {
     title: "Ranking a poisoned memory lower is not a defense",
     description:
       "We planted one wrong answer per question in LongMemEval. Trust-weighted recall still put it first nine times in ten. Brain 0.5.0 keeps untrusted memories out until you approve them, treats remembered permissions as their own class, and checks every memory the agent cites.",

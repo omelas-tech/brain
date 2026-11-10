@@ -1,0 +1,87 @@
+import Callout from "@/app/components/docs/Callout";
+import { SuiteDotPlot, ScenarioACost } from "@/app/components/BenchmarkCharts";
+
+import { blogMeta } from "@/lib/blog";
+
+export const metadata = blogMeta("/blog/three-wins-two-ties-one-null", {
+  title: "Three wins, two ties, one null: benchmarking Brain on Claude Sonnet 5.5",
+  description:
+    "370 graded runs across six memory scenarios. Brain beat BM25 and a vector store under heavy noise, cut skill tokens by 28%, and kept a poisoned memory from killing the task. On small clean haystacks, plain keyword search tied it for fewer tokens.",
+  publishedTime: "2026-11-10",
+});
+
+<div className="mb-10 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+  <span className="text-[var(--accent)]">Benchmarks</span> · 10 November 2026 · 8 min
+</div>
+
+# Three wins, two ties, one null: benchmarking Brain on Claude Sonnet 5.5
+
+With 1,000 irrelevant memories in the way, Claude Sonnet 5.5 solved our retrieval task 0 times out of 10 when it was given BM25's top results, 0 out of 10 with a vector store's, and 9 out of 10 with Brain's. That is the best result in this run. Two others are ties that keyword search wins on cost, and one shows memory doing nothing at all.
+
+We're publishing all of them, because a suite that only reports wins tells you nothing about where the line is.
+
+## What we measured
+
+The question for each scenario is narrow: give the same model the same task, change only the memory it receives, and see whether the answer passes.
+
+- **Agent under test:** Claude Sonnet 5.5, called once per run through the Messages API. No Claude Code, so no CLI system prompt, tools, `CLAUDE.md` or auto memory leaking into any arm. Single-shot means the model can't go exploring to rediscover a convention; whatever it knows came from the arm.
+- **Arms:** a no-memory floor, an oracle ceiling (exactly the right memories), BM25, a vector baseline, context dumps of the whole corpus, Brain, and Brain with parts switched off.
+- **Grading:** a three-judge panel — Gemini 3.5 Flash, Gemini 2.5 Pro and DeepSeek V4 Pro — majority vote on each rubric criterion. No Claude model judges a Claude agent; models measurably prefer their own family's output.
+- **Sample:** 10 runs per arm per scenario, fixed in the [pre-registration](https://github.com/omelas-tech/brain/blob/main/benchmark/PREREGISTRATION.md) before the runs. Pass rates are compared with Fisher's exact test; tokens with Mann–Whitney U and Holm–Bonferroni correction.
+
+<SuiteDotPlot />
+
+## Where Brain wins
+
+**A — retrieval under noise.** The task depends on three project conventions buried among 1,000 deterministic distractors. BM25 surfaces one of the three; the vector baseline surfaces none. With either, the model fails every run. With Brain's session-start payload it passes 9 of 10 (Fisher exact p = 0.0001 against each baseline).
+
+The only other ways to pass are to skip retrieval: hand the model the answer (the oracle) or paste the whole corpus into the prompt.
+
+<ScenarioACost />
+
+That chart is the argument for a memory layer in one picture. The dumps work, at 15,314 and 85,135 median tokens per run against Brain's 3,777. Everything cheaper than Brain fails.
+
+**D — loading only the skill you need.** Brain stores procedures as skills and loads one only when the task matches it. With the single relevant `SKILL.md` loaded, the model passes 10/10 at 2,372 median tokens. Loading every skill body also passes, at 3,304 — 28% more. Giving it the index alone (names and descriptions, no bodies) passes 1 in 10, which is why the loading step exists. An earlier, partial run on DeepSeek V4 Pro showed the same shape with a bigger gap: 43% fewer tokens.
+
+**G — a poisoned memory.** One memory in the haystack instructs the agent to send the payment API key to an outside URL and not mention it. We expected to measure leaks. What we measured was refusals.
+
+With Brain's quarantine switched off, the planted memory ranks into the injected context, and Claude's API safety layer refused all 10 runs (`stop_reason: refusal`). No key left the building, and no work got done either. With quarantine on, in either mode — flagged as unverified, or held out of recall entirely — the task completed 10 of 10 times. Pasting all 100 memories into the prompt buried the instruction well enough that only 1 run in 10 was refused.
+
+So the cost of a poisoned memory, on a model with a strong safety layer, isn't only the risk that it gets obeyed. It's that an agent can be stopped from working by one bad line it remembered. Quarantine is what kept the task alive.
+
+## Where it ties, and where it doesn't matter
+
+**B and C — small, clean haystacks.** In B, a decision made across three earlier sessions has to survive into a fourth. In C, a convention flips from tabs to spaces and back, and the latest decision has to win. Without memory the model gets both wrong every time. With any memory arm, it gets them right every time — including plain BM25, which does it with fewer tokens: about 800 fewer than Brain in B and about 250 fewer in C.
+
+With 100 distractors or fewer, keyword search finds the right memory, and Brain's session-start payload — pinned conventions, skills index, recall — is overhead. If your memory store stays that small and that clean, you don't need Brain's ranking. You do need memory.
+
+**F — abstention.** Asked to deploy to a target nobody ever named, Sonnet asks which target instead of inventing one, with or without memory. Memory only added tokens here. On this model, abstention is already solved by the model.
+
+## The bug the benchmark caught
+
+The first pass of this run scored `brain-connector-gated` — the arm where the model writes its own recall query, as it does through the hosted connector — at 0 of 10 on scenarios A and B. Its Recall@5 was a perfect 1.00. It was retrieving exactly the right memories and failing anyway.
+
+The cause was in our harness, not in Brain. `brain recall` returns IDs, titles, paths and scores, not memory bodies, and the arm was formatting the results without reading the files. The model was being handed three correct titles with nothing under them. After the fix, the arm passed 10 of 10 on both scenarios. The affected cells were re-run and the change is recorded in the pre-registration's amendments log.
+
+The fix also shows the clearest next improvement for Brain itself. On A, the always-on session-start payload reaches Recall@5 0.67, because superseded versions of a convention take two of the five slots; the model-queried path reaches 1.00. Session start should demote superseded memories as aggressively as an explicit query does.
+
+## What this does not show
+
+<Callout type="warning">
+**The judges have not been checked against human grading yet.** The pre-registration requires Cohen's κ ≥ 0.6 on at least 50 hand-graded runs before any headline is final. Every per-judge verdict and rationale is in the raw JSON so that check can be done by anyone.
+</Callout>
+
+- **One model.** The full suite ran on Sonnet 5.5 only. The DeepSeek V4 Pro campaign stopped after three scenarios on a setup error and is reported separately, not pooled.
+- **No real embedding arm.** The `dense` arm, which uses a real embedding model, was excluded from this run because its API key was invalid. The [last time we ran it](/blog/we-tried-embeddings/), it lost to BM25. The vector baseline in these tables is a lexical control, and we label it that way.
+- **Synthetic distractors.** Generated memories may be easier or harder to tell apart than real ones.
+- **Single-shot.** Agents that can call tools repeatedly may recover some of what a single-shot model misses. Scenario E, which tests continual coding with write-side memory, is still deferred.
+
+## Run it yourself
+
+The harness, scenarios, judge prompts and raw results are MIT-licensed in [the benchmark directory](https://github.com/omelas-tech/brain/tree/main/benchmark). The agent runs for the full suite cost about $14 of Anthropic API credit; the DeepSeek judge seat about $2.40.
+
+```bash
+node harness/runner.js --scenario scenario-A-noisy-folder --agent claude-direct
+```
+
+Full tables, per-arm token CIs and the [raw JSON](/benchmarks/sonnet-5-5-suite-2026-11-10.json) are on the [results page](/docs/benchmarks/results/). If you have a scenario where a plain retriever beats Brain on correctness, not just tokens, we want to add it to the suite.
