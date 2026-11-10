@@ -591,6 +591,22 @@ describe('Formatter', () => {
 describe('Agent Registry', () => {
   it('getAllNames returns expected agent names', () => {
     const names = getAllNames();
-    assert.deepEqual(names, ['claude', 'gemini', 'codex', 'opencode', 'ollama', 'deepseek']);
+    assert.deepEqual(names, ['claude', 'gemini', 'codex', 'opencode', 'ollama', 'deepseek', 'claude-direct']);
+  });
+});
+
+describe('claude-direct adapter', () => {
+  const claudeDirect = require('../harness/agents/claude-direct');
+  it('counts cache reads and cache writes as input tokens', () => {
+    assert.deepEqual(
+      claudeDirect.normalizeUsage({ input_tokens: 100, cache_read_input_tokens: 400, cache_creation_input_tokens: 50, output_tokens: 7 }),
+      { input: 550, output: 7, input_cached: 400 },
+    );
+  });
+  it('defaults to Sonnet 5.5', () => {
+    const prev = process.env.CLAUDE_BENCH_MODEL;
+    delete process.env.CLAUDE_BENCH_MODEL;
+    assert.equal(claudeDirect.model, 'claude-sonnet-5-5');
+    if (prev !== undefined) process.env.CLAUDE_BENCH_MODEL = prev;
   });
 });

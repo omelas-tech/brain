@@ -129,6 +129,20 @@ async function runArms(ctx) {
     }
 
     armResults[arm.name] = continual ? aggregateContinualArm(runs) : aggregateArm(runs);
+
+    // Checkpoint after every arm so a killed or crashed campaign keeps the
+    // arms it already paid for (results are otherwise only written when the
+    // whole scenario finishes).
+    if (process.env.BENCH_PARTIAL_DIR) {
+      try {
+        fs.mkdirSync(process.env.BENCH_PARTIAL_DIR, { recursive: true });
+        fs.writeFileSync(
+          path.join(process.env.BENCH_PARTIAL_DIR, `${scenarioName}.${agent.name}.partial.json`),
+          JSON.stringify({ scenario: scenarioName, agent: agent.name, model: agent.model || null,
+            saved_at: new Date().toISOString(), arms_done: Object.keys(armResults), results: armResults }, null, 2),
+        );
+      } catch (err) { console.error(`        checkpoint write failed: ${err.message}`); }
+    }
   }
 
   return armResults;

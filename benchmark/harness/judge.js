@@ -39,7 +39,7 @@ const JUDGE_MAX_TOKENS = 2000;
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_JUDGE_TIMEOUT_MS = 240_000;
 const DEEPSEEK_JUDGE_TIMEOUT_MS = 180_000;
-const DEEPSEEK_JUDGE_MAX_TOKENS = 4096;
+const DEEPSEEK_JUDGE_MAX_TOKENS = 16384; // v4-pro thinking counts against this (see agents/deepseek-direct.js)
 // Gemini 2.5 Pro thinks before answering and its thinking counts against
 // maxOutputTokens; at 2000 a 7-criterion verdict was cut off mid-JSON.
 const GEMINI_JUDGE_MAX_TOKENS = 8192;
