@@ -34,7 +34,10 @@ echo "→ installing deps + (re)starting service"
 ssh "$VPS" bash -s <<'REMOTE'
 set -euo pipefail
 cd /opt/brain-connector/connector
-npm install --silent --no-audit --no-fund
+# `npm ci` installs exactly what package-lock.json records and fails if the lock
+# and package.json disagree — a deploy can never pick up a dependency version
+# that was not tested.
+npm ci --silent --no-audit --no-fund
 
 # Dedicated unprivileged service account (no shell, no login) — the connector
 # must not run as root (it shares the box with brain-cloud).

@@ -31,7 +31,7 @@ import {
 import { memorize, pin, unpin, forget, verifyList, verifyApprove, verifyReject } from "./write.js";
 import { rateLimit } from "./ratelimit.js";
 import { memoryResult } from "./result.js";
-import { INSPECTOR_URI, inspectorHtml } from "./inspector.js";
+import { INSPECTOR_URI, INSPECTOR_MIME, INSPECTOR_TOOL_META, inspectorHtml } from "./inspector.js";
 
 /**
  * A tool result the client MUST NOT act on because the token lacks the write
@@ -308,8 +308,12 @@ export function buildServer(session: Session): McpServer {
       const heldBack = stored?.supersede_pending?.length
         ? ` — the replacement of ${stored.supersede_pending.join(", ")} is HELD until you approve this write (brain_verify); those memories are still current`
         : "";
+      // A repeat of a write that just landed (a retried or replayed call) is
+      // answered with the memory already stored — say so, so it is not read as
+      // a second memory.
+      const verb = stored?.duplicate ? "Already stored" : "Stored";
       return memoryResult(
-        `Stored "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${syncMsg}${pending}${replaced}${heldBack}`,
+        `${verb} "${stored.title ?? title ?? "memory"}" (${stored.id ?? "ok"})${syncMsg}${pending}${replaced}${heldBack}`,
         { stored, synced: sync.pushed },
       );
     },
@@ -359,11 +363,13 @@ export function buildServer(session: Session): McpServer {
       if (!hasScope(session, "brain.write")) return scopeError("brain_forget");
       await ensureFresh();
       const { result: res, sync } = await writeThenSync(() => forget(session.brainDir, id));
-      return memoryResult(`Archived ${id}${sync.pushed ? " — synced" : ""}`, { ...res, synced: sync.pushed });
+      const verb = res?.already_archived ? "Already archived" : "Archived";
+      return memoryResult(`${verb} ${id}${sync.pushed ? " — synced" : ""}`, { ...res, synced: sync.pushed });
     },
   );
 
   // ---- Verification (ASI06 quarantine) ------------------------------------
+  const uiEnabled = process.env.CONNECTOR_ENABLE_UI === "1";
   server.registerTool(
     "brain_verify",
     {
@@ -377,6 +383,9 @@ export function buildServer(session: Session): McpServer {
         ids: z.array(z.string()).optional().describe("Memory ids for approve/reject"),
       },
       annotations: { title: "Verify memories", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+      // Hosts that render MCP Apps show the review queue in the inspector view;
+      // every other host gets the same result as text.
+      ...(uiEnabled ? { _meta: INSPECTOR_TOOL_META } : {}),
     },
     async ({ action, ids }) => {
       await ensureFresh();
@@ -398,16 +407,21 @@ export function buildServer(session: Session): McpServer {
     },
   );
 
-  // Experimental MCP App (memory inspector). Dormant unless CONNECTOR_ENABLE_UI=1
-  // — MCP Apps client support is still emerging, so it must never touch the
-  // default tool surface. Registers a self-contained ui:// HTML resource.
-  if (process.env.CONNECTOR_ENABLE_UI === "1") {
+  // MCP App (memory inspector): the read-only review-queue view linked from
+  // brain_verify. Off unless CONNECTOR_ENABLE_UI=1, so the default tool
+  // surface carries no UI metadata.
+  if (uiEnabled) {
     server.registerResource(
       "brain-inspector",
       INSPECTOR_URI,
-      { title: "Memory Inspector", description: "Provenance and verification state for recalled memories.", mimeType: "text/html" },
+      { title: "Memory Inspector", description: "Memories held for verification: origin and the reason each was held.", mimeType: INSPECTOR_MIME },
       async () => ({
-        contents: [{ uri: INSPECTOR_URI, mimeType: "text/html", text: inspectorHtml() }],
+        contents: [{
+          uri: INSPECTOR_URI,
+          mimeType: INSPECTOR_MIME,
+          text: inspectorHtml(),
+          _meta: { ui: { prefersBorder: true } },
+        }],
       }),
     );
   }

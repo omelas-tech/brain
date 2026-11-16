@@ -31,6 +31,9 @@ Environment=CONNECTOR_BRAIN_BASE=/run/brain-connector
 StateDirectory=brain-connector
 StateDirectoryMode=0700
 Environment=CONNECTOR_STATE_DIR=/var/lib/brain-connector
+# Memory Inspector (MCP App): brain_verify links a read-only view of the review
+# queue for hosts that render MCP Apps. Other hosts get the same result as text.
+Environment=CONNECTOR_ENABLE_UI=1
 
 # --- Sandbox hardening -----------------------------------------------------
 # The service handles user-supplied brain bundles (tar). Even with the in-app

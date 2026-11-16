@@ -81,6 +81,18 @@ async function main() {
     assert.ok(id, "memorize returns a stored id");
     log(`② brain_memorize → ${id} (synced=${mem.structuredContent.synced})`);
 
+    // A replayed call (a retry, or a host executing an approved write twice)
+    // must not store the memory a second time.
+    const replay: any = await client.callTool({
+      name: "brain_memorize",
+      arguments: { content: "Deploy runbook: always run make deploy-all so the email sidecar updates, not just the Go API.", title: "Deploy runbook", type: "decision", tags: ["deploy", "runbook"] },
+    });
+    assert.equal(replay.structuredContent.stored.id, id, "a replayed memorize returns the memory already stored");
+    assert.match(replay.content[0].text, /^Already stored/);
+    const afterReplay: any = await client.callTool({ name: "brain_status", arguments: {} });
+    assert.equal(afterReplay.structuredContent.memory_count, 1, "the replay did not add a memory");
+    log(`②b brain_memorize replayed → same id, count still 1`);
+
     // It's immediately recallable (memorize updated the search index)
     const rec: any = await client.callTool({ name: "brain_recall", arguments: { query: "deploy runbook sidecar", limit: 3 } });
     assert.equal(rec.structuredContent.results[0].id, id, "the just-written memory is the top recall hit");
@@ -106,6 +118,11 @@ async function main() {
     const st: any = await client.callTool({ name: "brain_status", arguments: {} });
     assert.equal(st.structuredContent.memory_count, 0, "live memory count is back to 0 after archive");
     log(`⑥ brain_forget → ${id} archived (gone from recall, in _archived, count=0)`);
+
+    const forgetAgain: any = await client.callTool({ name: "brain_forget", arguments: { id } });
+    assert.ok(!forgetAgain.isError, "a replayed forget is not an error");
+    assert.match(forgetAgain.content[0].text, /^Already archived/);
+    log(`⑦ brain_forget replayed → already archived, no error`);
 
     await client.close();
     console.log("\n✅ PHASE 2 (writes): memorize → recall → pin/unpin → forget(archive), all through the connector.");
