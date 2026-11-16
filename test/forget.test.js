@@ -140,3 +140,27 @@ describe('forget CLI: archive + cleanup', () => {
     assert.match(r.json.error, /Usage/);
   });
 });
+
+describe('forget CLI: repeated call', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('reports an already-archived memory as archived, not as missing', () => {
+    initBrain();
+    const id = seed([baseMem()]).stored[0].id;
+    assert.equal(forget([id]).status, 0);
+
+    const again = forget([id]);
+    assert.equal(again.status, 0);
+    assert.equal(again.json.archived, true);
+    assert.equal(again.json.already_archived, true);
+    assert.equal(again.json.title, 'A learning');
+  });
+
+  it('still fails for an id that never existed', () => {
+    initBrain();
+    const r = forget(['mem_20260101_000000']);
+    assert.equal(r.status, 1);
+    assert.match(r.json.error, /Memory not found/);
+  });
+});

@@ -413,3 +413,70 @@ describe('memorize: sensitivity consent', () => {
     assert.match(unknown.json.error, /Unknown sensitivity "private"/);
   });
 });
+
+describe('memorize: replayed and colliding writes', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('answers an identical repeat with the memory already stored', () => {
+    initBrain();
+    const first = run({ memories: [baseMem()] });
+    const second = run({ memories: [baseMem()] });
+    assert.equal(second.status, 0);
+    assert.equal(second.json.stored[0].id, first.json.stored[0].id);
+    assert.equal(second.json.stored[0].duplicate, true);
+    assert.equal(readIndex(tmpDir).memory_count, 1);
+  });
+
+  it('stores the same text again once the replay window has passed', () => {
+    initBrain();
+    const first = run({ memories: [baseMem()] });
+    const idx = readIndex(tmpDir);
+    idx.memories[first.json.stored[0].id].created = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+    writeIndex(idx, tmpDir);
+
+    const second = run({ memories: [baseMem()] });
+    assert.notEqual(second.json.stored[0].id, first.json.stored[0].id);
+    assert.equal(second.json.stored[0].duplicate, undefined);
+    assert.equal(readIndex(tmpDir).memory_count, 2);
+  });
+
+  it('treats a repeat inside one batch as a replay', () => {
+    initBrain();
+    const r = run({ memories: [baseMem(), baseMem()] });
+    assert.equal(r.json.stored[0].id, r.json.stored[1].id);
+    assert.equal(readIndex(tmpDir).memory_count, 1);
+  });
+
+  it('never writes a second memory over the file of the first', () => {
+    initBrain();
+    const first = run({ memories: [baseMem({ content: 'The first fact.' })] }).json.stored[0];
+    const second = run({ memories: [baseMem({ content: 'A different fact.' })] }).json.stored[0];
+    assert.notEqual(second.id, first.id);
+    assert.equal(first.path, 'professional/notes/learn.md');
+    assert.notEqual(second.path, first.path);
+    assert.match(second.path, /^professional\/notes\/learn-[0-9a-f]+\.md$/);
+
+    const brainDir = getBrainDir(tmpDir);
+    const firstFile = fs.readFileSync(path.join(brainDir, first.path), 'utf-8');
+    const secondFile = fs.readFileSync(path.join(brainDir, second.path), 'utf-8');
+    assert.ok(firstFile.includes(`id: ${first.id}`) && firstFile.endsWith('The first fact.\n'));
+    assert.ok(secondFile.includes(`id: ${second.id}`) && secondFile.endsWith('A different fact.\n'));
+    assert.equal(readIndex(tmpDir).memories[second.id].path, second.path);
+  });
+});
+
+describe('memorize: replay of a write that was moved off an occupied path', () => {
+  beforeEach(setup);
+  afterEach(teardown);
+
+  it('recognises the repeat by the path it asked for', () => {
+    initBrain();
+    run({ memories: [baseMem({ content: 'The first fact.' })] });
+    const moved = run({ memories: [baseMem({ content: 'A different fact.' })] }).json.stored[0];
+    const again = run({ memories: [baseMem({ content: 'A different fact.' })] }).json.stored[0];
+    assert.equal(again.id, moved.id);
+    assert.equal(again.duplicate, true);
+    assert.equal(readIndex(tmpDir).memory_count, 2);
+  });
+});

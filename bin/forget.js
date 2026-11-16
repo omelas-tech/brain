@@ -58,7 +58,21 @@ function archiveMemory(brainDir, id, opts = {}) {
   const index = readIndex();
   if (!index) return { error: 'Brain not initialized.' };
   const entry = index.memories[id];
-  if (!entry) return { error: `Memory not found: ${id}` };
+  if (!entry) {
+    // Archiving is repeatable: a second call for a memory already in the
+    // archive (a retried or replayed tool call) reports the state it asked for.
+    const archivedEntry = (readArchiveIndex() || { memories: {} }).memories[id];
+    if (archivedEntry) {
+      return {
+        archived: true,
+        already_archived: true,
+        id,
+        title: archivedEntry.title,
+        memory_count: index.memory_count,
+      };
+    }
+    return { error: `Memory not found: ${id}` };
+  }
 
   if (!force && typeof entry.salience === 'number' && entry.salience >= SALIENCE_FLOOR) {
     return {

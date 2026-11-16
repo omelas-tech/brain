@@ -437,6 +437,52 @@ function trySync() {
 
 // --- Main ---
 
+// --- Replay protection -------------------------------------------------------
+//
+// A tool call can be executed twice: a client retries after a timeout, or a host
+// replays an approved write. Without a guard the second run stores the same
+// memory again under a new id. A write is treated as a replay — and answered
+// with the memory already stored — when title, type, origin, path and content
+// all match a memory created inside this window. Outside it, storing the same
+// text again is taken to be deliberate.
+const REPLAY_WINDOW_MS = 10 * 60 * 1000;
+
+function bodyHash(content) {
+  return contentHash(String(content).trim());
+}
+
+/** The id of a just-stored memory this write repeats, or null. */
+function findReplay(index, mem, origin, hash, now) {
+  const nowMs = Date.parse(now);
+  for (const [id, entry] of Object.entries(index.memories || {})) {
+    if (entry.body_hash !== hash) continue;
+    if (entry.title !== mem.title || entry.type !== mem.type || entry.origin !== origin) continue;
+    // The first write may have been moved off an occupied path (uniquePath).
+    if (entry.path !== mem.path && entry.path !== suffixedPath(mem.path, id)) continue;
+    const age = nowMs - Date.parse(entry.created);
+    if (age >= 0 && age <= REPLAY_WINDOW_MS) return id;
+  }
+  return null;
+}
+
+/** `notes/x.md` → `notes/x-<id suffix>.md`. */
+function suffixedPath(relPath, id) {
+  const ext = path.posix.extname(relPath);
+  return `${relPath.slice(0, relPath.length - ext.length)}-${id.split('_').pop()}${ext}`;
+}
+
+/**
+ * A path no other memory occupies. Two memories with the same title derive the
+ * same path; writing the second over the first would destroy the first one's
+ * content while its index entry lived on, pointing at the wrong file.
+ */
+function uniquePath(brainDir, index, relPath, id) {
+  const taken = (p) =>
+    fs.existsSync(path.join(brainDir, p)) ||
+    Object.values(index.memories || {}).some((e) => e.path === p);
+  return taken(relPath) ? suffixedPath(relPath, id) : relPath;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -590,9 +636,41 @@ async function main() {
     const pinDropped = Boolean(mem.pinned && quarantine.quarantined);
     if (pinDropped) mem.pinned = false;
 
+    // Replay protection: an identical write that just landed is answered with
+    // the memory already stored, not stored again.
+    const hash = bodyHash(mem.content);
+    const replayId = findReplay(index, mem, origin, hash, now);
+    if (replayId) {
+      const prior = index.memories[replayId];
+      results.push({
+        id: replayId,
+        title: prior.title,
+        path: prior.path,
+        type: prior.type,
+        cognitive_type: prior.cognitive_type,
+        strength: prior.strength,
+        decay_rate: prior.decay_rate,
+        origin: prior.origin,
+        salience: prior.salience,
+        confidence: prior.confidence,
+        tags: prior.tags || [],
+        edges_created: 0,
+        duplicate: true,
+        ...(prior.quarantined
+          ? { quarantine_pending: true, quarantine_reasons: prior.quarantine_reasons || [] }
+          : {}),
+      });
+      continue;
+    }
+
     // Generate ID
     const id = generateId();
     newIds.push(id);
+
+    // Validated before it is made unique, so a traversal attempt is refused
+    // rather than renamed.
+    validateBrainPath(path.join(brainDir, mem.path), brainDir);
+    mem.path = uniquePath(brainDir, index, mem.path, id);
 
     // Compute strength/decay
     const { fileContent, strength, decay_rate } = buildMemoryFileContent(
@@ -641,6 +719,8 @@ async function main() {
     // never came through a write path — the one poisoning route every other
     // defense here is blind to. See src/integrity.js.
     indexEntry.content_hash = contentHash(fileContent);
+    // The content alone, so a repeat of this write can be recognised.
+    indexEntry.body_hash = hash;
     addMemory(index, id, indexEntry);
 
     // CoALA Phase 1: register a born-pinned memory in the pinned manifest
