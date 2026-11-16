@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-16
+
+Writes are safe to repeat, and two memories can no longer share a file.
+
+### Fixed
+- **A second memory with the same path no longer overwrites the first.** Two
+  memories with the same title derive the same file path; the second write
+  replaced the first one's file while both stayed in the index, so the older
+  memory's content was lost and its id pointed at the newer text. The second
+  memory now gets its own file (`<name>-<id suffix>.md`). Most exposed through
+  the connector, which derives the path from the title.
+
+### Added
+- **Replayed writes are recognised.** A `memorize` that repeats one from the
+  last ten minutes — same title, type, origin, path and content — returns the
+  memory already stored, marked `duplicate: true`, instead of storing it again.
+  This covers a client retrying after a timeout and a host executing an approved
+  tool call twice. `brain forget` on a memory that is already archived now
+  reports `already_archived` instead of failing. The connector says "Already
+  stored" / "Already archived" for these.
+- **Connector: the Memory Inspector follows the MCP Apps specification.** With
+  `CONNECTOR_ENABLE_UI=1`, `brain_verify` links a view (`ui://brain/inspector`,
+  `text/html;profile=mcp-app`) that shows the review queue: each memory held
+  for verification, its origin and why it was held. The view is read-only —
+  approving and rejecting stay in the conversation. On for the hosted connector
+  (mcp.brainmemory.ai); off by default when self-hosting.
+- **Docs: importing brain memories into Codex** via the `claude-memory` export.
+
+### Changed
+- **Connector deploy installs from the lock file** (`npm ci`), so a deploy
+  cannot pick up a dependency version that was not tested.
+
 ## [0.6.1] - 2026-11-10
 
 First npm release of the 0.6.0 work: 0.6.0 was tagged but never published, so
