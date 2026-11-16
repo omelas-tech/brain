@@ -48,6 +48,34 @@ Validity windows, associations and recall history stay in brain. A recorded date
 memory's `source` and never as `valid_from`, because the date something was saved is not the date
 it became true.
 
+## Into Codex
+
+Codex can import another agent's memory, and it reads the same files `claude-memory` writes. Its
+importer copies the Markdown files under `~/.claude/projects/<project>/memory/` into
+`$CODEX_HOME/memories_v2/`. Export to an empty directory, then copy the memory files into the
+Claude Code project you want Codex to associate them with:
+
+```bash
+brain port export --format claude-memory --out ./brain-export
+mkdir -p ~/.claude/projects/<project>/memory
+cp -n ./brain-export/*.md ~/.claude/projects/<project>/memory/   # -n: never replace a file already there
+```
+
+Then run `/import` in Codex and select memory. Three things to know:
+
+- Codex only picks up a project that also has a Claude Code session, because it takes the
+  project's working directory from the session. A memory directory on its own is not detected.
+- The files arrive unchanged, so what Codex receives is exactly what the table above lists for
+  `claude-memory`: title, content and a mapped type. Tags, dates and validity windows are not in
+  the files.
+- In Codex 0.169 the importer is behind the `external_agent_memory_import` feature flag, which is
+  off by default (`codex features enable external_agent_memory_import`).
+
+<Callout type="warning">
+Do not point `--out` at a memory directory Claude Code already uses. The export writes its own
+`MEMORY.md` and replaces any file with the same name, so the existing index would be lost.
+</Callout>
+
 ## Safety
 
 - **Export writes only what recall could show.** Memories pending verification, consent-hidden
